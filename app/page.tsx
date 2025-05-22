@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { GlassCard } from '@/components/ui/glass-card'
+import { ContactForm } from '@/components/ui/contact-form'
 
 const CyberCore = dynamic(() => import('@/components/CyberCore'), {
   ssr: false,
@@ -66,13 +67,7 @@ export default function Home() {
           <GlassCard delay={1800}>
             <div className="text-center">
               <h2 className="text-4xl font-bold mb-6 text-white text-glow font-orbitron">Connect with coRESEARCH</h2>
-              <p className="text-lg text-gray-200 mb-6 font-rajdhani">Send us a message:</p>
-              <form action="mailto:ml.delaurier@gmail.com" method="POST" encType="text/plain" className="space-y-4 text-left">
-                <label className="block"><span>Name</span><input type="text" name="Name" required className="w-full p-2 rounded bg-white/20 text-white"/></label>
-                <label className="block"><span>Email</span><input type="email" name="Email" required className="w-full p-2 rounded bg-white/20 text-white"/></label>
-                <label className="block"><span>Message</span><textarea name="Message" rows={4} required className="w-full p-2 rounded bg-white/20 text-white"/></label>
-                <button type="submit" className="btn-futuristic w-full py-2">Send Message</button>
-              </form>
+              <ContactForm />
             </div>
           </GlassCard>
         </div>

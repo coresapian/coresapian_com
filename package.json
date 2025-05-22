@@ -18,7 +18,9 @@
   "author": "coRESEARCH",
   "license": "MIT",
   "dependencies": {
+    "@hookform/resolvers": "^5.0.1",
     "@radix-ui/react-dialog": "^1.1.14",
+    "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-slot": "^1.2.3",
     "@react-three/drei": "^10.0.8",
     "@react-three/fiber": "^9.1.2",
@@ -34,11 +36,13 @@
     "postcss": "^8.5.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-hook-form": "^7.56.4",
     "shadcn-ui": "^0.9.5",
     "tailwind-merge": "^3.3.0",
     "tailwindcss": "^4.1.7",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.176.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "zod": "^3.25.20"
   }
 }

@@ -12,6 +12,7 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 
 const contactSchema = z.object({
@@ -72,7 +73,7 @@ export function ContactForm() {
             <FormItem>
               <FormLabel>Message</FormLabel>
               <FormControl>
-                <textarea {...field} rows={4} className="w-full rounded bg-white/20 p-2 text-white" />
+                <Textarea {...field} rows={4} className="bg-white/20 text-white" />
               </FormControl>
               <FormMessage />
             </FormItem>

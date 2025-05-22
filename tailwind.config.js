@@ -6,11 +6,23 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       colors: {
         'core-blue': '#0066cc',
         'core-orange': '#ff6600',
         'core-dark': '#1a1a1a',
+        'neon-blue': 'rgb(0, 240, 255)',
+        'neon-purple': 'rgb(168, 85, 247)',
+        'neon-orange': 'rgb(255, 136, 0)',
+        'neon-green': 'rgb(57, 255, 20)',
+        'neon-pink': 'rgb(255, 0, 128)',
         'neon': {
           blue: '#00f0ff',
           purple: '#a855f7',
@@ -71,5 +83,5 @@ module.exports = {
       }
     },
   },
-  plugins: [],
+  plugins: [require("tailwindcss-animate")],
 }

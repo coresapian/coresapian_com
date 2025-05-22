@@ -11,9 +11,9 @@ const CyberCore = dynamic(() => import('@/components/CyberCore'), {
       <div className="text-white text-center glass-panel rounded-xl p-8 max-w-md mx-auto">
         <div className="loading-spinner w-16 h-16 mx-auto mb-6"></div>
         <h1 className="text-4xl font-bold mb-4 font-orbitron">
-          co<span className="text-neon-blue neon-glow">RESEARCH</span>
+          <span className="text-neon-blue neon-glow">coresapian</span>
         </h1>
-        <p className="text-lg opacity-80 font-rajdhani">Initializing core systems...</p>
+        <p className="text-lg opacity-80 font-rajdhani">Awakening the evolution...</p>
       </div>
     </div>
   )
@@ -32,12 +32,15 @@ export default function Home() {
           <GlassCard glow delay={300}>
             <div className="text-center">
               <h1 className="text-6xl md:text-8xl font-black mb-8 font-orbitron">
-                co<span className="text-neon-blue neon-glow">RESEARCH</span>
+                coresapian
               </h1>
               <p className="text-2xl md:text-3xl text-gray-200 mb-12 leading-relaxed font-rajdhani font-light">
-                A collective of AI researchers building systems and frameworks 
-                to improve LLM/AI performance and abilities
+                Like Earth&apos;s layers, research goes deep. From the inner core of fundamental AI principles to the surface applications that change the world.
               </p>
+              <blockquote className="text-xl italic text-gray-300 border-l-4 border-neon-purple pl-8 py-4 space-y-2 font-rajdhani bg-black/20 rounded-r-xl">
+                <p>“We started as ‘core’ researchers, diving into the foundational layers of machine learning and AI systems.</p>
+                <p>This is coresapian — a collaborative effort building better AI frameworks and tools at every layer.”</p>
+              </blockquote>
             </div>
           </GlassCard>
         </div>
@@ -53,10 +56,9 @@ export default function Home() {
                 Like Earth&apos;s layers, research goes deep. From the inner core 
                 of fundamental AI principles to the surface applications that change the world.
               </p>
-              <blockquote className="text-xl italic text-gray-300 border-l-4 border-neon-purple pl-8 py-4 font-rajdhani bg-black/20 rounded-r-xl">
-                &quot;We started as &apos;core&apos; researchers, diving into the foundational 
-                layers of machine learning and AI systems. Now we&apos;re coRESEARCH - 
-                a collaborative effort building better AI frameworks and tools at every layer.&quot;
+              <blockquote className="text-xl italic text-gray-300 border-l-4 border-neon-purple pl-8 py-4 space-y-2 font-rajdhani bg-black/20 rounded-r-xl">
+                <p>“We started as ‘core’ researchers, diving into the foundational layers of machine learning and AI systems.</p>
+                <p>This is coresapian — a collaborative effort building better AI frameworks and tools at every layer.”</p>
               </blockquote>
             </div>
           </GlassCard>

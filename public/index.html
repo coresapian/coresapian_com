@@ -246,11 +246,32 @@ function init() {
         }
     });
     
-    // Set up animation mixer
+    // Set up animation mixer and state
     if (gltf.animations && gltf.animations.length > 0) {
         mixer = new THREE.AnimationMixer(puzzleCore);
+        
+        // Store animation data
+        window.animationState = {
+            actions: [],
+            isForward: true,
+            isPaused: false,
+            pauseStartTime: 0,
+            pauseDuration: 5, // seconds to pause at end
+            timeScale: 1.0,
+            easingDuration: 1.0 // seconds to ease in/out
+        };
+
         gltf.animations.forEach((clip) => {
-            mixer.clipAction(clip).play();
+            const action = mixer.clipAction(clip);
+            action.clampWhenFinished = true;
+            action.loop = THREE.LoopOnce;
+            window.animationState.actions.push(action);
+        });
+
+        // Start playing forward
+        window.animationState.actions.forEach(action => {
+            action.reset();
+            action.play();
         });
     }
     
@@ -315,8 +336,56 @@ function init() {
         
         // Update animations
         const delta = clock.getDelta();
-        if (mixer) {
-            mixer.update(delta);
+        if (mixer && window.animationState) {
+            const state = window.animationState;
+            const actions = state.actions;
+            
+            if (actions.length > 0) {
+                const action = actions[0]; // Use first animation as reference
+                const time = action.time;
+                const duration = action._clip.duration;
+                
+                if (!state.isPaused) {
+                    // Calculate how close we are to the end (0 = start, 1 = end)
+                    const progress = state.isForward ? time / duration : 1 - (time / duration);
+                    
+                    // Apply easing when near the end
+                    if (progress > (duration - state.easingDuration) / duration) {
+                        const easeProgress = (progress - ((duration - state.easingDuration) / duration)) / (state.easingDuration / duration);
+                        state.timeScale = 1.0 - (easeProgress * 0.9); // Slow down to 10% speed
+                    } else {
+                        state.timeScale = 1.0;
+                    }
+                    
+                    // Check if animation reached end
+                    if (state.isForward && time >= duration - 0.001 || 
+                        !state.isForward && time <= 0.001) {
+                        state.isPaused = true;
+                        state.pauseStartTime = clock.getElapsedTime();
+                    }
+                    
+                    // Apply timeScale to all actions
+                    actions.forEach(a => a.timeScale = state.isForward ? state.timeScale : -state.timeScale);
+                    mixer.update(delta);
+                } else {
+                    // Handle pause and reverse
+                    const pauseElapsed = clock.getElapsedTime() - state.pauseStartTime;
+                    if (pauseElapsed >= state.pauseDuration) {
+                        state.isPaused = false;
+                        state.isForward = !state.isForward;
+                        state.timeScale = 1.0;
+                        
+                        // Reset and restart animations in new direction
+                        actions.forEach(a => {
+                            a.timeScale = state.isForward ? 1 : -1;
+                            if (state.isForward) {
+                                a.reset();
+                                a.play();
+                            }
+                        });
+                    }
+                }
+            }
         }
         
         // Create gentler pulsing effect

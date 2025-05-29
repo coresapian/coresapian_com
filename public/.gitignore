@@ -1,0 +1,5 @@
+# Ignore everything except site content
+!.gitignore
+!index.html
+!*.jpg
+!*.glb

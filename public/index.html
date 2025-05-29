@@ -290,9 +290,9 @@ function init() {
     // Bloom pass
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.3,   // strength (reduced from 0.5)
+        0.2,   // strength (reduced from 0.5)
         0.4,   // radius
-        0.7    // threshold (increased to reduce overall bloom)
+        0.9    // threshold (increased to reduce overall bloom)
     );
     
     // Final output pass

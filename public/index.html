@@ -1,22 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>Coresapian - Puzzle Core Ocean</title>
+		<title>coresapian</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
-			/* 
- * Styles for the body element of the webpage.
- * 
- * This sets the overall appearance and layout of the body, including:
- * - margin: Removes default margin around the body.
- * - background-color: Sets the background color to black.
- * - color: Sets the text color to white for contrast.
- * - font-family: Uses a monospace font for a consistent character width.
- * - font-size: Sets the base font size to 13 pixels.
- * - line-height: Sets the height of each line of text to 24 pixels for readability.
- * - overscroll-behavior: Prevents scrolling behavior from affecting the body.
- */
+
 body {
     margin: 0;
     background-color: #000;
@@ -77,12 +66,12 @@ body {
 			import { Water } from 'three/addons/objects/Water.js';
 			import { Sky } from 'three/addons/objects/Sky.js';
 			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-			// WaterCaustics import removed
+			import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
 
 			let container;
 			let camera, scene, renderer, composer;
 			let controls, water, sun;
-			let puzzleCore; // Reference to our loaded model
+			let abstractCore;
 
 			init();
 
@@ -149,7 +138,7 @@ function init() {
         textureWidth: 1024,
         textureHeight: 1024,
         waterNormals: new THREE.TextureLoader().load(
-            'https://threejs.org/examples/textures/waternormals.jpg', // Revert to working CDN texture
+            'https://threejs.org/examples/textures/waternormals.jpg', 
             texture => {
                 texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
                 texture.repeat.set(8, 8);
@@ -174,39 +163,61 @@ function init() {
     water.rotation.x = -Math.PI / 2;
     scene.add(water);
 
-        // Depth-based transparency (temporarily disabled)
-    // water.material.onBeforeCompile = shader => {
-    //     shader.uniforms.cameraPosition = water.material.uniforms.cameraPosition;
-    //     shader.fragmentShader = shader.fragmentShader
-    //         .replace('#include <fog_fragment>', 
-    //             `gl_FragColor.a *= clamp(1.0 - distance(vWorldPosition.xz, cameraPosition.xz)/5000.0, 0.4, 1.0);
-    //             #include <fog_fragment>`);
-    // };
-
     /** Setup lighting */
     // Ambient light for overall scene brightness
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 5.0);
     scene.add(ambientLight);
 
     // Main directional light
-    const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const mainLight = new THREE.DirectionalLight(0xffffff, 2.0);
     mainLight.position.set(5, 5, 5);
     scene.add(mainLight);
 
     // Fill light from opposite direction
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 1.6);
     fillLight.position.set(-5, 0, -5);
     scene.add(fillLight);
 
+    /** Add a visible sun mesh */
+    const sunGeometry = new THREE.SphereGeometry(120, 32, 32); // Sun size
+    const sunMaterial = new THREE.MeshBasicMaterial({
+        color: 0xFFFFCC,
+        emissive: 0xFFFFAA,
+        emissiveIntensity: 1,
+    });
+    const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+    sunMesh.position.set(1200, 2000, 1200); // Position far up and to the side
+    scene.add(sunMesh);
+
+    // --- Lens Flare ---
+    const lensflare = new Lensflare();
+    const textureLoader = new THREE.TextureLoader();
+    const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
+    const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
+    lensflare.addElement(new LensflareElement(flareTexture, 700, 0, sunMesh.color));
+    lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
+    lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
+    lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
+    lensflare.position.copy(sunMesh.position);
+    scene.add(lensflare);
+
+    // --- Sprite-based Glow ---
+    const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png');
+    const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: 0xffffcc, transparent: true, opacity: 0.6 });
+    const glowSprite = new THREE.Sprite(glowMaterial);
+    glowSprite.scale.set(800, 800, 1); // Adjust size as needed
+    glowSprite.position.copy(sunMesh.position);
+    scene.add(glowSprite);
+
     /** Create skybox - reduced geometry complexity */
-    const skyGeometry = new THREE.SphereGeometry(5000, 32, 16); // Reduced segments
+    const skyGeometry = new THREE.SphereGeometry(8000, 64, 64); // Reduced segments
     // Flip the geometry inside out
     skyGeometry.scale(-1, 1, 1);
     
     // Load the skybox texture
     const skyboxLoader = new GLTFLoader();
     skyboxLoader.load(
-        'milky_way_skybox_hdri_panorama.glb',
+        'skybox.glb',
         (gltf) => {
             // Get the first material from the model
             let skyMaterial;
@@ -228,21 +239,23 @@ function init() {
     const loader = new GLTFLoader();
     loader.load(
         '/abstract_core.glb',
-        /**
- * Callback executed when the GLTF model is successfully loaded.
- *
- * @param {THREE.GLTF} gltf - The loaded GLTF asset containing the scene graph.
- */
-(gltf) => {
-    // Retrieve the root scene object from the loaded GLTF
-    puzzleCore = gltf.scene;
-    // Uniformly scale the model by a factor of 5
-    puzzleCore.scale.set(1, 1, 1);
-    // Position the model at (0, 5, 0)
-    puzzleCore.position.set(0, 5, 0);
+        (gltf) => {
+            abstractCore = gltf.scene;
+            abstractCore.scale.set(1, 1, 1);
+            abstractCore.position.set(0, 5, 0);
+
+            // Log all mesh names and their material colors to help identify the core mesh
+            abstractCore.traverse((child) => {
+                if (child.isMesh) {
+                    console.log('Mesh name:', child.name);
+                    if (child.material && child.material.color) {
+                        console.log('  Color:', child.material.color.getHexString());
+                    }
+                }
+            });
     
     // Set up materials for glowing effect
-    puzzleCore.traverse((child) => {
+    abstractCore.traverse((child) => {
         if (child.isMesh) {
             // Store original material
             child.originalMaterial = child.material;
@@ -253,7 +266,7 @@ function init() {
     
     // Set up animation mixer and state
     if (gltf.animations && gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(puzzleCore);
+        mixer = new THREE.AnimationMixer(abstractCore);
         
         // Store animation data
         window.animationState = {
@@ -297,7 +310,7 @@ function init() {
     }
     
     // Add the model to the scene
-    scene.add(puzzleCore);
+    scene.add(abstractCore);
     console.log('Model loaded successfully');
 },
         (xhr) => {
@@ -308,9 +321,9 @@ function init() {
             // Fallback: create a glowing icosahedron
             const geometry = new THREE.IcosahedronGeometry(10, 2);
             const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.2, metalness: 0.8 });
-            puzzleCore = new THREE.Mesh(geometry, material);
-            puzzleCore.position.set(0, 5, 0);
-            scene.add(puzzleCore);
+            abstractCore = new THREE.Mesh(geometry, material);
+            abstractCore.position.set(0, 5, 0);
+            scene.add(abstractCore);
             console.log('Model load failed, using fallback icosahedron');
         }
     );
@@ -387,16 +400,16 @@ function init() {
         }
         
         // Update random rotation with frame skipping for performance
-        if (puzzleCore && frameCount % 2 === 0) { // Only update every other frame
+        if (abstractCore && frameCount % 2 === 0) { // Only update every other frame
             const rot = window.animationState.rotation;
             rot.noiseOffset.x += 0.001;
             rot.noiseOffset.y += 0.002;
             rot.noiseOffset.z += 0.003;
             
             // Apply smooth random rotation
-            puzzleCore.rotation.x += window.smoothNoise(rot.noiseOffset.x) * rot.speed * delta;
-            puzzleCore.rotation.y += window.smoothNoise(rot.noiseOffset.y) * rot.speed * delta;
-            puzzleCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
+            abstractCore.rotation.x += window.smoothNoise(rot.noiseOffset.x) * rot.speed * delta;
+            abstractCore.rotation.y += window.smoothNoise(rot.noiseOffset.y) * rot.speed * delta;
+            abstractCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
         }
         frameCount++;
         

@@ -197,25 +197,39 @@ function init() {
 
     /** Load skybox */
     const skyboxLoader = new GLTFLoader();
+    console.log('Loading skybox from:', 'milky_way_skybox_hdri_panorama.glb');
     skyboxLoader.load(
         'milky_way_skybox_hdri_panorama.glb',
         (gltf) => {
+            console.log('Skybox loaded successfully:', gltf);
+            console.log('Animations:', gltf.animations);
+            console.log('Scene:', gltf.scene);
+            
             const skyboxModel = gltf.scene;
             // Scale it large enough to encompass the scene
             skyboxModel.scale.set(1000, 1000, 1000);
             // Make sure it renders behind everything
             skyboxModel.renderOrder = -1;
+            
+            // Debug traversal
             skyboxModel.traverse((child) => {
+                console.log('Child:', child.type, child.name);
                 if (child.isMesh) {
+                    console.log('Found mesh:', child.name);
+                    console.log('Original material:', child.material);
                     child.material.side = THREE.BackSide;
                     // Ensure skybox is always rendered first
                     child.material.depthWrite = false;
                     child.material.depthTest = false;
                 }
             });
+            
             scene.add(skyboxModel);
+            console.log('Skybox added to scene');
         },
-        undefined,
+        (progress) => {
+            console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
+        },
         (error) => {
             console.error('Error loading skybox:', error);
         }

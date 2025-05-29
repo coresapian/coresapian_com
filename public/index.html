@@ -203,7 +203,7 @@ function init() {
     // Skybox: use equirectangular texture
     const skyboxTextureLoader = new THREE.TextureLoader();
     skyboxTextureLoader.load(
-        'public/M3_Sky_Dome_equirectangular-jpg_clear_blue_sky_bright_1478788763_455173.jpg',
+        './M3_Sky_Dome_equirectangular-jpg_clear_blue_sky_bright_1478788763_455173.jpg',
         function(texture) {
             texture.mapping = THREE.EquirectangularReflectionMapping;
             scene.background = texture;
@@ -218,7 +218,7 @@ function init() {
     /** Load GLB model for the puzzle core */
     const loader = new GLTFLoader();
     loader.load(
-        'public/puzzle_core.glb',
+        './puzzle_core.glb',
         (gltf) => {
             puzzleCore = gltf.scene;
             puzzleCore.scale.set(5, 5, 5);

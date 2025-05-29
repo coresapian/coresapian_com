@@ -108,43 +108,31 @@ function init() {
         antialias: true,
         preserveDrawingBuffer: true
     });
-    renderer.domElement.addEventListener('webglcontextlost', event => {
-        console.error('WebGL context lost');
-        event.preventDefault();
-    }, false);
-
-    // Add error checking after renderer creation
-    if (!renderer.getContext()) {
-        alert('WebGL not supported!');
-        return;
-    }
-
-    console.log('Renderer created successfully');
-
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer = new THREE.WebGLRenderer({
+        antialias: false,  // Disable antialiasing for performance
+        powerPreference: 'high-performance',
+        stencil: false,
+        depth: true
+    });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setAnimationLoop(animate);
+    renderer.shadowMap.enabled = false; // Disable shadows for performance
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.5;
     container.appendChild(renderer.domElement);
-    console.log('Renderer appended to DOM');
+    
+    renderer.domElement.addEventListener('webglcontextlost', event => {
+        console.error('WebGL context lost');
+        event.preventDefault();
+    });
 
-    /** Scene creation */
+    /** Scene with fog for distance culling */
     scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x000000, 1000, 5000); // Add fog to help with performance
     console.log('Scene created');
 
-    /** Camera setup
-     * - 55° vertical field of view
-     * - Aspect ratio matches window
-     * - Near clipping at 1, far at 20 000 units
-     * - Positioned at (30, 30, 100)
-     */
-    camera = new THREE.PerspectiveCamera(
-        55,
-        window.innerWidth / window.innerHeight,
-        1,
-        20000
-    );
+    /** Camera with optimized frustum */
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 6000); // Reduced far plane
     camera.position.set(30, 30, 100);
     console.log('Camera set up at position: ' + camera.position.toArray().join(', '));
 
@@ -197,7 +185,7 @@ function init() {
 
     /** Setup lighting */
     // Ambient light for overall scene brightness
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
     scene.add(ambientLight);
 
     // Main directional light
@@ -206,12 +194,12 @@ function init() {
     scene.add(mainLight);
 
     // Fill light from opposite direction
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
     fillLight.position.set(-5, 0, -5);
     scene.add(fillLight);
 
-    /** Create skybox */
-    const skyGeometry = new THREE.SphereGeometry(5000, 60, 40);
+    /** Create skybox - reduced geometry complexity */
+    const skyGeometry = new THREE.SphereGeometry(5000, 32, 16); // Reduced segments
     // Flip the geometry inside out
     skyGeometry.scale(-1, 1, 1);
     
@@ -339,6 +327,7 @@ function init() {
     let clock = new THREE.Clock();
     // Store mixer for animations
     let mixer;
+    let frameCount = 0; // For frame skipping
 
     function animate() {
         requestAnimationFrame(animate);
@@ -397,8 +386,8 @@ function init() {
             }
         }
         
-        // Update random rotation
-        if (puzzleCore) {
+        // Update random rotation with frame skipping for performance
+        if (puzzleCore && frameCount % 2 === 0) { // Only update every other frame
             const rot = window.animationState.rotation;
             rot.noiseOffset.x += 0.001;
             rot.noiseOffset.y += 0.002;
@@ -409,21 +398,23 @@ function init() {
             puzzleCore.rotation.y += window.smoothNoise(rot.noiseOffset.y) * rot.speed * delta;
             puzzleCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
         }
+        frameCount++;
         
         // Render the scene
         renderer.render(scene, camera);
     }
     animate();
 
-    /** Handle browser window resize */
-    window.addEventListener('resize', onWindowResize);
-}
-
-			function onWindowResize() {
-				camera.aspect = window.innerWidth / window.innerHeight;
-				camera.updateProjectionMatrix();
-				renderer.setSize(window.innerWidth, window.innerHeight);
-			}
+    /** Handle window resize with debouncing */
+    let resizeTimeout;
+    window.addEventListener('resize', function () {
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }, 250); // Wait 250ms after last resize event
+    });
 
 			/**
  * Animation loop entry point.

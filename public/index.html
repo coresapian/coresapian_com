@@ -218,14 +218,23 @@ function init() {
     /** Load GLB model for the puzzle core */
     const loader = new GLTFLoader();
     loader.load(
-        './puzzle_core.glb',
-        (gltf) => {
-            puzzleCore = gltf.scene;
-            puzzleCore.scale.set(5, 5, 5);
-            puzzleCore.position.set(0, 5, 0);
-            scene.add(puzzleCore);
-            console.log('Model loaded successfully');
-        },
+        '/public/electric_core.glb',
+        /**
+ * Callback executed when the GLTF model is successfully loaded.
+ *
+ * @param {THREE.GLTF} gltf - The loaded GLTF asset containing the scene graph.
+ */
+(gltf) => {
+    // Retrieve the root scene object from the loaded GLTF
+    puzzleCore = gltf.scene;
+    // Uniformly scale the model by a factor of 5
+    puzzleCore.scale.set(5, 5, 5);
+    // Position the model at (0, 5, 0)
+    puzzleCore.position.set(0, 5, 0);
+    // Add the model to the scene
+    scene.add(puzzleCore);
+    console.log('Model loaded successfully');
+};,
         (xhr) => {
             console.log((xhr.loaded / xhr.total * 100) + '% loaded');
         },

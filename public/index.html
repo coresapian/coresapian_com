@@ -416,39 +416,6 @@ function init() {
         }, 250); // Wait 250ms after last resize event
     });
 
-			/**
- * Animation loop entry point.
- *
- * This function is called on each animation frame to update the scene.
- * It invokes `render()` to draw the current state, and when used with
- * `requestAnimationFrame`, it creates a continuous rendering loop.
- *
- * @returns {void}
- */
-/**
- * Initiates the animation process by calling the render function.
- * This function is typically called in a loop to create a smooth animation effect.
- */
-function animate() {
-    console.log('Animation frame running');
-    render();
-}
-
-			function render() {
-				const time = performance.now() * 0.001;
-
-				// Animate the model if it's loaded
-				if (puzzleCore) {
-					// Gentle rotation
-					puzzleCore.rotation.x = time * 0.5;
-					puzzleCore.rotation.z = time * 0.51;
-				}
-
-				// Update water animation
-				water.material.uniforms['time'].value += 1.0 / 60.0;
-
-				composer.render();
-			}
 		</script>
 	</body>
 </html>

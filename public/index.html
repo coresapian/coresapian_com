@@ -195,43 +195,29 @@ function init() {
     //             #include <fog_fragment>`);
     // };
 
-    /** Load skybox */
+    /** Create skybox */
+    const skyGeometry = new THREE.SphereGeometry(5000, 60, 40);
+    // Flip the geometry inside out
+    skyGeometry.scale(-1, 1, 1);
+    
+    // Load the skybox texture
     const skyboxLoader = new GLTFLoader();
-    console.log('Loading skybox from:', 'milky_way_skybox_hdri_panorama.glb');
     skyboxLoader.load(
         'milky_way_skybox_hdri_panorama.glb',
         (gltf) => {
-            console.log('Skybox loaded successfully:', gltf);
-            console.log('Animations:', gltf.animations);
-            console.log('Scene:', gltf.scene);
-            
-            const skyboxModel = gltf.scene;
-            // Scale it large enough to encompass the scene
-            skyboxModel.scale.set(1000, 1000, 1000);
-            // Make sure it renders behind everything
-            skyboxModel.renderOrder = -1;
-            
-            // Debug traversal
-            skyboxModel.traverse((child) => {
-                console.log('Child:', child.type, child.name);
-                if (child.isMesh) {
-                    console.log('Found mesh:', child.name);
-                    console.log('Original material:', child.material);
-                    child.material.side = THREE.BackSide;
-                    // Ensure skybox is always rendered first
-                    child.material.depthWrite = false;
-                    child.material.depthTest = false;
+            // Get the first material from the model
+            let skyMaterial;
+            gltf.scene.traverse((child) => {
+                if (child.isMesh && !skyMaterial) {
+                    skyMaterial = child.material.clone();
                 }
             });
             
-            scene.add(skyboxModel);
-            console.log('Skybox added to scene');
-        },
-        (progress) => {
-            console.log('Loading progress:', (progress.loaded / progress.total * 100) + '%');
-        },
-        (error) => {
-            console.error('Error loading skybox:', error);
+            if (skyMaterial) {
+                const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+                skyMesh.rotation.y = Math.PI; // Adjust initial rotation if needed
+                scene.add(skyMesh);
+            }
         }
     );
 

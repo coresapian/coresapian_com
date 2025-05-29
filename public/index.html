@@ -258,7 +258,23 @@ function init() {
             pauseStartTime: 0,
             pauseDuration: 5, // seconds to pause at end
             timeScale: 1.0,
-            easingDuration: 1.0 // seconds to ease in/out
+            easingDuration: 1.0, // seconds to ease in/out
+            // Random rotation parameters
+            rotation: {
+                speed: 0.1,  // Base rotation speed
+                noiseOffset: {
+                    x: Math.random() * 1000,
+                    y: Math.random() * 1000,
+                    z: Math.random() * 1000
+                }
+            }
+        };
+        
+        // Simple noise function (since we don't have access to Perlin noise)
+        window.smoothNoise = (x) => {
+            return Math.sin(x/10) * 0.5 + 
+                   Math.sin(x/15) * 0.25 + 
+                   Math.sin(x/20) * 0.125;
         };
 
         gltf.animations.forEach((clip) => {
@@ -391,6 +407,19 @@ function init() {
         // Create gentler pulsing effect
         const time = clock.getElapsedTime();
         const pulseStrength = 0.3 + Math.sin(time * 0.8) * 0.15; // Varies between 0.15 and 0.45, slower pulse
+        
+        // Update random rotation
+        if (puzzleCore) {
+            const rot = window.animationState.rotation;
+            rot.noiseOffset.x += 0.001;
+            rot.noiseOffset.y += 0.002;
+            rot.noiseOffset.z += 0.003;
+            
+            // Apply smooth random rotation
+            puzzleCore.rotation.x += window.smoothNoise(rot.noiseOffset.x) * rot.speed * delta;
+            puzzleCore.rotation.y += window.smoothNoise(rot.noiseOffset.y) * rot.speed * delta;
+            puzzleCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
+        }
         
         // Update bloom and emission strength
         bloomPass.strength = pulseStrength;

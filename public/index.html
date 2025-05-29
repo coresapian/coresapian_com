@@ -253,6 +253,28 @@ function init() {
                     }
                 }
             });
+
+            // Add a sprite-based glow to the Sphere_Core_0 mesh
+            let coreMesh = null;
+            abstractCore.traverse((child) => {
+                if (child.isMesh && child.name === "Sphere_Core_0") {
+                    coreMesh = child;
+                }
+            });
+            if (coreMesh) {
+                const textureLoader = new THREE.TextureLoader();
+                const glowTexture = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sprites/glow.png');
+                const glowMaterial = new THREE.SpriteMaterial({
+                    map: glowTexture,
+                    color: 0x00ffff, // Cyan glow
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const glowSprite = new THREE.Sprite(glowMaterial);
+                glowSprite.scale.set(6, 6, 1); // Adjust size as needed
+                glowSprite.position.set(0, 0, 0); // Centered on the core mesh
+                coreMesh.add(glowSprite);
+            }
     
     // Set up materials for glowing effect
     abstractCore.traverse((child) => {

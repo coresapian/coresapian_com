@@ -240,11 +240,19 @@ function init() {
             // Create new material with emission
             child.material = child.material.clone();
             child.material.emissive = new THREE.Color(0x00ffff);
-            child.material.emissiveIntensity = 0.5;
+            child.material.emissiveIntensity = 0.3;
             // Set layer 1 for bloom effect
             child.layers.enable(1);
         }
     });
+    
+    // Set up animation mixer
+    if (gltf.animations && gltf.animations.length > 0) {
+        mixer = new THREE.AnimationMixer(puzzleCore);
+        gltf.animations.forEach((clip) => {
+            mixer.clipAction(clip).play();
+        });
+    }
     
     // Add the model to the scene
     scene.add(puzzleCore);
@@ -282,9 +290,9 @@ function init() {
     // Bloom pass
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.5,   // strength
-        0.2,   // radius
-        0.5    // threshold
+        0.3,   // strength (reduced from 0.5)
+        0.4,   // radius
+        0.7    // threshold (increased to reduce overall bloom)
     );
     
     // Final output pass
@@ -299,12 +307,21 @@ function init() {
 
     /** Animation loop */
     let clock = new THREE.Clock();
+    // Store mixer for animations
+    let mixer;
+
     function animate() {
         requestAnimationFrame(animate);
         
-        // Create pulsing effect
+        // Update animations
+        const delta = clock.getDelta();
+        if (mixer) {
+            mixer.update(delta);
+        }
+        
+        // Create gentler pulsing effect
         const time = clock.getElapsedTime();
-        const pulseStrength = 0.5 + Math.sin(time * 2) * 0.3; // Varies between 0.2 and 0.8
+        const pulseStrength = 0.3 + Math.sin(time * 0.8) * 0.15; // Varies between 0.15 and 0.45, slower pulse
         
         // Update bloom and emission strength
         bloomPass.strength = pulseStrength;

@@ -77,10 +77,6 @@ body {
 			import { Water } from 'three/addons/objects/Water.js';
 			import { Sky } from 'three/addons/objects/Sky.js';
 			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-			import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-			import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 			// WaterCaustics import removed
 
 			let container;
@@ -237,12 +233,8 @@ function init() {
         if (child.isMesh) {
             // Store original material
             child.originalMaterial = child.material;
-            // Create new material with emission
+            // Create new material with original properties
             child.material = child.material.clone();
-            child.material.emissive = new THREE.Color(0x00ffff);
-            child.material.emissiveIntensity = 0.3;
-            // Set layer 1 for bloom effect
-            child.layers.enable(1);
         }
     });
     
@@ -318,30 +310,6 @@ function init() {
     controls.maxDistance = 1000.0;
     controls.update();
 
-    /** Post-processing pipeline */
-    composer = new EffectComposer(renderer);
-    
-    // Main render pass
-    const renderScene = new RenderPass(scene, camera);
-    
-    // Bloom pass
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.2,   // strength (reduced from 0.5)
-        0.4,   // radius
-        0.9    // threshold (increased to reduce overall bloom)
-    );
-    
-    // Final output pass
-    const outputPass = new OutputPass();
-    
-    // Store bloomPass for animation
-    window.bloomPass = bloomPass;
-
-    composer.addPass(renderScene);
-    composer.addPass(bloomPass);
-    composer.addPass(outputPass);
-
     /** Animation loop */
     let clock = new THREE.Clock();
     // Store mixer for animations
@@ -404,10 +372,6 @@ function init() {
             }
         }
         
-        // Create gentler pulsing effect
-        const time = clock.getElapsedTime();
-        const pulseStrength = 0.3 + Math.sin(time * 0.8) * 0.15; // Varies between 0.15 and 0.45, slower pulse
-        
         // Update random rotation
         if (puzzleCore) {
             const rot = window.animationState.rotation;
@@ -421,19 +385,8 @@ function init() {
             puzzleCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
         }
         
-        // Update bloom and emission strength
-        bloomPass.strength = pulseStrength;
-        
-        if (puzzleCore) {
-            puzzleCore.traverse((child) => {
-                if (child.isMesh && child.material.emissiveIntensity !== undefined) {
-                    child.material.emissiveIntensity = pulseStrength;
-                }
-            });
-        }
-        
         // Render the scene
-        composer.render();
+        renderer.render(scene, camera);
     }
     animate();
 

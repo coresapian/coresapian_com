@@ -254,8 +254,8 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.maxPolarAngle = Math.PI * 0.495;
     controls.target.set(0, 10, 0);
-    controls.minDistance = 300.0;
-    controls.maxDistance = 500.0;
+    controls.minDistance = 250.0;
+    controls.maxDistance = 1000.0;
     controls.update();
 
     /** Post-processing pipeline
@@ -267,9 +267,9 @@ function init() {
     const renderScene = new RenderPass(scene, camera);
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        1.5,   // strength
-        0.4,   // radius
-        0.85   // threshold
+        0.5,   // strength
+        0.2,   // radius
+        0.5   // threshold
     );
     const outputPass = new OutputPass();
 

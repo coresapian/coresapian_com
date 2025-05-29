@@ -1,14 +1,3 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Production
-out/
-.next/
-dist/
-
 # Environment variables
 .env
 .env.local

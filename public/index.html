@@ -405,7 +405,6 @@ function init() {
     }
     animate();
 
-    /** Handle window resize with debouncing */
     let resizeTimeout;
     window.addEventListener('resize', function () {
         if (resizeTimeout) clearTimeout(resizeTimeout);
@@ -413,9 +412,9 @@ function init() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
-        }, 250); // Wait 250ms after last resize event
+        }, 250); 
     });
-} // End of init()
+} 
 
 		</script>
 	</body>

@@ -195,19 +195,29 @@ function init() {
     //             #include <fog_fragment>`);
     // };
 
-    
-    // Skybox: use equirectangular texture
-    const skyboxTextureLoader = new THREE.TextureLoader();
-    skyboxTextureLoader.load(
-        './M3_Sky_Dome_equirectangular-jpg_clear_blue_sky_bright_1478788763_455173.jpg',
-        function(texture) {
-            texture.mapping = THREE.EquirectangularReflectionMapping;
-            scene.background = texture;
-            scene.environment = texture;
+    /** Load skybox */
+    const skyboxLoader = new GLTFLoader();
+    skyboxLoader.load(
+        'milky_way_skybox_hdri_panorama.glb',
+        (gltf) => {
+            const skyboxModel = gltf.scene;
+            // Scale it large enough to encompass the scene
+            skyboxModel.scale.set(1000, 1000, 1000);
+            // Make sure it renders behind everything
+            skyboxModel.renderOrder = -1;
+            skyboxModel.traverse((child) => {
+                if (child.isMesh) {
+                    child.material.side = THREE.BackSide;
+                    // Ensure skybox is always rendered first
+                    child.material.depthWrite = false;
+                    child.material.depthTest = false;
+                }
+            });
+            scene.add(skyboxModel);
         },
         undefined,
-        function(err) {
-            console.error('Error loading skybox texture:', err);
+        (error) => {
+            console.error('Error loading skybox:', error);
         }
     );
 

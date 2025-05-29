@@ -273,26 +273,13 @@ function init() {
     controls.maxDistance = 1000.0;
     controls.update();
 
-    /** Post-processing pipeline with selective bloom */
-    const renderScene = new RenderPass(scene, camera);
-    
-    // Create two different render targets
-    const renderTarget = new THREE.WebGLRenderTarget(
-        window.innerWidth,
-        window.innerHeight,
-        {
-            minFilter: THREE.LinearFilter,
-            magFilter: THREE.LinearFilter,
-            format: THREE.RGBAFormat,
-            encoding: THREE.sRGBEncoding
-        }
-    );
-    
-    // Set up main composer
+    /** Post-processing pipeline */
     composer = new EffectComposer(renderer);
     
-    // Set up bloom composer
-    const bloomComposer = new EffectComposer(renderer, renderTarget);
+    // Main render pass
+    const renderScene = new RenderPass(scene, camera);
+    
+    // Bloom pass
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
         0.5,   // strength
@@ -300,28 +287,11 @@ function init() {
         0.5    // threshold
     );
     
-    // Store composers and passes for animation
-    window.bloomComposer = bloomComposer;
+    // Final output pass
+    const outputPass = new OutputPass();
+    
+    // Store bloomPass for animation
     window.bloomPass = bloomPass;
-    window.mainComposer = composer;
-    
-    // Set up render passes
-    const darkMaterial = new THREE.MeshBasicMaterial({ color: 'black' });
-    const materials = {};
-    
-    window.darkenNonBloomed = (obj) => {
-        if (obj.isMesh && !obj.layers.test(1)) {
-            materials[obj.uuid] = obj.material;
-            obj.material = darkMaterial;
-        }
-    };
-    
-    window.restoreMaterial = (obj) => {
-        if (materials[obj.uuid]) {
-            obj.material = materials[obj.uuid];
-            delete materials[obj.uuid];
-        }
-    };
 
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
@@ -336,23 +306,18 @@ function init() {
         const time = clock.getElapsedTime();
         const pulseStrength = 0.5 + Math.sin(time * 2) * 0.3; // Varies between 0.2 and 0.8
         
-        // Render bloom effect
-        scene.traverse(window.darkenNonBloomed);
-        bloomComposer.render();
-        scene.traverse(window.restoreMaterial);
-        
-        // Final render
-        const bloomStrength = pulseStrength;
-        bloomPass.strength = bloomStrength;
+        // Update bloom and emission strength
+        bloomPass.strength = pulseStrength;
         
         if (puzzleCore) {
             puzzleCore.traverse((child) => {
                 if (child.isMesh && child.material.emissiveIntensity !== undefined) {
-                    child.material.emissiveIntensity = bloomStrength;
+                    child.material.emissiveIntensity = pulseStrength;
                 }
             });
         }
         
+        // Render the scene
         composer.render();
     }
     animate();

@@ -47,7 +47,7 @@
 	<body>
 		<div id="container"></div>
 		<div id="info">
-			<a href="https://threejs.org" target="_blank" rel="noopener" style="pointer-events: auto;">three.js</a> - coresapian puzzle core
+			coresapian.com
 		</div>
 
 		<script type="importmap">
@@ -159,7 +159,7 @@
 				// Load the puzzle_core.glb model
 				const loader = new GLTFLoader();
 				loader.load(
-					'public/puzzle_core.glb',
+					'/public/puzzle_core.glb',
 					function (gltf) {
 						puzzleCore = gltf.scene;
 						

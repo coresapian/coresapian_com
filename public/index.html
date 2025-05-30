@@ -141,8 +141,8 @@ function init() {
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
 
-    // For debug: show all layers
-    camera.layers.enableAll();
+    // Only show one layer at a time for selective bloom
+    camera.layers.set(0); // Default to base layer
 
     // Helper for selective bloom
     function setBloomLayer(object) {
@@ -232,11 +232,14 @@ function init() {
             emissiveIntensity: 1,
         });
         const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-        // Calculate radius from center to initial position
-        const radius = Math.sqrt(Math.pow(200 - orbitCenter.x, 2) + Math.pow(param.z - orbitCenter.z, 2));
-        sunMesh.position.set(200, param.y, param.z);
+        // Calculate radius and initial angle from orbitCenter to initial (x,z)
+        const dx = 200 - orbitCenter.x;
+        const dz = param.z - orbitCenter.z;
+        const radius = Math.sqrt(dx * dx + dz * dz);
+        const initialAngle = Math.atan2(dz, dx);
+        sunMesh.position.set(orbitCenter.x + radius * Math.cos(initialAngle), param.y, orbitCenter.z + radius * Math.sin(initialAngle));
         scene.add(sunMesh);
-        suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: param.angle, color: param.color });
+        suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: initialAngle, color: param.color });
 
         // Enable bloom layer for this sun
         setBloomLayer(sunMesh);
@@ -501,7 +504,7 @@ function init() {
             suns.forEach((sun, i) => {
                 // Advance angle
                 sun.angle += sun.speed * delta;
-                // Keep in [0,2PI]
+                // Keep angle in [0, 2PI]
                 if (sun.angle > Math.PI * 2) sun.angle -= Math.PI * 2;
                 // Orbit on XZ plane, Y stays constant
                 sun.mesh.position.x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
@@ -512,9 +515,17 @@ function init() {
                 if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
             });
         }
-        // Render the scene with bloom
-        camera.layers.set(0); // Render non-bloom objects
+        // --- Selective Bloom Render ---
+        // 1. Render bloom pass (only glowing objects)
+        camera.layers.set(BLOOM_LAYER);
         composer.render();
+
+        // 2. Render the rest of the scene (non-bloom objects, no bloom)
+        camera.layers.set(0);
+        renderer.autoClear = false;
+        renderer.clearDepth(); // Clear depth so both layers show up
+        renderer.render(scene, camera);
+        renderer.autoClear = true;
     }
     animate();
 

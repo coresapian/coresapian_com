@@ -584,7 +584,7 @@ fillLight.position.set(-5, 0, -5);
 
 scene.add(fillLight);
 
-/\*\* Add noise sphere shader \*/
+/\*\* Add noise shader test cube \*/
 
 const noiseSphereShader = {
 
@@ -669,10 +669,10 @@ float snoise(vec3 v){
     vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
     vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
 
-    vec3 p0 = vec3(a0.xy, h.x);
-    vec3 p1 = vec3(a0.zw, h.y);
-    vec3 p2 = vec3(a1.xy, h.z);
-    vec3 p3 = vec3(a1.zw, h.w);
+    vec3 p0 = vec3(a0.xy,h.x);
+    vec3 p1 = vec3(a0.zw,h.y);
+    vec3 p2 = vec3(a1.xy,h.z);
+    vec3 p3 = vec3(a1.zw,h.w);
 
     // Normalise gradients
     vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
@@ -707,8 +707,7 @@ void main() {
     // Base color gradient from horizon to zenith
     vec3 baseColor = mix(horizonColor, zenithColor, pow(heightFactor, 0.8));
     
-    // Use sphere position for noise input instead of screen coordinates
-    // Scale and offset for better visual effect
+    // Use position for noise input
     float noise = 0.25 + fbm(vec3(pos * 12.0, iTime * 0.18));
     noise *= 0.25 + snoise(vec3(pos * 4.0, iTime * 0.15));
     
@@ -727,8 +726,8 @@ void main() {
 `
 };
 
-// Create noise sphere with optimized geometry (reduced from 64x64 to 32x32)
-const sphereGeometry = new THREE.SphereGeometry(10000, 32, 32);
+// Create simple test cube instead of skybox sphere
+const cubeGeometry = new THREE.BoxGeometry(50, 50, 50);
 
 const noiseMaterial = new THREE.ShaderMaterial({
     uniforms: {
@@ -743,15 +742,14 @@ const noiseMaterial = new THREE.ShaderMaterial({
     vertexShader: noiseSphereShader.vertexShader,
     fragmentShader: noiseSphereShader.fragmentShader,
     transparent: false,
-    depthWrite: false,
-    depthTest: false,
-    side: THREE.BackSide // Render on inside of sphere
+    depthWrite: true,
+    depthTest: true,
+    side: THREE.FrontSide // Normal rendering (not inside-out)
 });
 
-const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
-noiseSphere.position.set(0, 0, 0); // Fixed position at origin
-noiseSphere.renderOrder = -1000; // Ensure it renders behind everything
-scene.add(noiseSphere);
+const noiseCube = new THREE.Mesh(cubeGeometry, noiseMaterial);
+noiseCube.position.set(100, 20, 100); // Position above the water
+scene.add(noiseCube);
 
 // GSAP animations for the noise shader
 gsap.to(noiseMaterial.uniforms.atmosphereDensity, {
@@ -771,6 +769,15 @@ gsap.to(noiseMaterial.uniforms.horizonColor.value, {
     repeat: -1,
     yoyo: true,
     ease: "sine.inOut"
+});
+
+// Add rotation animation to the cube
+gsap.to(noiseCube.rotation, {
+    x: Math.PI * 2,
+    y: Math.PI * 2,
+    duration: 20,
+    repeat: -1,
+    ease: "none"
 });
 
 /\*\* Add four orbiting sun meshes \*/
@@ -1131,7 +1138,7 @@ let frameCount = 0; // For frame skipping
 
 function animate() {
 
-// Update noise sphere shader time
+// Update noise shader time
 noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
 
 requestAnimationFrame(animate);

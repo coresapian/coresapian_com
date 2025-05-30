@@ -60,7 +60,10 @@ body {
 			}
 		</script>
 
-		<script type="module">
+		<!-- GSAP for animations -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+<script type="module">
 			import * as THREE from 'three';
 			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 			import { Water } from 'three/addons/objects/Water.js';
@@ -205,14 +208,153 @@ function init() {
     fillLight.position.set(-5, 0, -5);
     scene.add(fillLight);
 
-    /** Add four orbiting sun meshes */
-    const sunGeometry = new THREE.SphereGeometry(20, 32, 32); // Sun size
+    /** Add noise sphere shader */
+const noiseSphereShader = {
+    vertexShader: `
+        varying vec2 vUv;
+        varying vec3 vPosition;
+        void main() {
+            vUv = uv;
+            vPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float iTime;
+        uniform vec2 iMouse;
+        uniform vec2 iResolution;
+        varying vec2 vUv;
+        varying vec3 vPosition;
+
+        vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+        float snoise(vec3 v){ 
+            const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+            const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+            vec3 i  = floor(v + dot(v, C.yyy) );
+            vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+            vec3 g = step(x0.yzx, x0.xyz);
+            vec3 l = 1.0 - g;
+            vec3 i1 = min( g.xyz, l.zxy );
+            vec3 i2 = max( g.xyz, l.zxy );
+
+            vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+            vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+            vec3 x3 = x0 - 1. + 3.0 * C.xxx;
+
+            i = mod(i, 289.0 ); 
+            vec4 p = permute( permute( permute( 
+                                i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+                            + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+                            + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+            float n_ = 1.0/7.0;
+            vec3  ns = n_ * D.wyz - D.xzx;
+
+            vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+
+            vec4 x_ = floor(j * ns.z);
+            vec4 y_ = floor(j - 7.0 * x_ );
+
+            vec4 x = x_ *ns.x + ns.yyyy;
+            vec4 y = y_ *ns.x + ns.yyyy;
+            vec4 h = 1.0 - abs(x) - abs(y);
+
+            vec4 b0 = vec4( x.xy, y.xy );
+            vec4 b1 = vec4( x.zw, y.zw );
+
+            vec4 s0 = floor(b0)*2.0 + 1.0;
+            vec4 s1 = floor(b1)*2.0 + 1.0;
+            vec4 sh = -step(h, vec4(0.0));
+
+            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+            vec3 p0 = vec3(a0.xy,h.x);
+            vec3 p1 = vec3(a0.zw,h.y);
+            vec3 p2 = vec3(a1.xy,h.z);
+            vec3 p3 = vec3(a1.zw,h.w);
+
+            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+            p0 *= norm.x;
+            p1 *= norm.y;
+            p2 *= norm.z;
+            p3 *= norm.w;
+
+            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+            m = m * m;
+            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
+                                                                        dot(p2,x2), dot(p3,x3) ) );
+        }
+
+        float fbm( vec3 p ) {
+            float f = 0.0;
+            f += 0.5000*snoise( p ); p = p*2.02;
+            f += 0.2500*snoise( p ); p = p*2.03;
+            f += 0.1250*snoise( p ); p = p*2.01;
+            f += 0.0625*snoise( p );
+            return f/0.9375;
+        }
+
+        void main() {
+            // Use sphere position for noise input instead of UV
+            vec3 pos = normalize(vPosition);
+            float mouseRatio = 0.5; // Fixed value since we don't need mouse interaction
+            float noise = 0.25 + fbm(vec3(pos * 12.0, iTime * 0.18));
+            noise *= 0.25 + snoise(vec3(pos * 4.0, iTime * 0.15));
+            gl_FragColor = vec4(1.0, 1.0, 1.0, noise);
+        }
+    `
+};
+
+// Create noise sphere
+const sphereGeometry = new THREE.SphereGeometry(3000, 64, 64);
+const noiseMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        iTime: { value: 0 },
+        iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        iMouse: { value: new THREE.Vector2(0, 0) }
+    },
+    vertexShader: noiseSphereShader.vertexShader,
+    fragmentShader: noiseSphereShader.fragmentShader,
+    transparent: true,
+    side: THREE.BackSide // Render on inside of sphere
+});
+
+const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
+scene.add(noiseSphere);
+
+// GSAP animations for the noise sphere
+gsap.to(noiseMaterial.uniforms.iMouse.value, {
+    x: window.innerWidth,
+    y: window.innerHeight,
+    duration: 4,
+    repeat: -1,
+    yoyo: true,
+    ease: "sine.inOut"
+});
+
+// Subtle scale animation
+gsap.to(noiseSphere.scale, {
+    x: 1.1,
+    y: 1.1,
+    z: 1.1,
+    duration: 2,
+    repeat: -1,
+    yoyo: true,
+    ease: "sine.inOut"
+});
+
+/** Add four orbiting sun meshes */
     const sunParams = [
-        // color, emissive, y, z, orbitSpeed (radians/sec), initial angle
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 0.12, angle: 0 }, // original
-        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 0.16, angle: Math.PI / 2 },
-        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 0.08, angle: Math.PI },
-        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 0.18, angle: Math.PI * 1.5 },
+        // color, emissive, size, y, z, orbitSpeed (radians/sec), initial angle
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.12, angle: 0 }, // Largest, original
+        { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.16, angle: Math.PI / 2 }, // Medium-large
+        { color: 0x00CCFF, emissive: 0x00AADD, size: 15, y: 40, z: 1500, orbitSpeed: 0.08, angle: Math.PI }, // Medium-small
+        { color: 0xFF33CC, emissive: 0xFF33AA, size: 10, y: 30, z: 900, orbitSpeed: 0.18, angle: Math.PI * 1.5 }, // Smallest
     ];
     // Center of orbit (will be updated to abstractCore position if loaded)
     let orbitCenter = new THREE.Vector3(0, 5, 0);
@@ -231,6 +373,7 @@ function init() {
             emissive: param.emissive,
             emissiveIntensity: 1,
         });
+        const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
         const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
         // Calculate radius and initial angle from orbitCenter to initial (x,z)
         const dx = 200 - orbitCenter.x;
@@ -427,6 +570,8 @@ function init() {
     let frameCount = 0; // For frame skipping
 
     function animate() {
+    // Update noise sphere shader time
+    noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
         requestAnimationFrame(animate);
         
         // Update animations

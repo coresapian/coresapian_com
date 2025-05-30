@@ -744,18 +744,14 @@ const noiseMaterial = new THREE.ShaderMaterial({
     fragmentShader: noiseSphereShader.fragmentShader,
     transparent: false,
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     side: THREE.BackSide // Render on inside of sphere
 });
 
 const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
+noiseSphere.position.set(0, 0, 0); // Fixed position at origin
 noiseSphere.renderOrder = -1000; // Ensure it renders behind everything
 scene.add(noiseSphere);
-
-// Update skybox position to follow camera in animation loop
-const updateSkyboxPosition = () => {
-    noiseSphere.position.copy(camera.position);
-};
 
 // GSAP animations for the noise shader
 gsap.to(noiseMaterial.uniforms.atmosphereDensity, {
@@ -1137,9 +1133,6 @@ function animate() {
 
 // Update noise sphere shader time
 noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
-
-// Update skybox position to follow camera
-updateSkyboxPosition();
 
 requestAnimationFrame(animate);
 

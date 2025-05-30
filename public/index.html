@@ -1,4 +1,26 @@
 <!DOCTYPE html>
+<!--
+  File: index.html
+  Description: Main Three.js scene for Coresapian.
+
+  Sections:
+    1. Importmap: maps module specifiers ('three', 'three/addons/') to CDN URLs.
+    2. GSAP import: loads GSAP via CDN for timeline-based animations.
+    3. Main script (<script type="module">): imports Three.js core and addons (OrbitControls, Water, Sky, GLTFLoader, Lensflare, post-processing passes).
+    4. init(): entry function that sets up renderer, scene, camera, post-processing, lighting, water surface, sky shader, sun meshes, model loading, and resize handling.
+    5. Renderer: configures WebGLRenderer with toneMapping, pixel ratio, and performance options.
+    6. Scene: creates main Three.js Scene instance.
+    7. Camera: sets up PerspectiveCamera with optimized frustum for large sky sphere (far plane extended to 20,000).
+    8. Post-processing: EffectComposer with RenderPass and UnrealBloomPass for selective bloom layering.
+    9. Lighting: adds ambient and directional lights for scene illumination.
+   10. Water surface: large PlaneGeometry using Water shader with normal map, distortion, and caustics.
+   11. Custom shader sphere (noiseSphere): large inverted SphereGeometry using GLSL noise-based fragment shader to simulate dynamic skybox.
+   12. GSAP animations: animates noise shader uniforms and noiseSphere scale for breathing effect.
+   13. Sun meshes: four MeshBasicMaterial spheres with emissive colors, individual sizes, each orbiting around the abstract core; includes bloom, lensflare, and glow sprite layers.
+   14. Model loading: GLTFLoader loads 'abstract_core.glb', adds to scene, scales/positions model, and updates sun orbit center.
+   15. Animation loop: updates shader time uniform, composer render (selective bloom first), model rotation/floating, sun orbit, and renders scene each frame.
+   16. Resize handler: listens to window resize, debounces updates to camera aspect and renderer size.
+-->
 <html lang="en">
 	<head>
 		<title>coresapian</title>
@@ -224,7 +246,7 @@ function init() {
     console.log('Scene created');
 
     /** Camera with optimized frustum */
-    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 10000); // Increased far plane
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000); // Increased far plane for sky sphere
     camera.position.set(30, 30, 100);
     console.log('Camera set up at position: ' + camera.position.toArray().join(', '));
 
@@ -409,7 +431,7 @@ const noiseSphereShader = {
 };
 
 // Create noise sphere
-const sphereGeometry = new THREE.SphereGeometry(3000, 64, 64);
+const sphereGeometry = new THREE.SphereGeometry(10000, 64, 64);
 const noiseMaterial = new THREE.ShaderMaterial({
     uniforms: {
         iTime: { value: 0 },
@@ -417,12 +439,18 @@ const noiseMaterial = new THREE.ShaderMaterial({
         iMouse: { value: new THREE.Vector2(0, 0) }
     },
     vertexShader: noiseSphereShader.vertexShader,
-    fragmentShader: noiseSphereShader.fragmentShader,
-    transparent: true,
+    fragmentShader: noiseSphereShader.fragmentShader.replace(
+        /gl_FragColor = vec4\(1\.0, 1\.0, 1\.0, noise\);/, 
+        'gl_FragColor = vec4(vec3(noise), 1.0);'
+    ),
+    transparent: false,
+    depthWrite: false,
+    depthTest: false,
     side: THREE.BackSide // Render on inside of sphere
 });
 
 const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
+noiseSphere.renderOrder = -1;
 scene.add(noiseSphere);
 
 // GSAP animations for the noise sphere
@@ -449,10 +477,10 @@ gsap.to(noiseSphere.scale, {
 /** Add four orbiting sun meshes */
     const sunParams = [
         // color, emissive, size, y, z, orbitSpeed (radians/sec), initial angle
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.12, angle: 0 }, // Largest, original
-        { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.16, angle: Math.PI / 2 }, // Medium-large
-        { color: 0x00CCFF, emissive: 0x00AADD, size: 15, y: 40, z: 1500, orbitSpeed: 0.08, angle: Math.PI }, // Medium-small
-        { color: 0xFF33CC, emissive: 0xFF33AA, size: 10, y: 30, z: 900, orbitSpeed: 0.18, angle: Math.PI * 1.5 }, // Smallest
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 }, // Largest, original
+        { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 }, // Medium-large
+        { color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI }, // Medium-small
+        { color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 }, // Smallest
     ];
     // Center of orbit (will be updated to abstractCore position if loaded)
     let orbitCenter = new THREE.Vector3(0, 5, 0);
@@ -691,11 +719,11 @@ gsap.to(noiseSphere.scale, {
                         state.timeScale = 1.0;
                         
                         // Reset and restart animations in new direction
-                        actions.forEach(a => {
-                            a.timeScale = state.isForward ? 1 : -1;
+                        actions.forEach(action => {
+                            action.timeScale = state.isForward ? 1 : -1;
                             if (state.isForward) {
-                                a.reset();
-                                a.play();
+                                action.reset();
+                                action.play();
                             }
                         });
                     }

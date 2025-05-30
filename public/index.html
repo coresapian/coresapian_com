@@ -232,9 +232,9 @@ function init() {
     const BLOOM_LAYER = 1;
     const bloomParams = {
         exposure: 1,
-        bloomStrength: 2.5,
+        bloomStrength: 0.1,
         bloomThreshold: 0,
-        bloomRadius: 0.25
+        bloomRadius: 0.2
     };
     composer = new EffectComposer(renderer);
     const renderScene = new RenderPass(scene, camera);
@@ -509,31 +509,8 @@ gsap.to(noiseSphere.scale, {
         orbitCenter = vec3.clone ? vec3.clone() : new THREE.Vector3(vec3.x, vec3.y, vec3.z);
     };
 
-    /** Create skybox - reduced geometry complexity */
-    const skyGeometry = new THREE.SphereGeometry(5000, 64, 64); // Reduced segments
-    // Flip the geometry inside out
-    skyGeometry.scale(-1, 1, 1);
-    
-    // Load the skybox texture
-    const skyboxLoader = new GLTFLoader();
-    skyboxLoader.load(
-        'skybox.glb',
-        (gltf) => {
-            // Get the first material from the model
-            let skyMaterial;
-            gltf.scene.traverse((child) => {
-                if (child.isMesh && !skyMaterial) {
-                    skyMaterial = child.material.clone();
-                }
-            });
-            
-            if (skyMaterial) {
-                const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
-                skyMesh.rotation.y = Math.PI; // Adjust initial rotation if needed
-                scene.add(skyMesh);
-            }
-        }
-    );
+    // Skybox GLB loader removed; using noiseSphere shader instead
+    // The noiseSphere mesh created earlier serves as the skybox
 
     /** Load GLB model for the puzzle core */
     const loader = new GLTFLoader();

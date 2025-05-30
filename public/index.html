@@ -186,7 +186,7 @@ function init() {
         emissiveIntensity: 1,
     });
     const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-    sunMesh.position.set(1200, 2000, 1200); // Position far up and to the side
+    sunMesh.position.set(300, 50, 2800); // Position far up and to the side
     scene.add(sunMesh);
 
     // --- Lens Flare ---
@@ -210,7 +210,7 @@ function init() {
     scene.add(glowSprite);
 
     /** Create skybox - reduced geometry complexity */
-    const skyGeometry = new THREE.SphereGeometry(8000, 64, 64); // Reduced segments
+    const skyGeometry = new THREE.SphereGeometry(3000, 64, 64); // Reduced segments
     // Flip the geometry inside out
     skyGeometry.scale(-1, 1, 1);
     

@@ -726,32 +726,34 @@ gsap.to(noiseSphere.scale, {
             }
         }
         
-        // Update random rotation with frame skipping for performance
-        if (abstractCore && frameCount % 2 === 0) { // Only update every other frame
-            const rot = window.animationState.rotation;
-            rot.noiseOffset.x += 0.001;
-            rot.noiseOffset.y += 0.002;
-            rot.noiseOffset.z += 0.003;
+        // Update abstract core animation
+        if (abstractCore) {
+            const time = clock.getElapsedTime();
             
-            // Apply smooth random rotation
-            abstractCore.rotation.x += window.smoothNoise(rot.noiseOffset.x) * rot.speed * delta;
-            abstractCore.rotation.y += window.smoothNoise(rot.noiseOffset.y) * rot.speed * delta;
-            abstractCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
+            // Smooth random rotation
+            abstractCore.rotation.x = Math.sin(time * 0.5) * 0.2;
+            abstractCore.rotation.y = Math.cos(time * 0.3) * 0.3;
+            abstractCore.rotation.z = Math.sin(time * 0.4) * 0.1;
+            
+            // Add some gentle floating motion
+            abstractCore.position.y = 5 + Math.sin(time * 0.8) * 0.5;
         }
-        frameCount++;
         
         // Update sun orbits
         if (suns && suns.length > 0) {
-            // Use time for smooth orbit
-            const t = performance.now() * 0.001;
+            const t = clock.getElapsedTime();
             suns.forEach((sun, i) => {
-                // Advance angle
-                sun.angle += sun.speed * delta;
-                // Keep angle in [0, 2PI]
-                if (sun.angle > Math.PI * 2) sun.angle -= Math.PI * 2;
-                // Orbit on XZ plane, Y stays constant
-                sun.mesh.position.x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
-                sun.mesh.position.z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
+                // Update angle based on speed
+                sun.angle += sun.speed;
+                
+                // Calculate new position
+                const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
+                const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
+                
+                // Update sun position
+                sun.mesh.position.set(x, sun.y, z);
+                
+                // Update associated lensflare and glow sprite
                 sun.mesh.position.y = sun.y + orbitCenter.y - 5; // adjust for core's Y
                 // Update lensflare and glow position
                 if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);

@@ -1,795 +1,1346 @@
 <!DOCTYPE html>
-<!--
-  File: index.html
-  Description: Main Three.js scene for Coresapian.
 
-  Sections:
-    1. Importmap: maps module specifiers ('three', 'three/addons/') to CDN URLs.
-    2. GSAP import: loads GSAP via CDN for timeline-based animations.
-    3. Main script (<script type="module">): imports Three.js core and addons (OrbitControls, Water, Sky, GLTFLoader, Lensflare, post-processing passes).
-    4. init(): entry function that sets up renderer, scene, camera, post-processing, lighting, water surface, sky shader, sun meshes, model loading, and resize handling.
-    5. Renderer: configures WebGLRenderer with toneMapping, pixel ratio, and performance options.
-    6. Scene: creates main Three.js Scene instance.
-    7. Camera: sets up PerspectiveCamera with optimized frustum for large sky sphere (far plane extended to 20,000).
-    8. Post-processing: EffectComposer with RenderPass and UnrealBloomPass for selective bloom layering.
-    9. Lighting: adds ambient and directional lights for scene illumination.
-   10. Water surface: large PlaneGeometry using Water shader with normal map, distortion, and caustics.
-   11. Custom shader sphere (noiseSphere): large inverted SphereGeometry using GLSL noise-based fragment shader to simulate dynamic skybox.
-   12. GSAP animations: animates noise shader uniforms and noiseSphere scale for breathing effect.
-   13. Sun meshes: four MeshBasicMaterial spheres with emissive colors, individual sizes, each orbiting around the abstract core; includes bloom, lensflare, and glow sprite layers.
-   14. Model loading: GLTFLoader loads 'abstract_core.glb', adds to scene, scales/positions model, and updates sun orbit center.
-   15. Animation loop: updates shader time uniform, composer render (selective bloom first), model rotation/floating, sun orbit, and renders scene each frame.
-   16. Resize handler: listens to window resize, debounces updates to camera aspect and renderer size.
+<!--
+
+File: index.html
+
+Description: Main Three.js scene for Coresapian.
+
+Sections:
+
+1\. Importmap: maps module specifiers ('three', 'three/addons/') to CDN URLs.
+
+2\. GSAP import: loads GSAP via CDN for timeline-based animations.
+
+3\. Main script (<script type="module">): imports Three.js core and addons (OrbitControls, Water, Sky, GLTFLoader, Lensflare, post-processing passes).
+
+4\. init(): entry function that sets up renderer, scene, camera, post-processing, lighting, water surface, sky shader, sun meshes, model loading, and resize handling.
+
+5\. Renderer: configures WebGLRenderer with toneMapping, pixel ratio, and performance options.
+
+6\. Scene: creates main Three.js Scene instance.
+
+7\. Camera: sets up PerspectiveCamera with optimized frustum for large sky sphere (far plane extended to 20,000).
+
+8\. Post-processing: EffectComposer with RenderPass and UnrealBloomPass for selective bloom layering.
+
+9\. Lighting: adds ambient and directional lights for scene illumination.
+
+10\. Water surface: large PlaneGeometry using Water shader with normal map, distortion, and caustics.
+
+11\. Custom shader sphere (noiseSphere): large inverted SphereGeometry using GLSL noise-based fragment shader to simulate dynamic skybox.
+
+12\. GSAP animations: animates noise shader uniforms and noiseSphere scale for breathing effect.
+
+13\. Sun meshes: four MeshBasicMaterial spheres with emissive colors, individual sizes, each orbiting around the abstract core; includes bloom, lensflare, and glow sprite layers.
+
+14\. Model loading: GLTFLoader loads 'abstract\_core.glb', adds to scene, scales/positions model, and updates sun orbit center.
+
+15\. Animation loop: updates shader time uniform, composer render (selective bloom first), model rotation/floating, sun orbit, and renders scene each frame.
+
+16\. Resize handler: listens to window resize, debounces updates to camera aspect and renderer size.
+
 -->
+
 <html lang="en">
-	<head>
-		<title>coresapian</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<style>
-/* Loading screen styles - temporarily disabled
+
+<head>
+
+<title>coresapian</title>
+
+<meta charset="utf-8">
+
+<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+
+<style>
+
+/\* Loading screen styles - temporarily disabled
+
 @font-face {
-    font-family: 'Press Start 2P';
-    src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+font-family: 'Press Start 2P';
+
+src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
 }
 
 #loading-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #000;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-family: 'Press Start 2P', cursive;
-    color: #fff;
-    image-rendering: pixelated;
+
+position: fixed;
+
+top: 0;
+
+left: 0;
+
+width: 100%;
+
+height: 100%;
+
+background-color: #000;
+
+z-index: 9999;
+
+display: flex;
+
+flex-direction: column;
+
+justify-content: center;
+
+align-items: center;
+
+font-family: 'Press Start 2P', cursive;
+
+color: #fff;
+
+image-rendering: pixelated;
+
 }
 
 #loading-text {
-    font-size: 24px;
-    margin-bottom: 20px;
-    text-shadow: 2px 2px #000;
-    animation: blink 1s infinite;
+
+font-size: 24px;
+
+margin-bottom: 20px;
+
+text-shadow: 2px 2px #000;
+
+animation: blink 1s infinite;
+
 }
 
 #progress-container {
-    width: 300px;
-    height: 30px;
-    background: #111;
-    border: 4px solid #fff;
-    padding: 3px;
-    image-rendering: pixelated;
+
+width: 300px;
+
+height: 30px;
+
+background: #111;
+
+border: 4px solid #fff;
+
+padding: 3px;
+
+image-rendering: pixelated;
+
 }
 
 #progress-bar {
-    width: 0%;
-    height: 100%;
-    background: #0f0;
-    transition: width 0.3s ease;
-    box-shadow: 0 0 10px #0f0;
+
+width: 0%;
+
+height: 100%;
+
+background: #0f0;
+
+transition: width 0.3s ease;
+
+box-shadow: 0 0 10px #0f0;
+
 }
 
 @keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
+
+0% { opacity: 1; }
+
+50% { opacity: 0.5; }
+
+100% { opacity: 1; }
+
 }
-*/
+
+\*/
 
 body {
-    margin: 0;
-    background-color: #000;
-    color: #fff;
-    font-family: Monospace;
-    font-size: 13px;
-    line-height: 24px;
-    overscroll-behavior: none;
+
+margin:0;
+
+background-color:#000;
+
+color:#fff;
+
+font-family: Monospace;
+
+font-size:13px;
+
+line-height:24px;
+
+overscroll-behavior: none;
+
 }
 
-			a {
-				color: #ff0;
-				text-decoration: none;
-			}
+a {
 
-			a:hover {
-				text-decoration: underline;
-			}
+color:#ff0;
 
-			#container {
-				position: absolute;
-				top: 0;
-				left: 0;
-				width: 100%;
-				height: 100%;
-			}
+text-decoration: none;
 
-			#info {
-				position: absolute;
-				top: 0px;
-				width: 100%;
-				padding: 10px;
-				box-sizing: border-box;
-				text-align: center;
-				z-index: 1;
-				pointer-events: none;
-			}
-		</style>
-	</head>
-	<body>
-		<!-- Loading screen HTML - temporarily disabled
+}
+
+a:hover {
+
+text-decoration: underline;
+
+}
+
+#container {
+
+position: absolute;
+
+top:0;
+
+left:0;
+
+width:100%;
+
+height:100%;
+
+}
+
+#info {
+
+position: absolute;
+
+top:0px;
+
+width:100%;
+
+padding:10px;
+
+box-sizing: border-box;
+
+text-align: center;
+
+z-index:1;
+
+pointer-events: none;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<!-- Loading screen HTML - temporarily disabled
+
 <div id="loading-screen">
-    <div id="loading-text">LOADING...</div>
-    <div id="progress-container">
-        <div id="progress-bar"></div>
-    </div>
+
+<div id="loading-text">LOADING...</div>
+
+<div id="progress-container">
+
+<div id="progress-bar"></div>
+
 </div>
+
+</div>
+
 -->
+
 <div id="container"></div>
-		<div id="info">
-			coresapian.com
-		</div>
 
-		<script type="importmap">
-			{
-				"imports": {
-					"three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-					"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-				}
-			}
-		</script>
+<div id="info">
 
-		<!-- GSAP for animations -->
+coresapian.com
+
+</div>
+
+<script type="importmap">
+
+{
+
+"imports": {
+
+"three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+
+"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+
+}
+
+}
+
+</script>
+
+<!-- GSAP for animations -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
 <script type="module">
-			import * as THREE from 'three';
-			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-			import { Water } from 'three/addons/objects/Water.js';
-			import { Sky } from 'three/addons/objects/Sky.js';
-			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-			import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
-			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-			import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-			let container;
-			let camera, scene, renderer, composer;
-			let controls, water, sun;
-			let abstractCore;
+import * as THREE from 'three';
 
-			/* Loading progress tracking - temporarily disabled
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+import { Water } from 'three/addons/objects/Water.js';
+
+import { Sky } from 'three/addons/objects/Sky.js';
+
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
+
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+let container;
+
+let camera, scene, renderer, composer;
+
+let controls, water, sun;
+
+let abstractCore;
+
+/\* Loading progress tracking - temporarily disabled
+
 // Track loading progress
+
 let totalAssets = 0;
+
 let loadedAssets = 0;
 
 function updateLoadingProgress() {
-    const progress = (loadedAssets / totalAssets) * 100;
-    document.getElementById('progress-bar').style.width = `${progress}%`;
-    
-    if (loadedAssets === totalAssets) {
-        // Fade out loading screen
-        const loadingScreen = document.getElementById('loading-screen');
-        gsap.to(loadingScreen, {
-            opacity: 0,
-            duration: 1,
-            onComplete: () => {
-                loadingScreen.style.display = 'none';
-            }
-        });
-    }
+
+const progress = (loadedAssets / totalAssets) \* 100;
+
+document.getElementById('progress-bar').style.width = \`${progress}%\`;
+
+if (loadedAssets === totalAssets) {
+
+// Fade out loading screen
+
+const loadingScreen = document.getElementById('loading-screen');
+
+gsap.to(loadingScreen, {
+
+opacity: 0,
+
+duration: 1,
+
+onComplete: () => {
+
+loadingScreen.style.display = 'none';
+
+}
+
+});
+
+}
+
 }
 
 // Count total assets to load
+
 totalAssets = 5; // Adjust this based on your actual asset count (textures, models, etc.)
 
 // Create a loading manager to track all asset loading
+
 const loadingManager = new THREE.LoadingManager();
+
 loadingManager.onLoad = () => {
-    loadedAssets = totalAssets;
-    updateLoadingProgress();
+
+loadedAssets = totalAssets;
+
+updateLoadingProgress();
+
 };
+
 loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
-    loadedAssets = itemsLoaded;
-    updateLoadingProgress();
+
+loadedAssets = itemsLoaded;
+
+updateLoadingProgress();
+
 };
-*/
+
+\*/
 
 init();
 
-			/**
- * Initializes the 3D scene: sets up renderer, scene, camera, water surface,
- * skybox, lighting environment, loads the puzzle core model, orbit controls,
- * post-processing effects, and window resize handling.
- */
+/\*\*
+
+\* Initializes the 3D scene: sets up renderer, scene, camera, water surface,
+
+\* skybox, lighting environment, loads the puzzle core model, orbit controls,
+
+\* post-processing effects, and window resize handling.
+
+\*/
+
 function init() {
-    console.log('Init function started');
 
-    // Get the DOM container for the renderer
-    container = document.getElementById('container');
+console.log('Init function started');
 
-    /** Renderer setup
-     * - Creates a WebGL renderer
-     * - Matches pixel ratio & viewport size to the window
-     * - Hooks into the animation loop
-     * - Applies ACES Filmic tone mapping
-     * - Appends the canvas element to the page
-     */
-    renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        preserveDrawingBuffer: true
-    });
-    renderer = new THREE.WebGLRenderer({
-        antialias: false,  // Disable antialiasing for performance
-        powerPreference: 'high-performance',
-        stencil: false,
-        depth: true
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = false; // Disable shadows for performance
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.5;
-    container.appendChild(renderer.domElement);
-    
-    renderer.domElement.addEventListener('webglcontextlost', event => {
-        console.error('WebGL context lost');
-        event.preventDefault();
-    });
+// Get the DOM container for the renderer
 
+container = document.getElementById('container');
 
-    scene = new THREE.Scene();
-    console.log('Scene created');
+/\*\* Renderer setup
 
-    /** Camera with optimized frustum */
-    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000); // Increased far plane for sky sphere
-    camera.position.set(30, 30, 100);
-    console.log('Camera set up at position: ' + camera.position.toArray().join(', '));
+\* \- Creates a WebGL renderer
 
-    // Set up post-processing for bloom
-    const BLOOM_LAYER = 1;
-    const bloomParams = {
-        exposure: 1,
-        bloomStrength: 0.1,
-        bloomThreshold: 0,
-        bloomRadius: 0.2
-    };
-    composer = new EffectComposer(renderer);
-    const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), bloomParams.bloomStrength, bloomParams.bloomRadius, bloomParams.bloomThreshold);
-    composer.addPass(renderScene);
-    composer.addPass(bloomPass);
+\* \- Matches pixel ratio & viewport size to the window
 
-    // Only show one layer at a time for selective bloom
-    camera.layers.set(0); // Default to base layer
+\* \- Hooks into the animation loop
 
-    // Helper for selective bloom
-    function setBloomLayer(object) {
-        object.layers.enable(BLOOM_LAYER);
-        if (object.children) {
-            object.children.forEach(setBloomLayer);
-        }
-    }
+\* \- Applies ACES Filmic tone mapping
 
-    /** Sun direction vector placeholder */
-    sun = new THREE.Vector3();
+\* \- Appends the canvas element to the page
 
-    /** Water surface
-     * - Large plane geometry (10 000 × 10 000 units)
-     * - Uses Water shader with normal map, distortion, colors
-     * - Rotated to lie horizontal and added to scene
-     */
-    const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
-    water = new Water(waterGeometry, {
-        textureWidth: 1024,
-        textureHeight: 1024,
-        waterNormals: new THREE.TextureLoader().load(
-            'https://threejs.org/examples/textures/waternormals.jpg', 
-            texture => {
-                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-                texture.repeat.set(8, 8);
-            },
-            undefined,
-            error => {
-                console.error('Failed to load water normal map:', error);
-                water.material.uniforms.causticsIntensity.value = 0.0;
-            }
-        ),
-        sunDirection: sun.clone().normalize(),
-        sunColor: 0xFFFFFF,
-        waterColor: 0x0064B4,
-        distortionScale: 8.0,
-        fog: scene.fog !== undefined,
-        causticsIntensity: 2.3,
-        causticsScale: 1.8,
-        causticsSpeed: 0.6,
-        transparent: true,
-        opacity: 0.9
-    });
-    water.rotation.x = -Math.PI / 2;
-    scene.add(water);
+\*/
 
-    /** Setup lighting */
-    // Ambient light for overall scene brightness
-    const ambientLight = new THREE.AmbientLight(0xffffff, 100.0); // Much brighter
-    scene.add(ambientLight);
+renderer = new THREE.WebGLRenderer({
 
-    // Main directional light
-    const mainLight = new THREE.DirectionalLight(0xffffff, 50.0); // Much brighter
-    mainLight.position.set(5, 5, 5);
-    scene.add(mainLight);
+antialias: true,
 
-    // Fill light from opposite direction
-    const fillLight = new THREE.DirectionalLight(0xffffff, 50.0); // Much brighter
-    fillLight.position.set(-5, 0, -5);
-    scene.add(fillLight);
+preserveDrawingBuffer: true
 
-    /** Add noise sphere shader */
-const noiseSphereShader = {
-    vertexShader: `
-        varying vec2 vUv;
-        varying vec3 vPosition;
-        void main() {
-            vUv = uv;
-            vPosition = position;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform float iTime;
-        uniform vec2 iMouse;
-        uniform vec2 iResolution;
-        varying vec2 vUv;
-        varying vec3 vPosition;
+});
 
-        vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+renderer = new THREE.WebGLRenderer({
 
-        float snoise(vec3 v){ 
-            const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-            const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+antialias: false, // Disable antialiasing for performance
 
-            vec3 i  = floor(v + dot(v, C.yyy) );
-            vec3 x0 =   v - i + dot(i, C.xxx) ;
+powerPreference: 'high-performance',
 
-            vec3 g = step(x0.yzx, x0.xyz);
-            vec3 l = 1.0 - g;
-            vec3 i1 = min( g.xyz, l.zxy );
-            vec3 i2 = max( g.xyz, l.zxy );
+stencil: false,
 
-            vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-            vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-            vec3 x3 = x0 - 1. + 3.0 * C.xxx;
+depth: true
 
-            i = mod(i, 289.0 ); 
-            vec4 p = permute( permute( permute( 
-                                i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-                            + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-                            + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+});
 
-            float n_ = 1.0/7.0;
-            vec3  ns = n_ * D.wyz - D.xzx;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio
 
-            vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
+renderer.setSize(window.innerWidth, window.innerHeight);
 
-            vec4 x_ = floor(j * ns.z);
-            vec4 y_ = floor(j - 7.0 * x_ );
+renderer.shadowMap.enabled = false; // Disable shadows for performance
 
-            vec4 x = x_ *ns.x + ns.yyyy;
-            vec4 y = y_ *ns.x + ns.yyyy;
-            vec4 h = 1.0 - abs(x) - abs(y);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
 
-            vec4 b0 = vec4( x.xy, y.xy );
-            vec4 b1 = vec4( x.zw, y.zw );
+renderer.toneMappingExposure = 0.5;
 
-            vec4 s0 = floor(b0)*2.0 + 1.0;
-            vec4 s1 = floor(b1)*2.0 + 1.0;
-            vec4 sh = -step(h, vec4(0.0));
+container.appendChild(renderer.domElement);
 
-            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+renderer.domElement.addEventListener('webglcontextlost', event => {
 
-            vec3 p0 = vec3(a0.xy,h.x);
-            vec3 p1 = vec3(a0.zw,h.y);
-            vec3 p2 = vec3(a1.xy,h.z);
-            vec3 p3 = vec3(a1.zw,h.w);
+console.error('WebGL context lost');
 
-            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-            p0 *= norm.x;
-            p1 *= norm.y;
-            p2 *= norm.z;
-            p3 *= norm.w;
+event.preventDefault();
 
-            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-            m = m * m;
-            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
-                                                                        dot(p2,x2), dot(p3,x3) ) );
-        }
+});
 
-        float fbm( vec3 p ) {
-            float f = 0.0;
-            f += 0.5000*snoise( p ); p = p*2.02;
-            f += 0.2500*snoise( p ); p = p*2.03;
-            f += 0.1250*snoise( p ); p = p*2.01;
-            f += 0.0625*snoise( p );
-            return f/0.9375;
-        }
+scene = new THREE.Scene();
 
-        void main() {
-            // Use sphere position for noise input instead of UV
-            vec3 pos = normalize(vPosition);
-            float mouseRatio = 0.5; // Fixed value since we don't need mouse interaction
-            float noise = 0.25 + fbm(vec3(pos * 12.0, iTime * 0.18));
-            noise *= 0.25 + snoise(vec3(pos * 4.0, iTime * 0.15));
-            gl_FragColor = vec4(1.0, 1.0, 1.0, noise);
-        }
-    `
+console.log('Scene created');
+
+/\*\* Camera with optimized frustum \*/
+
+camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000); // Increased far plane for sky sphere
+
+camera.position.set(30, 30, 100);
+
+console.log('Camera set up at position: ' + camera.position.toArray().join(', '));
+
+// Set up post-processing for bloom
+
+const BLOOM_LAYER = 1;
+
+const bloomParams = {
+
+exposure: 1,
+
+bloomStrength: 0.1,
+
+bloomThreshold: 0,
+
+bloomRadius: 0.2
+
 };
 
-// Create noise sphere
-const sphereGeometry = new THREE.SphereGeometry(10000, 64, 64);
+composer = new EffectComposer(renderer);
+
+const renderScene = new RenderPass(scene, camera);
+
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), bloomParams.bloomStrength, bloomParams.bloomRadius, bloomParams.bloomThreshold);
+
+composer.addPass(renderScene);
+
+composer.addPass(bloomPass);
+
+// Only show one layer at a time for selective bloom
+
+camera.layers.set(0); // Default to base layer
+
+// Helper for selective bloom
+
+function setBloomLayer(object) {
+
+object.layers.enable(BLOOM_LAYER);
+
+if (object.children) {
+
+object.children.forEach(setBloomLayer);
+
+}
+
+}
+
+/\*\* Sun direction vector placeholder \*/
+
+sun = new THREE.Vector3();
+
+/\*\* Water surface
+
+\* \- Large plane geometry (10 000 × 10 000 units)
+
+\* \- Uses Water shader with normal map, distortion, colors
+
+\* \- Rotated to lie horizontal and added to scene
+
+\*/
+
+const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+
+water = new Water(waterGeometry, {
+
+textureWidth: 1024,
+
+textureHeight: 1024,
+
+waterNormals: new THREE.TextureLoader().load(
+
+'https://threejs.org/examples/textures/waternormals.jpg',
+
+texture => {
+
+texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+
+texture.repeat.set(8, 8);
+
+},
+
+undefined,
+
+error => {
+
+console.error('Failed to load water normal map:', error);
+
+water.material.uniforms.causticsIntensity.value = 0.0;
+
+}
+
+),
+
+sunDirection: sun.clone().normalize(),
+
+sunColor: 0xFFFFFF,
+
+waterColor: 0x0064B4,
+
+distortionScale: 8.0,
+
+fog: scene.fog !== undefined,
+
+causticsIntensity: 2.3,
+
+causticsScale: 1.8,
+
+causticsSpeed: 0.6,
+
+transparent: true,
+
+opacity: 0.9
+
+});
+
+water.rotation.x = -Math.PI / 2;
+
+scene.add(water);
+
+/\*\* Setup lighting \*/
+
+// Ambient light for overall scene brightness
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 100.0); // Much brighter
+
+scene.add(ambientLight);
+
+// Main directional light
+
+const mainLight = new THREE.DirectionalLight(0xffffff, 50.0); // Much brighter
+
+mainLight.position.set(5, 5, 5);
+
+scene.add(mainLight);
+
+// Fill light from opposite direction
+
+const fillLight = new THREE.DirectionalLight(0xffffff, 50.0); // Much brighter
+
+fillLight.position.set(-5, 0, -5);
+
+scene.add(fillLight);
+
+/\*\* Add noise sphere shader \*/
+
+const noiseSphereShader = {
+
+vertexShader: `
+varying vec2 vUv;
+varying vec3 vPosition;
+varying vec3 vWorldPosition;
+
+void main() {
+    vUv = uv;
+    vPosition = position;
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`,
+
+fragmentShader: `
+uniform float iTime;
+uniform vec2 iMouse;
+uniform vec2 iResolution;
+uniform vec3 horizonColor;
+uniform vec3 zenithColor;
+uniform vec3 atmosphereColor;
+uniform float atmosphereDensity;
+
+varying vec2 vUv;
+varying vec3 vPosition;
+varying vec3 vWorldPosition;
+
+//  Simplex 3D Noise 
+//  by Ian McEwan, Ashima Arts
+vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
+vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
+
+float snoise(vec3 v){ 
+    const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+    const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+
+    // First corner
+    vec3 i  = floor(v + dot(v, C.yyy));
+    vec3 x0 = v - i + dot(i, C.xxx);
+
+    // Other corners
+    vec3 g = step(x0.yzx, x0.xyz);
+    vec3 l = 1.0 - g;
+    vec3 i1 = min(g.xyz, l.zxy);
+    vec3 i2 = max(g.xyz, l.zxy);
+
+    vec3 x1 = x0 - i1 + 1.0 * C.xxx;
+    vec3 x2 = x0 - i2 + 2.0 * C.xxx;
+    vec3 x3 = x0 - 1. + 3.0 * C.xxx;
+
+    // Permutations
+    i = mod(i, 289.0); 
+    vec4 p = permute(permute(permute(
+              i.z + vec4(0.0, i1.z, i2.z, 1.0))
+            + i.y + vec4(0.0, i1.y, i2.y, 1.0)) 
+            + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+
+    // Gradients
+    // (N*N points uniformly over a square, mapped onto an octahedron.)
+    float n_ = 1.0/7.0; // N=7
+    vec3 ns = n_ * D.wyz - D.xzx;
+
+    vec4 j = p - 49.0 * floor(p * ns.z *ns.z);  //  mod(p,N*N)
+
+    vec4 x_ = floor(j * ns.z);
+    vec4 y_ = floor(j - 7.0 * x_);    // mod(j,N)
+
+    vec4 x = x_ *ns.x + ns.yyyy;
+    vec4 y = y_ *ns.x + ns.yyyy;
+    vec4 h = 1.0 - abs(x) - abs(y);
+
+    vec4 b0 = vec4(x.xy, y.xy);
+    vec4 b1 = vec4(x.zw, y.zw);
+
+    vec4 s0 = floor(b0)*2.0 + 1.0;
+    vec4 s1 = floor(b1)*2.0 + 1.0;
+    vec4 sh = -step(h, vec4(0.0));
+
+    vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+    vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+
+    vec3 p0 = vec3(a0.xy, h.x);
+    vec3 p1 = vec3(a0.zw, h.y);
+    vec3 p2 = vec3(a1.xy, h.z);
+    vec3 p3 = vec3(a1.zw, h.w);
+
+    // Normalise gradients
+    vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+    p0 *= norm.x;
+    p1 *= norm.y;
+    p2 *= norm.z;
+    p3 *= norm.w;
+
+    // Mix final noise value
+    vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+    m = m * m;
+    return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), 
+                               dot(p2,x2), dot(p3,x3)));
+}
+
+float fbm(vec3 p) {
+    float f = 0.0;
+    f += 0.5000*snoise(p); p = p*2.02;
+    f += 0.2500*snoise(p); p = p*2.03;
+    f += 0.1250*snoise(p); p = p*2.01;
+    f += 0.0625*snoise(p);
+    return f/0.9375;
+}
+
+void main() {
+    // Use normalized position for directional calculations
+    vec3 pos = normalize(vPosition);
+    
+    // Calculate height factor (0 at horizon, 1 at zenith)
+    float heightFactor = 0.5 + 0.5 * pos.y;
+    
+    // Base color gradient from horizon to zenith
+    vec3 baseColor = mix(horizonColor, zenithColor, pow(heightFactor, 0.8));
+    
+    // Use sphere position for noise input instead of screen coordinates
+    // Scale and offset for better visual effect
+    float noise = 0.25 + fbm(vec3(pos * 12.0, iTime * 0.18));
+    noise *= 0.25 + snoise(vec3(pos * 4.0, iTime * 0.15));
+    
+    // Add atmospheric scattering effect
+    vec3 finalColor = mix(baseColor, atmosphereColor, noise * atmosphereDensity);
+    
+    // Add subtle color variations based on height
+    finalColor += vec3(0.05, 0.05, 0.1) * heightFactor * noise;
+    
+    // Add subtle sun glow effect near horizon
+    float sunGlow = pow(max(0.0, 1.0 - abs(pos.y)), 8.0) * 0.2;
+    finalColor += vec3(0.8, 0.6, 0.2) * sunGlow;
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+}
+`
+};
+
+// Create noise sphere with optimized geometry (reduced from 64x64 to 32x32)
+const sphereGeometry = new THREE.SphereGeometry(10000, 32, 32);
+
 const noiseMaterial = new THREE.ShaderMaterial({
     uniforms: {
         iTime: { value: 0 },
         iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-        iMouse: { value: new THREE.Vector2(0, 0) }
+        iMouse: { value: new THREE.Vector2(0, 0) },
+        horizonColor: { value: new THREE.Color(0.8, 0.7, 0.6) },
+        zenithColor: { value: new THREE.Color(0.2, 0.4, 0.8) },
+        atmosphereColor: { value: new THREE.Color(0.5, 0.6, 0.9) },
+        atmosphereDensity: { value: 0.4 }
     },
     vertexShader: noiseSphereShader.vertexShader,
-    fragmentShader: noiseSphereShader.fragmentShader.replace(
-        /gl_FragColor = vec4\(1\.0, 1\.0, 1\.0, noise\);/, 
-        'gl_FragColor = vec4(vec3(noise), 1.0);'
-    ),
+    fragmentShader: noiseSphereShader.fragmentShader,
     transparent: false,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     side: THREE.BackSide // Render on inside of sphere
 });
 
 const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
-noiseSphere.renderOrder = -1;
+noiseSphere.renderOrder = -1000; // Ensure it renders behind everything
 scene.add(noiseSphere);
 
-// GSAP animations for the noise sphere
-gsap.to(noiseMaterial.uniforms.iMouse.value, {
-    x: window.innerWidth,
-    y: window.innerHeight,
-    duration: 4,
+// Update skybox position to follow camera in animation loop
+const updateSkyboxPosition = () => {
+    noiseSphere.position.copy(camera.position);
+};
+
+// GSAP animations for the noise shader
+gsap.to(noiseMaterial.uniforms.atmosphereDensity, {
+    value: 0.7,
+    duration: 10,
     repeat: -1,
     yoyo: true,
     ease: "sine.inOut"
 });
 
-// Subtle scale animation
-gsap.to(noiseSphere.scale, {
-    x: 1.1,
-    y: 1.1,
-    z: 1.1,
-    duration: 2,
+// Subtle color animation
+gsap.to(noiseMaterial.uniforms.horizonColor.value, {
+    r: 0.9,
+    g: 0.5,
+    b: 0.3,
+    duration: 20,
     repeat: -1,
     yoyo: true,
     ease: "sine.inOut"
 });
 
-/** Add four orbiting sun meshes */
-    const sunParams = [
-        // color, emissive, size, y, z, orbitSpeed (radians/sec), initial angle
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 }, // Largest, original
-        { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 }, // Medium-large
-        { color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI }, // Medium-small
-        { color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 }, // Smallest
-    ];
-    // Center of orbit (will be updated to abstractCore position if loaded)
-    let orbitCenter = new THREE.Vector3(0, 5, 0);
-    // Store sun meshes and their orbit data
-    const suns = [];
-    const lensflares = [];
-    const glowSprites = [];
-    const textureLoader = new THREE.TextureLoader();
-    const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
-    const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
-    const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png');
-    
-    sunParams.forEach((param, i) => {
-        const sunMaterial = new THREE.MeshBasicMaterial({
-            color: param.color,
-            emissive: param.emissive,
-            emissiveIntensity: 1,
-        });
-        const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
-        const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-        // Calculate radius and initial angle from orbitCenter to initial (x,z)
-        const dx = 200 - orbitCenter.x;
-        const dz = param.z - orbitCenter.z;
-        const radius = Math.sqrt(dx * dx + dz * dz);
-        const initialAngle = Math.atan2(dz, dx);
-        sunMesh.position.set(orbitCenter.x + radius * Math.cos(initialAngle), param.y, orbitCenter.z + radius * Math.sin(initialAngle));
-        scene.add(sunMesh);
-        suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: initialAngle, color: param.color });
+/\*\* Add four orbiting sun meshes \*/
 
-        // Enable bloom layer for this sun
-        setBloomLayer(sunMesh);
+const sunParams = [
 
-        // Lens flare for each sun
-        const lensflare = new Lensflare();
-        lensflare.addElement(new LensflareElement(flareTexture, 700, 0, param.color));
-        lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
-        lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
-        lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
-        lensflare.position.copy(sunMesh.position);
-        scene.add(lensflare);
-        lensflares.push(lensflare);
+// color, emissive, size, y, z, orbitSpeed (radians/sec), initial angle
 
-        // Glow sprite for each sun
-        const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: 0.6 });
-        const glowSprite = new THREE.Sprite(glowMaterial);
-        glowSprite.scale.set(800, 800, 1);
-        glowSprite.position.copy(sunMesh.position);
-        scene.add(glowSprite);
-        glowSprites.push(glowSprite);
-    });
+{ color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 }, // Largest, original
 
-    // When the core model loads, update orbitCenter
-    window.setSunOrbitCenter = (vec3) => {
-        orbitCenter = vec3.clone ? vec3.clone() : new THREE.Vector3(vec3.x, vec3.y, vec3.z);
-    };
+{ color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 }, // Medium-large
 
-    // Skybox GLB loader removed; using noiseSphere shader instead
-    // The noiseSphere mesh created earlier serves as the skybox
+{ color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI }, // Medium-small
 
-    /** Load GLB model for the puzzle core */
-    const loader = new GLTFLoader();
-    loader.load(
-        '/abstract_core.glb',
-        (gltf) => {
-            abstractCore = gltf.scene;
-            abstractCore.scale.set(1, 1, 1);
-            abstractCore.position.set(0, 5, 0);
-            // Update sun orbit center to match core position
-            if (window.setSunOrbitCenter) window.setSunOrbitCenter(abstractCore.position);
+{ color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 }, // Smallest
 
+];
 
-            // Log all mesh names and their material colors to help identify the core mesh
-            abstractCore.traverse((child) => {
-                if (child.isMesh) {
-                    console.log('Mesh name:', child.name);
-                    if (child.material && child.material.color) {
-                        console.log('  Color:', child.material.color.getHexString());
-                    }
-                }
-            });
+// Center of orbit (will be updated to abstractCore position if loaded)
 
-            // Add a sprite-based glow to the Sphere_Core_0 mesh
-            let coreMesh = null;
-            abstractCore.traverse((child) => {
-                if (child.isMesh && child.name === "Sphere_Core_0") {
-                    coreMesh = child;
-                }
-            });
-            if (coreMesh) {
-                const textureLoader = new THREE.TextureLoader();
-                const glowTexture = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sprites/glow.png');
-                const glowMaterial = new THREE.SpriteMaterial({
-                    map: glowTexture,
-                    color: 0x00ffff, // Cyan glow
-                    transparent: true,
-                    opacity: 1.0 // Max brightness
-                });
-                const glowSprite = new THREE.Sprite(glowMaterial);
-                glowSprite.scale.set(16, 16, 1); // Much larger and brighter
-                glowSprite.position.set(0, 0, 0); // Centered on the core mesh
-                coreMesh.add(glowSprite);
-            }
-    
-    // Set up materials for glowing effect
-    abstractCore.traverse((child) => {
-        if (child.isMesh) {
-            // Store original material
-            child.originalMaterial = child.material;
-            // Create new material with original properties
-            child.material = child.material.clone();
-        }
-    });
-    
-    // Set up animation mixer and state
-    if (gltf.animations && gltf.animations.length > 0) {
-        mixer = new THREE.AnimationMixer(abstractCore);
-        
-        // Store animation data
-        window.animationState = {
-            actions: [],
-            isForward: true,
-            isPaused: false,
-            pauseStartTime: 0,
-            pauseDuration: 5, // seconds to pause at end
-            timeScale: 1.0,
-            easingDuration: 1.0, // seconds to ease in/out
-            // Random rotation parameters
-            rotation: {
-                speed: 0.1,  // Base rotation speed
-                noiseOffset: {
-                    x: Math.random() * 1000,
-                    y: Math.random() * 1000,
-                    z: Math.random() * 1000
-                }
-            }
-        };
-        
-        // Simple noise function (since we don't have access to Perlin noise)
-        window.smoothNoise = (x) => {
-            return Math.sin(x/10) * 0.5 + 
-                   Math.sin(x/15) * 0.25 + 
-                   Math.sin(x/20) * 0.125;
-        };
+let orbitCenter = new THREE.Vector3(0, 5, 0);
 
-        gltf.animations.forEach((clip) => {
-            const action = mixer.clipAction(clip);
-            action.clampWhenFinished = true;
-            action.loop = THREE.LoopOnce;
-            window.animationState.actions.push(action);
-        });
+// Store sun meshes and their orbit data
 
-        // Start playing forward
-        window.animationState.actions.forEach(action => {
-            action.reset();
-            action.play();
-        });
-    }
-    
-    // Add the model to the scene
-    scene.add(abstractCore);
-    console.log('Model loaded successfully');
+const suns = [];
+
+const lensflares = [];
+
+const glowSprites = [];
+
+const textureLoader = new THREE.TextureLoader();
+
+const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
+
+const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
+
+const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png');
+
+sunParams.forEach((param, i) => {
+
+const sunMaterial = new THREE.MeshBasicMaterial({
+
+color: param.color,
+
+emissive: param.emissive,
+
+emissiveIntensity: 1,
+
+});
+
+const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
+
+const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+
+// Calculate radius and initial angle from orbitCenter to initial (x,z)
+
+const dx = 200 - orbitCenter.x;
+
+const dz = param.z - orbitCenter.z;
+
+const radius = Math.sqrt(dx * dx + dz * dz);
+
+const initialAngle = Math.atan2(dz, dx);
+
+sunMesh.position.set(orbitCenter.x + radius * Math.cos(initialAngle), param.y, orbitCenter.z + radius * Math.sin(initialAngle));
+
+scene.add(sunMesh);
+
+suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: initialAngle, color: param.color });
+
+// Enable bloom layer for this sun
+
+setBloomLayer(sunMesh);
+
+// Lens flare for each sun
+
+const lensflare = new Lensflare();
+
+lensflare.addElement(new LensflareElement(flareTexture, 700, 0, param.color));
+
+lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
+
+lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
+
+lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
+
+lensflare.position.copy(sunMesh.position);
+
+scene.add(lensflare);
+
+lensflares.push(lensflare);
+
+// Glow sprite for each sun
+
+const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: 0.6 });
+
+const glowSprite = new THREE.Sprite(glowMaterial);
+
+glowSprite.scale.set(800, 800, 1);
+
+glowSprite.position.copy(sunMesh.position);
+
+scene.add(glowSprite);
+
+glowSprites.push(glowSprite);
+
+});
+
+// When the core model loads, update orbitCenter
+
+window.setSunOrbitCenter = (vec3) => {
+
+orbitCenter = vec3.clone ? vec3.clone() : new THREE.Vector3(vec3.x, vec3.y, vec3.z);
+
+};
+
+// Skybox GLB loader removed; using noiseSphere shader instead
+
+// The noiseSphere mesh created earlier serves as the skybox
+
+/\*\* Load GLB model for the puzzle core \*/
+
+const loader = new GLTFLoader();
+
+loader.load(
+
+'/abstract_core.glb',
+
+(gltf) => {
+
+abstractCore = gltf.scene;
+
+abstractCore.scale.set(1, 1, 1);
+
+abstractCore.position.set(0, 5, 0);
+
+// Update sun orbit center to match core position
+
+if (window.setSunOrbitCenter) window.setSunOrbitCenter(abstractCore.position);
+
+// Log all mesh names and their material colors to help identify the core mesh
+
+abstractCore.traverse((child) => {
+
+if (child.isMesh) {
+
+console.log('Mesh name:', child.name);
+
+if (child.material && child.material.color) {
+
+console.log(' Color:', child.material.color.getHexString());
+
+}
+
+}
+
+});
+
+// Add a sprite-based glow to the Sphere_Core_0 mesh
+
+let coreMesh = null;
+
+abstractCore.traverse((child) => {
+
+if (child.isMesh && child.name === "Sphere_Core_0") {
+
+coreMesh = child;
+
+}
+
+});
+
+if (coreMesh) {
+
+const textureLoader = new THREE.TextureLoader();
+
+const glowTexture = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sprites/glow.png');
+
+const glowMaterial = new THREE.SpriteMaterial({
+
+map: glowTexture,
+
+color: 0x00ffff, // Cyan glow
+
+transparent: true,
+
+opacity: 1.0 // Max brightness
+
+});
+
+const glowSprite = new THREE.Sprite(glowMaterial);
+
+glowSprite.scale.set(16, 16, 1); // Much larger and brighter
+
+glowSprite.position.set(0, 0, 0); // Centered on the core mesh
+
+coreMesh.add(glowSprite);
+
+}
+
+// Set up materials for glowing effect
+
+abstractCore.traverse((child) => {
+
+if (child.isMesh) {
+
+// Store original material
+
+child.originalMaterial = child.material;
+
+// Create new material with original properties
+
+child.material = child.material.clone();
+
+}
+
+});
+
+// Set up animation mixer and state
+
+if (gltf.animations && gltf.animations.length > 0) {
+
+mixer = new THREE.AnimationMixer(abstractCore);
+
+// Store animation data
+
+window.animationState = {
+
+actions: [],
+
+isForward: true,
+
+isPaused: false,
+
+pauseStartTime: 0,
+
+pauseDuration: 5, // seconds to pause at end
+
+timeScale: 1.0,
+
+easingDuration: 1.0, // seconds to ease in/out
+
+// Random rotation parameters
+
+rotation: {
+
+speed: 0.1, // Base rotation speed
+
+noiseOffset: {
+
+x: Math.random() * 1000,
+
+y: Math.random() * 1000,
+
+z: Math.random() * 1000
+
+}
+
+}
+
+};
+
+// Simple noise function (since we don't have access to Perlin noise)
+
+window.smoothNoise = (x) => {
+
+return Math.sin(x / 10) * 0.5 +
+
+Math.sin(x / 15) * 0.25 +
+
+Math.sin(x / 20) * 0.125;
+
+};
+
+gltf.animations.forEach((clip) => {
+
+const action = mixer.clipAction(clip);
+
+action.clampWhenFinished = true;
+
+action.loop = THREE.LoopOnce;
+
+window.animationState.actions.push(action);
+
+});
+
+// Start playing forward
+
+window.animationState.actions.forEach(action => {
+
+action.reset();
+
+action.play();
+
+});
+
+}
+
+// Add the model to the scene
+
+scene.add(abstractCore);
+
+console.log('Model loaded successfully');
+
 },
-        (xhr) => {
-            console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-        },
-        (error) => {
-            console.error('Error loading model:', error);
-            // Fallback: create a glowing icosahedron
-            const geometry = new THREE.IcosahedronGeometry(10, 2);
-            const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.2, metalness: 0.8 });
-            abstractCore = new THREE.Mesh(geometry, material);
-            abstractCore.position.set(0, 5, 0);
-            scene.add(abstractCore);
-            console.log('Model load failed, using fallback icosahedron');
-        }
-    );
 
-    /** OrbitControls: restrict vertical angle & zoom range, and target */
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.maxPolarAngle = Math.PI * 0.495;
-    controls.target.set(0, 10, 0);
-    controls.minDistance = 250.0;
-    controls.maxDistance = 1000.0;
-    controls.update();
+(xhr) => {
 
-    /** Animation loop */
-    let clock = new THREE.Clock();
-    // Store mixer for animations
-    let mixer;
-    let frameCount = 0; // For frame skipping
+console.log((xhr.loaded / xhr.total * 100) + '% loaded');
 
-    function animate() {
-    // Update noise sphere shader time
-    noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
-        requestAnimationFrame(animate);
-        
-        // Update animations
-        const delta = clock.getDelta();
-        if (mixer && window.animationState) {
-            const state = window.animationState;
-            const actions = state.actions;
-            
-            if (actions.length > 0) {
-                const action = actions[0]; // Use first animation as reference
-                const time = action.time;
-                const duration = action._clip.duration;
-                
-                if (!state.isPaused) {
-                    // Calculate how close we are to the end (0 = start, 1 = end)
-                    const progress = state.isForward ? time / duration : 1 - (time / duration);
-                    
-                    // Apply easing when near the end
-                    if (progress > (duration - state.easingDuration) / duration) {
-                        const easeProgress = (progress - ((duration - state.easingDuration) / duration)) / (state.easingDuration / duration);
-                        state.timeScale = 1.0 - (easeProgress * 0.9); // Slow down to 10% speed
-                    } else {
-                        state.timeScale = 1.0;
-                    }
-                    
-                    // Check if animation reached end
-                    if (state.isForward && time >= duration - 0.001 || 
-                        !state.isForward && time <= 0.001) {
-                        state.isPaused = true;
-                        state.pauseStartTime = clock.getElapsedTime();
-                    }
-                    
-                    // Apply timeScale to all actions
-                    actions.forEach(a => a.timeScale = state.isForward ? state.timeScale : -state.timeScale);
-                    mixer.update(delta);
-                } else {
-                    // Handle pause and reverse
-                    const pauseElapsed = clock.getElapsedTime() - state.pauseStartTime;
-                    if (pauseElapsed >= state.pauseDuration) {
-                        state.isPaused = false;
-                        state.isForward = !state.isForward;
-                        state.timeScale = 1.0;
-                        
-                        // Reset and restart animations in new direction
-                        actions.forEach(action => {
-                            action.timeScale = state.isForward ? 1 : -1;
-                            if (state.isForward) {
-                                action.reset();
-                                action.play();
-                            }
-                        });
-                    }
-                }
-            }
-        }
-        
-        // Update abstract core animation
-        if (abstractCore) {
-            const time = clock.getElapsedTime();
-            
-            // Smooth random rotation
-            abstractCore.rotation.x = Math.sin(time * 0.5) * 0.2;
-            abstractCore.rotation.y = Math.cos(time * 0.3) * 0.3;
-            abstractCore.rotation.z = Math.sin(time * 0.4) * 0.1;
-            
-            // Add some gentle floating motion
-            abstractCore.position.y = 5 + Math.sin(time * 0.8) * 0.5;
-        }
-        
-        // Update sun orbits
-        if (suns && suns.length > 0) {
-            const t = clock.getElapsedTime();
-            suns.forEach((sun, i) => {
-                // Update angle based on speed
-                sun.angle += sun.speed;
-                
-                // Calculate new position
-                const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
-                const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
-                
-                // Update sun position
-                sun.mesh.position.set(x, sun.y, z);
-                
-                // Update associated lensflare and glow sprite
-                sun.mesh.position.y = sun.y + orbitCenter.y - 5; // adjust for core's Y
-                // Update lensflare and glow position
-                if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
-                if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
-            });
-        }
-        // --- Selective Bloom Render ---
-        // 1. Render bloom pass (only glowing objects)
-        camera.layers.set(BLOOM_LAYER);
-        composer.render();
+},
 
-        // 2. Render the rest of the scene (non-bloom objects, no bloom)
-        camera.layers.set(0);
-        renderer.autoClear = false;
-        renderer.clearDepth(); // Clear depth so both layers show up
-        renderer.render(scene, camera);
-        renderer.autoClear = true;
-    }
-    animate();
+(error) => {
 
-    let resizeTimeout;
-    window.addEventListener('resize', function () {
-        if (resizeTimeout) clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }, 250); 
-    });
-} 
+console.error('Error loading model:', error);
 
-		</script>
-	</body>
+// Fallback: create a glowing icosahedron
+
+const geometry = new THREE.IcosahedronGeometry(10, 2);
+
+const material = new THREE.MeshStandardMaterial({ color: 0x00ffff, roughness: 0.2, metalness: 0.8 });
+
+abstractCore = new THREE.Mesh(geometry, material);
+
+abstractCore.position.set(0, 5, 0);
+
+scene.add(abstractCore);
+
+console.log('Model load failed, using fallback icosahedron');
+
+}
+
+);
+
+/\*\* OrbitControls: restrict vertical angle & zoom range, and target \*/
+
+controls = new OrbitControls(camera, renderer.domElement);
+
+controls.maxPolarAngle = Math.PI * 0.495;
+
+controls.target.set(0, 10, 0);
+
+controls.minDistance = 250.0;
+
+controls.maxDistance = 1000.0;
+
+controls.update();
+
+/\*\* Animation loop \*/
+
+let clock = new THREE.Clock();
+
+// Store mixer for animations
+
+let mixer;
+
+let frameCount = 0; // For frame skipping
+
+function animate() {
+
+// Update noise sphere shader time
+noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
+
+// Update skybox position to follow camera
+updateSkyboxPosition();
+
+requestAnimationFrame(animate);
+
+// Update animations
+
+const delta = clock.getDelta();
+
+if (mixer && window.animationState) {
+
+const state = window.animationState;
+
+const actions = state.actions;
+
+if (actions.length > 0) {
+
+const action = actions[0]; // Use first animation as reference
+
+const time = action.time;
+
+const duration = action._clip.duration;
+
+if (!state.isPaused) {
+
+// Calculate how close we are to the end (0 = start, 1 = end)
+
+const progress = state.isForward ? time / duration : 1 - (time / duration);
+
+// Apply easing when near the end
+
+if (progress > (duration - state.easingDuration) / duration) {
+
+const easeProgress = (progress - ((duration - state.easingDuration) / duration)) / (state.easingDuration / duration);
+
+state.timeScale = 1.0 - (easeProgress * 0.9); // Slow down to 10% speed
+
+} else {
+
+state.timeScale = 1.0;
+
+}
+
+// Check if animation reached end
+
+if (state.isForward && time >= duration - 0.001 ||
+
+!state.isForward && time <= 0.001) {
+
+state.isPaused = true;
+
+state.pauseStartTime = clock.getElapsedTime();
+
+}
+
+// Apply timeScale to all actions
+
+actions.forEach(a => a.timeScale = state.isForward ? state.timeScale : -state.timeScale);
+
+mixer.update(delta);
+
+}
+
+else {
+
+// Handle pause and reverse
+
+const pauseElapsed = clock.getElapsedTime() - state.pauseStartTime;
+
+if (pauseElapsed >= state.pauseDuration) {
+
+state.isPaused = false;
+
+state.isForward = !state.isForward;
+
+state.timeScale = 1.0;
+
+// Reset and restart animations in new direction
+
+actions.forEach(action => {
+
+action.timeScale = state.isForward ? 1 : -1;
+
+if (state.isForward) {
+
+action.reset();
+
+action.play();
+
+}
+
+});
+
+}
+
+}
+
+}
+
+}
+
+// Update abstract core animation
+
+if (abstractCore) {
+
+const time = clock.getElapsedTime();
+
+// Smooth random rotation
+
+abstractCore.rotation.x = Math.sin(time * 0.5) * 0.2;
+
+abstractCore.rotation.y = Math.cos(time * 0.3) * 0.3;
+
+abstractCore.rotation.z = Math.sin(time * 0.4) * 0.1;
+
+// Add some gentle floating motion
+
+abstractCore.position.y = 5 + Math.sin(time * 0.8) * 0.5;
+
+}
+
+// Update sun orbits
+
+if (suns && suns.length > 0) {
+
+const t = clock.getElapsedTime();
+
+suns.forEach((sun, i) => {
+
+// Update angle based on speed
+
+sun.angle += sun.speed;
+
+// Calculate new position
+
+const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
+
+const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
+
+// Update sun position
+
+sun.mesh.position.set(x, sun.y, z);
+
+// Update associated lensflare and glow sprite
+
+sun.mesh.position.y = sun.y + orbitCenter.y - 5; // adjust for core's Y
+
+// Update lensflare and glow position
+
+if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
+
+if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
+
+});
+
+}
+
+// --- Selective Bloom Render ---
+
+// 1. Render bloom pass (only glowing objects)
+
+camera.layers.set(BLOOM_LAYER);
+
+composer.render();
+
+// 2. Render the rest of the scene (non-bloom objects, no bloom)
+
+camera.layers.set(0);
+
+renderer.autoClear = false;
+
+renderer.clearDepth(); // Clear depth so both layers show up
+
+renderer.render(scene, camera);
+
+renderer.autoClear = true;
+
+}
+
+animate();
+
+let resizeTimeout;
+
+window.addEventListener('resize', function() {
+
+if (resizeTimeout) clearTimeout(resizeTimeout);
+
+resizeTimeout = setTimeout(() => {
+
+camera.aspect = window.innerWidth / window.innerHeight;
+
+camera.updateProjectionMatrix();
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+}, 250);
+
+});
+
+}
+
+</script>
+
+</body>
+
 </html>

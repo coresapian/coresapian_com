@@ -115,15 +115,36 @@ function init() {
         event.preventDefault();
     });
 
-    /** Scene with fog for distance culling */
+
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x000000, 1000, 5000); // Add fog to help with performance
     console.log('Scene created');
 
     /** Camera with optimized frustum */
-    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 6000); // Reduced far plane
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 10000); // Increased far plane
     camera.position.set(30, 30, 100);
     console.log('Camera set up at position: ' + camera.position.toArray().join(', '));
+
+    // Set up post-processing for bloom
+    const BLOOM_LAYER = 1;
+    const bloomParams = {
+        exposure: 1,
+        bloomStrength: 2.5,
+        bloomThreshold: 0,
+        bloomRadius: 0.25
+    };
+    composer = new THREE.EffectComposer(renderer);
+    const renderScene = new THREE.RenderPass(scene, camera);
+    const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), bloomParams.bloomStrength, bloomParams.bloomRadius, bloomParams.bloomThreshold);
+    composer.addPass(renderScene);
+    composer.addPass(bloomPass);
+
+    // Helper for selective bloom
+    function setBloomLayer(object) {
+        object.layers.enable(BLOOM_LAYER);
+        if (object.children) {
+            object.children.forEach(setBloomLayer);
+        }
+    }
 
     /** Sun direction vector placeholder */
     sun = new THREE.Vector3();
@@ -165,52 +186,81 @@ function init() {
 
     /** Setup lighting */
     // Ambient light for overall scene brightness
-    const ambientLight = new THREE.AmbientLight(0xffffff, 30.0); // Much brighter
+    const ambientLight = new THREE.AmbientLight(0xffffff, 100.0); // Much brighter
     scene.add(ambientLight);
 
     // Main directional light
-    const mainLight = new THREE.DirectionalLight(0xffffff, 8.0); // Much brighter
+    const mainLight = new THREE.DirectionalLight(0xffffff, 100.0); // Much brighter
     mainLight.position.set(5, 5, 5);
     scene.add(mainLight);
 
     // Fill light from opposite direction
-    const fillLight = new THREE.DirectionalLight(0xffffff, 6.0); // Much brighter
+    const fillLight = new THREE.DirectionalLight(0xffffff, 100.0); // Much brighter
     fillLight.position.set(-5, 0, -5);
     scene.add(fillLight);
 
-    /** Add a visible sun mesh */
+    /** Add four orbiting sun meshes */
     const sunGeometry = new THREE.SphereGeometry(120, 32, 32); // Sun size
-    const sunMaterial = new THREE.MeshBasicMaterial({
-        color: 0xFFFFCC,
-        emissive: 0xFFFFAA,
-        emissiveIntensity: 1,
-    });
-    const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-    sunMesh.position.set(300, 50, 2800); // Position far up and to the side
-    scene.add(sunMesh);
-
-    // --- Lens Flare ---
-    const lensflare = new Lensflare();
+    const sunParams = [
+        // color, emissive, y, z, orbitSpeed (radians/sec), initial angle
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 4.12, angle: 0 }, // original
+        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 3.16, angle: Math.PI / 2 },
+        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 2.08, angle: Math.PI },
+        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 1.18, angle: Math.PI * 1.5 },
+    ];
+    // Center of orbit (will be updated to abstractCore position if loaded)
+    let orbitCenter = new THREE.Vector3(0, 5, 0);
+    // Store sun meshes and their orbit data
+    const suns = [];
+    const lensflares = [];
+    const glowSprites = [];
     const textureLoader = new THREE.TextureLoader();
     const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
     const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
-    lensflare.addElement(new LensflareElement(flareTexture, 700, 0, sunMesh.color));
-    lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
-    lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
-    lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
-    lensflare.position.copy(sunMesh.position);
-    scene.add(lensflare);
-
-    // --- Sprite-based Glow ---
     const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png');
-    const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: 0xffffcc, transparent: true, opacity: 0.6 });
-    const glowSprite = new THREE.Sprite(glowMaterial);
-    glowSprite.scale.set(800, 800, 1); // Adjust size as needed
-    glowSprite.position.copy(sunMesh.position);
-    scene.add(glowSprite);
+    
+    sunParams.forEach((param, i) => {
+        const sunMaterial = new THREE.MeshBasicMaterial({
+            color: param.color,
+            emissive: param.emissive,
+            emissiveIntensity: 1,
+        });
+        const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+        // Calculate radius from center to initial position
+        const radius = Math.sqrt(Math.pow(200 - orbitCenter.x, 2) + Math.pow(param.z - orbitCenter.z, 2));
+        sunMesh.position.set(200, param.y, param.z);
+        scene.add(sunMesh);
+        suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: param.angle, color: param.color });
+
+        // Enable bloom layer for this sun
+        setBloomLayer(sunMesh);
+
+        // Lens flare for each sun
+        const lensflare = new Lensflare();
+        lensflare.addElement(new LensflareElement(flareTexture, 700, 0, param.color));
+        lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
+        lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
+        lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
+        lensflare.position.copy(sunMesh.position);
+        scene.add(lensflare);
+        lensflares.push(lensflare);
+
+        // Glow sprite for each sun
+        const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: 0.6 });
+        const glowSprite = new THREE.Sprite(glowMaterial);
+        glowSprite.scale.set(800, 800, 1);
+        glowSprite.position.copy(sunMesh.position);
+        scene.add(glowSprite);
+        glowSprites.push(glowSprite);
+    });
+
+    // When the core model loads, update orbitCenter
+    window.setSunOrbitCenter = (vec3) => {
+        orbitCenter = vec3.clone ? vec3.clone() : new THREE.Vector3(vec3.x, vec3.y, vec3.z);
+    };
 
     /** Create skybox - reduced geometry complexity */
-    const skyGeometry = new THREE.SphereGeometry(3000, 64, 64); // Reduced segments
+    const skyGeometry = new THREE.SphereGeometry(5000, 64, 64); // Reduced segments
     // Flip the geometry inside out
     skyGeometry.scale(-1, 1, 1);
     
@@ -243,6 +293,9 @@ function init() {
             abstractCore = gltf.scene;
             abstractCore.scale.set(1, 1, 1);
             abstractCore.position.set(0, 5, 0);
+            // Update sun orbit center to match core position
+            if (window.setSunOrbitCenter) window.setSunOrbitCenter(abstractCore.position);
+
 
             // Log all mesh names and their material colors to help identify the core mesh
             abstractCore.traverse((child) => {
@@ -435,8 +488,27 @@ function init() {
         }
         frameCount++;
         
-        // Render the scene
-        renderer.render(scene, camera);
+        // Update sun orbits
+        if (suns && suns.length > 0) {
+            // Use time for smooth orbit
+            const t = performance.now() * 0.001;
+            suns.forEach((sun, i) => {
+                // Advance angle
+                sun.angle += sun.speed * delta;
+                // Keep in [0,2PI]
+                if (sun.angle > Math.PI * 2) sun.angle -= Math.PI * 2;
+                // Orbit on XZ plane, Y stays constant
+                sun.mesh.position.x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
+                sun.mesh.position.z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
+                sun.mesh.position.y = sun.y + orbitCenter.y - 5; // adjust for core's Y
+                // Update lensflare and glow position
+                if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
+                if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
+            });
+        }
+        // Render the scene with bloom
+        camera.layers.set(0); // Render non-bloom objects
+        composer.render();
     }
     animate();
 

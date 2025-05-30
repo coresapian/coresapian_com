@@ -196,23 +196,23 @@ function init() {
     scene.add(ambientLight);
 
     // Main directional light
-    const mainLight = new THREE.DirectionalLight(0xffffff, 100.0); // Much brighter
+    const mainLight = new THREE.DirectionalLight(0xffffff, 50.0); // Much brighter
     mainLight.position.set(5, 5, 5);
     scene.add(mainLight);
 
     // Fill light from opposite direction
-    const fillLight = new THREE.DirectionalLight(0xffffff, 100.0); // Much brighter
+    const fillLight = new THREE.DirectionalLight(0xffffff, 50.0); // Much brighter
     fillLight.position.set(-5, 0, -5);
     scene.add(fillLight);
 
     /** Add four orbiting sun meshes */
-    const sunGeometry = new THREE.SphereGeometry(120, 32, 32); // Sun size
+    const sunGeometry = new THREE.SphereGeometry(20, 32, 32); // Sun size
     const sunParams = [
         // color, emissive, y, z, orbitSpeed (radians/sec), initial angle
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 4.12, angle: 0 }, // original
-        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 3.16, angle: Math.PI / 2 },
-        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 2.08, angle: Math.PI },
-        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 1.18, angle: Math.PI * 1.5 },
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 0.12, angle: 0 }, // original
+        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 0.16, angle: Math.PI / 2 },
+        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 0.08, angle: Math.PI },
+        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 0.18, angle: Math.PI * 1.5 },
     ];
     // Center of orbit (will be updated to abstractCore position if loaded)
     let orbitCenter = new THREE.Vector3(0, 5, 0);

@@ -1,332 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <title>coresapian - three.js ocean scene</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <style>
-        body { margin: 0; background: #000; color: #fff; font-family: Monospace; }
-        #container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; }
-        #info { position: absolute; top: 0; width: 100%; padding: 10px; text-align: center; z-index: 1; pointer-events: none; }
-        a { color: #ff0; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-        #loading-screen {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            font-family: 'Press Start 2P', cursive, monospace;
-            color: #fff;
-            image-rendering: pixelated;
-            transition: opacity 0.8s cubic-bezier(0.4,0,0.2,1);
-            opacity: 1;
-        }
-        #loading-screen.fade-out {
-            opacity: 0;
-            pointer-events: none;
-        }
-        #loading-text {
-            font-size: 32px;
-            margin-bottom: 20px;
-            text-shadow: 2px 2px #000;
-            animation: blink 1s infinite;
-            letter-spacing: 2px;
-            image-rendering: pixelated;
-        }
-        #progress-container {
-            width: 300px;
-            height: 30px;
-            background: #111;
-            border: 4px solid #fff;
-            padding: 3px;
-            image-rendering: pixelated;
-        }
-        #progress-bar {
-            width: 0%;
-            height: 100%;
-            background: #0f0;
-            transition: width 0.3s ease;
-            box-shadow: 0 0 10px #0f0;
-        }
-        @keyframes blink {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-    </style>
-</head>
-<body>
-    <div id="loading-screen">
-        <div id="loading-text">LOADING...</div>
-        <div id="progress-container">
-            <div id="progress-bar"></div>
-        </div>
-    </div>
-    <div id="container"></div>
-    <div id="info">
-        <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - ocean, sky, core, and orbiting suns
-    </div>
-
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
-    <script type="module">
-        import * as THREE from 'three';
-        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-        import { Water } from 'three/addons/objects/Water.js';
-        import { Sky } from 'three/addons/objects/Sky.js';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-        let container, camera, scene, renderer, controls;
-        let water, sky, coreModel;
-        let suns = [], lensflares = [], glowSprites = [];
-        let orbitCenter = new THREE.Vector3(0, 5, 0);
-        const SUN_PARAMS = [
-            { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 },
-            { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 },
-            { color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI },
-            { color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 },
-        ];
-        const GLOW_SPRITE_SCALE = 800;
-        const GLOW_OPACITY = 0.6;
-        let clock = new THREE.Clock();
-
-        // Asset loading state
-        let assetsToLoad = 1 + 3 + 3; // coreModel (GLB), 3 textures for water, 3 for suns
-        let assetsLoaded = 0;
-        function updateLoadingProgress() {
-            assetsLoaded++;
-            const progress = Math.min(assetsLoaded / assetsToLoad, 1);
-            document.getElementById('progress-bar').style.width = `${progress * 100}%`;
-            if (progress === 1) {
-                setTimeout(() => {
-                    document.getElementById('loading-screen').classList.add('fade-out');
-                    setTimeout(() => {
-                        document.getElementById('loading-screen').style.display = 'none';
-                    }, 900);
-                }, 300);
-            }
-        }
-
-        init();
-        animate();
-
-        function init() {
-            container = document.getElementById('container');
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.toneMapping = THREE.ACESFilmicToneMapping;
-            renderer.toneMappingExposure = 0.5;
-            container.appendChild(renderer.domElement);
-
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
-            camera.position.set(30, 30, 100);
-
-            // Water
-            const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
-            water = new Water(
-                waterGeometry,
-                {
-                    textureWidth: 512,
-                    textureHeight: 512,
-                    waterNormals: new THREE.TextureLoader().load('https://threejs.org/examples/textures/waternormals.jpg', function (texture) {
-                        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-                        updateLoadingProgress();
-                    }),
-                    sunDirection: new THREE.Vector3(),
-                    sunColor: 0xffffff,
-                    waterColor: 0x001e0f,
-                    distortionScale: 3.7,
-                    fog: scene.fog !== undefined
-                }
-            );
-            water.rotation.x = -Math.PI / 2;
-            scene.add(water);
-
-            // Sky
-            sky = new Sky();
-            sky.scale.setScalar(10000);
-            scene.add(sky);
-            const skyUniforms = sky.material.uniforms;
-            skyUniforms['turbidity'].value = 10;
-            skyUniforms['rayleigh'].value = 2;
-            skyUniforms['mieCoefficient'].value = 0.005;
-            skyUniforms['mieDirectionalG'].value = 0.8;
-
-            // Sun position for sky and water
-            const parameters = { elevation: 2, azimuth: 180 };
-            const sun = new THREE.Vector3();
-            function updateSun() {
-                const phi = THREE.MathUtils.degToRad(90 - parameters.elevation);
-                const theta = THREE.MathUtils.degToRad(parameters.azimuth);
-                sun.setFromSphericalCoords(1, phi, theta);
-                sky.material.uniforms['sunPosition'].value.copy(sun);
-                water.material.uniforms['sunDirection'].value.copy(sun).normalize();
-            }
-            updateSun();
-
-            // Load abstract core model
-            const loader = new GLTFLoader();
-            loader.load('abstract_core.glb', function(gltf) {
-                coreModel = gltf.scene;
-                coreModel.position.set(0, 5, 0);
-                coreModel.scale.set(10, 10, 10);
-                scene.add(coreModel);
-                updateLoadingProgress();
-            }, undefined, function(error) {
-                console.error('Error loading abstract_core.glb:', error);
-                updateLoadingProgress();
-            });
-
-            // Orbiting suns
-            const textureLoader = new THREE.TextureLoader();
-            const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png', updateLoadingProgress);
-            const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png', updateLoadingProgress);
-            const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png', updateLoadingProgress);
-            SUN_PARAMS.forEach((param, i) => {
-                const sunMaterial = new THREE.MeshBasicMaterial({ color: param.color, emissive: param.emissive, emissiveIntensity: 1 });
-                const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
-                const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-                // Orbit radius and angle
-                const dx = 200 - orbitCenter.x;
-                const dz = param.z - orbitCenter.z;
-                const radius = Math.sqrt(dx * dx + dz * dz);
-                const initialAngle = Math.atan2(dz, dx);
-                sunMesh.position.set(orbitCenter.x + radius * Math.cos(initialAngle), param.y, orbitCenter.z + radius * Math.sin(initialAngle));
-                scene.add(sunMesh);
-                suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: initialAngle, color: param.color });
-                // Lensflare
-                const lensflare = new THREE.Group();
-                const flareSprite1 = new THREE.Sprite(new THREE.SpriteMaterial({ map: flareTexture, color: param.color, transparent: true, opacity: 0.6 }));
-                flareSprite1.scale.set(120, 120, 1);
-                lensflare.add(flareSprite1);
-                const flareSprite2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: flareTexture2, color: param.color, transparent: true, opacity: 0.4 }));
-                flareSprite2.scale.set(60, 60, 1);
-                lensflare.add(flareSprite2);
-                lensflare.position.copy(sunMesh.position);
-                scene.add(lensflare);
-                lensflares.push(lensflare);
-                // Glow sprite
-                const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: GLOW_OPACITY });
-                const glowSprite = new THREE.Sprite(glowMaterial);
-                glowSprite.scale.set(GLOW_SPRITE_SCALE, GLOW_SPRITE_SCALE, 1);
-                glowSprite.position.copy(sunMesh.position);
-                scene.add(glowSprite);
-                glowSprites.push(glowSprite);
-            });
-
-            // Controls
-            controls = new OrbitControls(camera, renderer.domElement);
-            controls.maxPolarAngle = Math.PI * 0.495;
-            controls.target.set(0, 10, 0);
-            controls.minDistance = 40.0;
-            controls.maxDistance = 200.0;
-            controls.update();
-
-            window.addEventListener('resize', onWindowResize);
-        }
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const time = performance.now() * 0.001;
-            // Animate core
-            if (coreModel) {
-                coreModel.rotation.x = Math.sin(time * 0.5) * 0.2;
-                coreModel.rotation.y = Math.cos(time * 0.3) * 0.3;
-                coreModel.rotation.z = Math.sin(time * 0.4) * 0.1;
-                coreModel.position.y = 5 + Math.sin(time * 0.8) * 0.5;
-            }
-            // Animate suns
-            suns.forEach((sun, i) => {
-                sun.angle += sun.speed;
-                const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
-                const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
-                sun.mesh.position.set(x, sun.y, z);
-                if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
-                if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
-            });
-            // Animate water
-            if (water) water.material.uniforms['time'].value += 1.0 / 60.0;
-            renderer.render(scene, camera);
-        }
-    </script>
-</body>
-</html>
-<head>
-    <title>coresapian</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-    <meta name="description" content="Coresapian: The next step in human evolution">
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-    <style>
-
-#loading-screen {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #000;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-family: 'Press Start 2P', cursive;
-    color: #fff;
-    image-rendering: pixelated;
-}
-
-#loading-text {
-    font-size: 24px;
-    margin-bottom: 20px;
-    text-shadow: 2px 2px #000;
-    animation: blink 1s infinite;
-}
-
-#progress-container {
-    width: 300px;
-    height: 30px;
-    background: #111;
-    border: 4px solid #fff;
-    padding: 3px;
-    image-rendering: pixelated;
-}
-
-#progress-bar {
-    width: 0%;
-    height: 100%;
-    background: #0f0;
-    transition: width 0.3s ease;
-    box-shadow: 0 0 10px #0f0;
-}
-
-@keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-}
-
+	<head>
+		<title>coresapian</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
 
 body {
     margin: 0;
@@ -368,19 +46,10 @@ body {
 		</style>
 	</head>
 	<body>
-<header>
-    <h1 id="site-title" style="text-align:center; font-family: 'Press Start 2P', cursive; font-size: 2rem; margin: 1rem 0;">coresapian</h1>
-</header>
-<div id="loading-screen" role="status" aria-live="polite">
-    <div id="loading-text">LOADING...</div>
-    <div id="progress-container">
-        <div id="progress-bar"></div>
-    </div>
-</div>
-<main id="container" role="main" aria-label="3D Scene"></main>
-<div id="info" aria-label="Site Info">
-    <span>coresapian.com</span>
-</div>
+		<div id="container"></div>
+		<div id="info">
+			coresapian.com
+		</div>
 
 		<script type="importmap">
 			{
@@ -391,500 +60,108 @@ body {
 			}
 		</script>
 
-		<!-- GSAP for animations -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+		<script type="module">
+			import * as THREE from 'three';
+			import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+			import { Water } from 'three/addons/objects/Water.js';
+			import { Sky } from 'three/addons/objects/Sky.js';
+			import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+			import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
+			import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+			import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
-<script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { Water } from 'three/addons/objects/Water.js';
-import { Sky } from 'three/addons/objects/Sky.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { Lensflare, LensflareElement } from 'three/addons/objects/Lensflare.js';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+			let container;
+			let camera, scene, renderer, composer;
+			let controls, water, sun;
+			let abstractCore;
 
-// === CONSTANTS ===
-const CAMERA_FOV = 55;
-const CAMERA_NEAR = 1;
-const CAMERA_FAR = 10000;
-const CAMERA_START_POS = { x: 30, y: 30, z: 100 };
-const BLOOM_LAYER = 1;
-const BLOOM_PARAMS = { exposure: 1, bloomStrength: 0.1, bloomThreshold: 0, bloomRadius: 0.2 };
-const WATER_SIZE = 10000;
-const WATER_TEXTURE_SIZE = 1024;
-const WATER_COLOR = 0x0064B4;
-const WATER_DISTORTION = 8.0;
-const WATER_OPACITY = 0.8;
-const WATER_CAUSTICS_INTENSITY = 2.3;
-const WATER_CAUSTICS_SCALE = 1.8;
-const WATER_CAUSTICS_SPEED = 0.2;
-const ORBIT_CONTROLS = {
-    maxPolarAngle: Math.PI * 0.495,
-    target: { x: 0, y: 10, z: 0 },
-    minDistance: 250.0,
-    maxDistance: 1000.0
-};
-const SUN_PARAMS = [
-    { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 },
-    { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 },
-    { color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI },
-    { color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 },
-];
-const GLOW_SPRITE_SCALE = 800;
-const GLOW_OPACITY = 0.6;
-const CORE_START_POS = { x: 0, y: 5, z: 0 };
-const CORE_FALLBACK_COLOR = 0x00ffff;
-const CORE_FALLBACK_SIZE = 10;
-const CORE_FALLBACK_DETAIL = 2;
-const ANIMATION_PAUSE_DURATION = 5;
-const ANIMATION_EASING_DURATION = 1.0;
-const ANIMATION_ROTATION_SPEED = 0.1;
+			init();
 
-
-// === GLOBALS ===
-let container, camera, scene, renderer, composer;
-let controls, water, sun, abstractCore, mixer;
-let orbitCenter = new THREE.Vector3(CORE_START_POS.x, CORE_START_POS.y, CORE_START_POS.z);
-let suns = [], lensflares = [], glowSprites = [];
-let clock = new THREE.Clock();
-let loadingManager;
-
-// === LOADING MANAGER & PROGRESS ===
-/**
- * Update the loading progress bar and hide loading screen when done
- */
-function updateLoadingProgress(itemsLoaded, itemsTotal) {
-    updateLoadingProgressBar(itemsLoaded, itemsTotal);
-    if (itemsLoaded === itemsTotal) {
-        hideLoadingScreen();
-    }
-}
-
-/**
- * Update the progress bar width
- */
-function updateLoadingProgressBar(itemsLoaded, itemsTotal) {
-    const progress = (itemsLoaded / itemsTotal) * 100;
-    document.getElementById('progress-bar').style.width = `${progress}%`;
-}
-
-/**
- * GSAP fade out the loading screen
- */
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    gsap.to(loadingScreen, {
-        opacity: 0,
-        duration: 1,
-        onComplete: () => {
-            loadingScreen.style.display = 'none';
-        }
-    });
-}
-
-function createLoadingManager() {
-    return new THREE.LoadingManager(
-        () => updateLoadingProgress(1, 1),
-        (url, itemsLoaded, itemsTotal) => updateLoadingProgress(itemsLoaded, itemsTotal),
-        (err) => {
-            console.error('Asset loading error:', err);
-        }
-    );
-}
-
-// === MAIN INITIALIZATION ===
-init();
-
-/**
+			/**
  * Initializes the 3D scene: sets up renderer, scene, camera, water surface,
  * skybox, lighting environment, loads the puzzle core model, orbit controls,
  * post-processing effects, and window resize handling.
  */
 function init() {
     console.log('Init function started');
+
+    // Get the DOM container for the renderer
     container = document.getElementById('container');
-    initRenderer(); // Set up the WebGL renderer and attach to DOM
-    scene = initScene(); // Create and return the Three.js scene
-    camera = initCamera(); // Set up the camera with position and aspect
-    composer = initPostProcessing(renderer, scene, camera); // Set up post-processing (bloom, etc)
-    sun = new THREE.Vector3();
-    water = initWater(scene, sun); // Add water surface
-    initLighting(scene); // Add ambient and directional lights
-    controls = initControls(camera, renderer.domElement); // Set up orbit controls
-    createStarfield(scene); // Add procedural starfield skybox
-    initSuns(scene); // Add orbiting suns, lensflares, and glow sprites
-    abstractCore = initCoreModel(scene); // Load core model
-    initAssetLoading(); // Set up asset loading manager and progress
-    initEventListeners(); // Set up window event listeners
-    startAnimationLoop(); // Start animation loop
-}
 
-/**
- * Set up window event listeners (resize, etc)
- */
-function initEventListeners() {
-    let resizeTimeout;
-    window.addEventListener('resize', function () {
-        if (resizeTimeout) clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }, 250);
-    });
-}
-
-/**
- * Set up asset loading manager and progress bar
- */
-function initAssetLoading() {
-    loadingManager = new THREE.LoadingManager(
-        () => updateLoadingProgress(1, 1),
-        (url, itemsLoaded, itemsTotal) => updateLoadingProgress(itemsLoaded, itemsTotal),
-        (err) => {
-            console.error('Asset loading error:', err);
-        }
-    );
-}
-
-
-/**
- * Add orbiting suns, lensflares, and glow sprites to the scene
- */
-function initSuns(scene) {
-    // Center of orbit (will be updated to abstractCore position if loaded)
-    orbitCenter = new THREE.Vector3(0, 5, 0);
-    suns = [];
-    lensflares = [];
-    glowSprites = [];
-    const textureLoader = new THREE.TextureLoader();
-    const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
-    const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
-    const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png');
-    SUN_PARAMS.forEach((param, i) => {
-        const sunMaterial = new THREE.MeshBasicMaterial({
-            color: param.color,
-            emissive: param.emissive,
-            emissiveIntensity: 1,
-        });
-        const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
-        const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-        // Calculate radius and initial angle from orbitCenter to initial (x,z)
-        const dx = 200 - orbitCenter.x;
-        const dz = param.z - orbitCenter.z;
-        const radius = Math.sqrt(dx * dx + dz * dz);
-        const initialAngle = Math.atan2(dz, dx);
-        sunMesh.position.set(
-            orbitCenter.x + radius * Math.cos(param.angle),
-            param.y,
-            orbitCenter.z + radius * Math.sin(param.angle)
-        );
-        setBloomLayer(sunMesh);
-        scene.add(sunMesh);
-        suns.push({ mesh: sunMesh, angle: param.angle, speed: param.orbitSpeed, radius, y: param.y });
-        // Lens flare for each sun
-        const lensflare = new Lensflare();
-        lensflare.addElement(new LensflareElement(flareTexture, 700, 0, param.color));
-        lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
-        lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
-        lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
-        lensflare.position.copy(sunMesh.position);
-        scene.add(lensflare);
-        lensflares.push(lensflare);
-        // Glow sprite for each sun
-        const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: GLOW_OPACITY });
-        const glowSprite = new THREE.Sprite(glowMaterial);
-        glowSprite.scale.set(GLOW_SPRITE_SCALE, GLOW_SPRITE_SCALE, 1);
-        glowSprite.position.copy(sunMesh.position);
-        scene.add(glowSprite);
-        glowSprites.push(glowSprite);
-    });
-}
-
-/**
- * Start the animation loop and update scene components
- */
-function startAnimationLoop() {
-    clock = new THREE.Clock();
-    function animate() {
-        // Update noise sphere shader time if present
-        const noiseMaterial = getNoiseMaterial(scene);
-        if (noiseMaterial) {
-            noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
-        }
-        // Update core animation
-        if (abstractCore) {
-            const time = clock.getElapsedTime();
-            abstractCore.rotation.x = Math.sin(time * 0.5) * 0.2;
-            abstractCore.rotation.y = Math.cos(time * 0.3) * 0.3;
-            abstractCore.rotation.z = Math.sin(time * 0.4) * 0.1;
-            abstractCore.position.y = 5 + Math.sin(time * 0.8) * 0.5;
-        }
-        // Update sun orbits
-        updateSunsOrbit();
-
-        // Render passes
-        camera.layers.set(BLOOM_LAYER);
-        composer.render();
-        camera.layers.set(0);
-        renderer.autoClear = false;
-        renderer.clearDepth();
-        renderer.render(scene, camera);
-        renderer.autoClear = true;
-        requestAnimationFrame(animate);
-    }
-    animate();
-}
-
-/**
- * Update sun orbits, lensflares, and glow sprites each frame
- */
-function updateSunsOrbit() {
-    if (suns && suns.length > 0) {
-        suns.forEach((sun, i) => {
-            sun.angle += sun.speed;
-            const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
-            const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
-            sun.mesh.position.set(x, sun.y, z);
-            if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
-            if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
-        });
-    }
-}
-
-/**
- * Helper to find the noise sphere material in the scene
- */
-function getNoiseMaterial(scene) {
-    // Find the noise sphere material in the scene
-    let material = null;
-    scene.traverse(obj => {
-        if (obj.isMesh && obj.material && obj.material.uniforms && obj.material.uniforms.iTime) {
-            material = obj.material;
-        }
-    });
-    return material;
-}
-
-/**
- * Load the core model (GLB), or fallback to icosahedron
- */
-function initCoreModel(scene) {
-    // Load GLB model for the puzzle core
-    const loader = new GLTFLoader();
-    let core = null;
-    loader.load(
-        '/abstract_core.glb',
-        (gltf) => {
-            core = gltf.scene;
-            core.scale.set(1, 1, 1);
-            core.position.set(0, 5, 0);
-            // Update sun orbit center to match core position
-            if (window.setSunOrbitCenter) window.setSunOrbitCenter(core.position);
-            // Add glow to Sphere_Core_0 mesh
-            let coreMesh = null;
-            core.traverse((child) => {
-                if (child.isMesh && child.name === "Sphere_Core_0") {
-                    coreMesh = child;
-                }
-            });
-            if (coreMesh) {
-                const textureLoader = new THREE.TextureLoader();
-                const glowTexture = textureLoader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/sprites/glow.png');
-                const glowMaterial = new THREE.SpriteMaterial({
-                    map: glowTexture,
-                    color: 0x00ffff,
-                    transparent: true,
-                    opacity: 1.0
-                });
-                const glowSprite = new THREE.Sprite(glowMaterial);
-                glowSprite.scale.set(16, 16, 1);
-                glowSprite.position.set(0, 0, 0);
-                coreMesh.add(glowSprite);
-            }
-            // Add to scene
-            scene.add(core);
-            console.log('Model loaded successfully');
-        },
-        undefined,
-        (error) => {
-            console.error('Error loading model:', error);
-            // Fallback: create a glowing icosahedron
-            const geometry = new THREE.IcosahedronGeometry(CORE_FALLBACK_SIZE, CORE_FALLBACK_DETAIL);
-            const material = new THREE.MeshStandardMaterial({ color: CORE_FALLBACK_COLOR, roughness: 0.2, metalness: 0.8 });
-            core = new THREE.Mesh(geometry, material);
-            core.position.set(0, 5, 0);
-            scene.add(core);
-            console.log('Model load failed, using fallback icosahedron');
-        }
-    );
-    return core;
-}
-
-/**
- * Add noise sphere sky to the scene
- */
-/**
- * Add noise sphere sky to the scene
- */
-// === PROCEDURAL STARFIELD SKYBOX ===
-function createStarfield(scene, {
-    starCount = 4000,
-    radius = 9000,
-    minSize = 0.5,
-    maxSize = 2.2
-} = {}) {
-    const geometry = new THREE.BufferGeometry();
-    const positions = [];
-    const sizes = [];
-    for (let i = 0; i < starCount; i++) {
-        // Random point on sphere
-        const theta = Math.random() * 2 * Math.PI;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const r = radius;
-        const x = r * Math.sin(phi) * Math.cos(theta);
-        const y = r * Math.sin(phi) * Math.sin(theta);
-        const z = r * Math.cos(phi);
-        positions.push(x, y, z);
-        sizes.push(minSize + Math.random() * (maxSize - minSize));
-    }
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
-    const material = new THREE.PointsMaterial({
-        color: 0xffffff,
-        size: 2.0,
-        sizeAttenuation: true,
-        transparent: true,
-        opacity: 0.85,
-        depthWrite: false
-    });
-    const starfield = new THREE.Points(geometry, material);
-    starfield.frustumCulled = false;
-    scene.add(starfield);
-}
-
-/**
- * Animate the noise sphere with GSAP
- */
-function initNoiseSphereAnimation(noiseMaterial, noiseSphere) {
-    gsap.to(noiseMaterial.uniforms.iMouse.value, {
-        x: window.innerWidth,
-        y: window.innerHeight,
-        duration: 4,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut"
-    });
-    gsap.to(noiseSphere.scale, {
-        x: 1.1,
-        y: 1.1,
-        z: 1.1,
-        duration: 2,
-        repeat: -1,
-        yoyo: true,
-        ease: "sine.inOut"
-    });
-}
-
-/**
- * Set up orbit controls for the camera
- */
-function initControls(camera, domElement) {
-    const controls = new OrbitControls(camera, domElement);
-    controls.maxPolarAngle = ORBIT_CONTROLS.maxPolarAngle;
-    controls.target.set(
-        ORBIT_CONTROLS.target.x,
-        ORBIT_CONTROLS.target.y,
-        ORBIT_CONTROLS.target.z
-    );
-    controls.minDistance = ORBIT_CONTROLS.minDistance;
-    controls.maxDistance = ORBIT_CONTROLS.maxDistance;
-    controls.update();
-    return controls;
-}
-
-/**
- * Set up the WebGL renderer and attach to DOM
- */
-function initRenderer() {
+    /** Renderer setup
+     * - Creates a WebGL renderer
+     * - Matches pixel ratio & viewport size to the window
+     * - Hooks into the animation loop
+     * - Applies ACES Filmic tone mapping
+     * - Appends the canvas element to the page
+     */
     renderer = new THREE.WebGLRenderer({
-        antialias: false,
+        antialias: false,  // Disable antialiasing for performance
         powerPreference: 'high-performance',
         stencil: false,
-        depth: true,
-        preserveDrawingBuffer: true
+        depth: true
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // Limit pixel ratio
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = false;
+    renderer.shadowMap.enabled = false; // Disable shadows for performance
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 0.5;
     container.appendChild(renderer.domElement);
+    
     renderer.domElement.addEventListener('webglcontextlost', event => {
         console.error('WebGL context lost');
         event.preventDefault();
     });
-}
 
-/**
- * Create and return the Three.js scene
- */
-function initScene() {
-    const sc = new THREE.Scene();
+
+    scene = new THREE.Scene();
     console.log('Scene created');
-    return sc;
-}
 
-/**
- * Set up the camera with position and aspect
- */
-function initCamera() {
-    const cam = new THREE.PerspectiveCamera(CAMERA_FOV, window.innerWidth / window.innerHeight, CAMERA_NEAR, CAMERA_FAR);
-    cam.position.set(CAMERA_START_POS.x, CAMERA_START_POS.y, CAMERA_START_POS.z);
-    console.log('Camera set up at position: ' + cam.position.toArray().join(', '));
-    cam.layers.set(0); // Default to base layer
-    return cam;
-}
+    /** Camera with optimized frustum */
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 10000); // Increased far plane
+    camera.position.set(30, 30, 100);
+    console.log('Camera set up at position: ' + camera.position.toArray().join(', '));
 
-/**
- * Set up post-processing (bloom, etc)
- */
-function initPostProcessing(renderer, scene, camera) {
-    const composer = new EffectComposer(renderer);
+    // Set up post-processing for bloom
+    const BLOOM_LAYER = 1;
+    const bloomParams = {
+        exposure: 1,
+        bloomStrength: 2.5,
+        bloomThreshold: 0,
+        bloomRadius: 0.25
+    };
+    composer = new EffectComposer(renderer);
     const renderScene = new RenderPass(scene, camera);
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        BLOOM_PARAMS.bloomStrength,
-        BLOOM_PARAMS.bloomRadius,
-        BLOOM_PARAMS.bloomThreshold
-    );
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), bloomParams.bloomStrength, bloomParams.bloomRadius, bloomParams.bloomThreshold);
     composer.addPass(renderScene);
     composer.addPass(bloomPass);
-    return composer;
-}
 
-/**
- * Enable the bloom layer for an object and all its children
- */
-function setBloomLayer(object) {
-    object.layers.enable(BLOOM_LAYER);
-    if (object.children) {
-        object.children.forEach(setBloomLayer);
+    // For debug: show all layers
+    camera.layers.enableAll();
+
+    // Helper for selective bloom
+    function setBloomLayer(object) {
+        object.layers.enable(BLOOM_LAYER);
+        if (object.children) {
+            object.children.forEach(setBloomLayer);
+        }
     }
-}
 
-/**
- * Add water surface to the scene
- */
-function initWater(scene, sun) {
-    const waterGeometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE);
-    const water = new Water(waterGeometry, {
-        textureWidth: WATER_TEXTURE_SIZE,
-        textureHeight: WATER_TEXTURE_SIZE,
+    /** Sun direction vector placeholder */
+    sun = new THREE.Vector3();
+
+    /** Water surface
+     * - Large plane geometry (10 000 × 10 000 units)
+     * - Uses Water shader with normal map, distortion, colors
+     * - Rotated to lie horizontal and added to scene
+     */
+    const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+    water = new Water(waterGeometry, {
+        textureWidth: 1024,
+        textureHeight: 1024,
         waterNormals: new THREE.TextureLoader().load(
-            'https://threejs.org/examples/textures/waternormals.jpg',
+            'https://threejs.org/examples/textures/waternormals.jpg', 
             texture => {
                 texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
                 texture.repeat.set(8, 8);
@@ -897,60 +174,48 @@ function initWater(scene, sun) {
         ),
         sunDirection: sun.clone().normalize(),
         sunColor: 0xFFFFFF,
-        waterColor: WATER_COLOR,
-        distortionScale: WATER_DISTORTION,
+        waterColor: 0x0064B4,
+        distortionScale: 8.0,
         fog: scene.fog !== undefined,
-        causticsIntensity: WATER_CAUSTICS_INTENSITY,
-        causticsScale: WATER_CAUSTICS_SCALE,
-        causticsSpeed: WATER_CAUSTICS_SPEED,
+        causticsIntensity: 2.3,
+        causticsScale: 1.8,
+        causticsSpeed: 0.6,
         transparent: true,
-        opacity: WATER_OPACITY
+        opacity: 0.9
     });
     water.rotation.x = -Math.PI / 2;
     scene.add(water);
-    return water;
-}
 
-/**
- * Add ambient and directional lights to the scene
- */
-function initLighting(scene) {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 100.0);
+    /** Setup lighting */
+    // Ambient light for overall scene brightness
+    const ambientLight = new THREE.AmbientLight(0xffffff, 100.0); // Much brighter
     scene.add(ambientLight);
-    const mainLight = new THREE.DirectionalLight(0xffffff, 50.0);
+
+    // Main directional light
+    const mainLight = new THREE.DirectionalLight(0xffffff, 100.0); // Much brighter
     mainLight.position.set(5, 5, 5);
     scene.add(mainLight);
-    const fillLight = new THREE.DirectionalLight(0xffffff, 50.0);
+
+    // Fill light from opposite direction
+    const fillLight = new THREE.DirectionalLight(0xffffff, 100.0); // Much brighter
     fillLight.position.set(-5, 0, -5);
     scene.add(fillLight);
-}
 
-
-// Subtle scale animation
-gsap.to(noiseSphere.scale, {
-    x: 1.1,
-    y: 1.1,
-    z: 1.1,
-    duration: 2,
-    repeat: -1,
-    yoyo: true,
-    ease: "sine.inOut"
-});
-
-/** Add four orbiting sun meshes */
+    /** Add four orbiting sun meshes */
+    const sunGeometry = new THREE.SphereGeometry(120, 32, 32); // Sun size
     const sunParams = [
-        // color, emissive, size, y, z, orbitSpeed (radians/sec), initial angle
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 }, // Largest, original
-        { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 }, // Medium-large
-        { color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI }, // Medium-small
-        { color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 }, // Smallest
+        // color, emissive, y, z, orbitSpeed (radians/sec), initial angle
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 4.12, angle: 0 }, // original
+        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 3.16, angle: Math.PI / 2 },
+        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 2.08, angle: Math.PI },
+        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 1.18, angle: Math.PI * 1.5 },
     ];
     // Center of orbit (will be updated to abstractCore position if loaded)
-    orbitCenter = new THREE.Vector3(0, 5, 0);
+    let orbitCenter = new THREE.Vector3(0, 5, 0);
     // Store sun meshes and their orbit data
-    suns = [];
-    lensflares = [];
-    glowSprites = [];
+    const suns = [];
+    const lensflares = [];
+    const glowSprites = [];
     const textureLoader = new THREE.TextureLoader();
     const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
     const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
@@ -962,16 +227,12 @@ gsap.to(noiseSphere.scale, {
             emissive: param.emissive,
             emissiveIntensity: 1,
         });
-        const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
         const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
-        // Calculate radius and initial angle from orbitCenter to initial (x,z)
-        const dx = 200 - orbitCenter.x;
-        const dz = param.z - orbitCenter.z;
-        const radius = Math.sqrt(dx * dx + dz * dz);
-        const initialAngle = Math.atan2(dz, dx);
-        sunMesh.position.set(orbitCenter.x + radius * Math.cos(initialAngle), param.y, orbitCenter.z + radius * Math.sin(initialAngle));
+        // Calculate radius from center to initial position
+        const radius = Math.sqrt(Math.pow(200 - orbitCenter.x, 2) + Math.pow(param.z - orbitCenter.z, 2));
+        sunMesh.position.set(200, param.y, param.z);
         scene.add(sunMesh);
-        suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: initialAngle, color: param.color });
+        suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: param.angle, color: param.color });
 
         // Enable bloom layer for this sun
         setBloomLayer(sunMesh);
@@ -1000,8 +261,31 @@ gsap.to(noiseSphere.scale, {
         orbitCenter = vec3.clone ? vec3.clone() : new THREE.Vector3(vec3.x, vec3.y, vec3.z);
     };
 
-    // Skybox GLB loader removed; using noiseSphere shader instead
-    // The noiseSphere mesh created earlier serves as the skybox
+    /** Create skybox - reduced geometry complexity */
+    const skyGeometry = new THREE.SphereGeometry(5000, 64, 64); // Reduced segments
+    // Flip the geometry inside out
+    skyGeometry.scale(-1, 1, 1);
+    
+    // Load the skybox texture
+    const skyboxLoader = new GLTFLoader();
+    skyboxLoader.load(
+        'skybox.glb',
+        (gltf) => {
+            // Get the first material from the model
+            let skyMaterial;
+            gltf.scene.traverse((child) => {
+                if (child.isMesh && !skyMaterial) {
+                    skyMaterial = child.material.clone();
+                }
+            });
+            
+            if (skyMaterial) {
+                const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+                // skyMesh.rotation.y = Math.PI; // Adjust initial rotation if needed
+                // scene.add(skyMesh); // Removed as scene.background handles the skybox
+            }
+        }
+    );
 
     /** Load GLB model for the puzzle core */
     const loader = new GLTFLoader();
@@ -1130,14 +414,12 @@ gsap.to(noiseSphere.scale, {
     controls.update();
 
     /** Animation loop */
-    clock = new THREE.Clock();
+    let clock = new THREE.Clock();
     // Store mixer for animations
-    mixer = undefined;
+    let mixer;
     let frameCount = 0; // For frame skipping
 
     function animate() {
-    // Update noise sphere shader time
-    noiseMaterial.uniforms.iTime.value = clock.getElapsedTime();
         requestAnimationFrame(animate);
         
         // Update animations
@@ -1182,11 +464,11 @@ gsap.to(noiseSphere.scale, {
                         state.timeScale = 1.0;
                         
                         // Reset and restart animations in new direction
-                        actions.forEach(action => {
-                            action.timeScale = state.isForward ? 1 : -1;
+                        actions.forEach(a => {
+                            a.timeScale = state.isForward ? 1 : -1;
                             if (state.isForward) {
-                                action.reset();
-                                action.play();
+                                a.reset();
+                                a.play();
                             }
                         });
                     }
@@ -1194,54 +476,55 @@ gsap.to(noiseSphere.scale, {
             }
         }
         
-        // Update abstract core animation
-        if (abstractCore) {
-            const time = clock.getElapsedTime();
+        // Update random rotation with frame skipping for performance
+        if (abstractCore && frameCount % 2 === 0) { // Only update every other frame
+            const rot = window.animationState.rotation;
+            rot.noiseOffset.x += 0.001;
+            rot.noiseOffset.y += 0.002;
+            rot.noiseOffset.z += 0.003;
             
-            // Smooth random rotation
-            abstractCore.rotation.x = Math.sin(time * 0.5) * 0.2;
-            abstractCore.rotation.y = Math.cos(time * 0.3) * 0.3;
-            abstractCore.rotation.z = Math.sin(time * 0.4) * 0.1;
-            
-            // Add some gentle floating motion
-            abstractCore.position.y = 5 + Math.sin(time * 0.8) * 0.5;
+            // Apply smooth random rotation
+            abstractCore.rotation.x += window.smoothNoise(rot.noiseOffset.x) * rot.speed * delta;
+            abstractCore.rotation.y += window.smoothNoise(rot.noiseOffset.y) * rot.speed * delta;
+            abstractCore.rotation.z += window.smoothNoise(rot.noiseOffset.z) * rot.speed * delta;
         }
+        frameCount++;
         
         // Update sun orbits
         if (suns && suns.length > 0) {
-            const t = clock.getElapsedTime();
+            // Use time for smooth orbit
+            const t = performance.now() * 0.001;
             suns.forEach((sun, i) => {
-                // Update angle based on speed
-                sun.angle += sun.speed;
-                
-                // Calculate new position
-                const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
-                const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
-                
-                // Update sun position
-                sun.mesh.position.set(x, sun.y, z);
-                
-                // Update associated lensflare and glow sprite
+                // Advance angle
+                sun.angle += sun.speed * delta;
+                // Keep in [0,2PI]
+                if (sun.angle > Math.PI * 2) sun.angle -= Math.PI * 2;
+                // Orbit on XZ plane, Y stays constant
+                sun.mesh.position.x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
+                sun.mesh.position.z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
                 sun.mesh.position.y = sun.y + orbitCenter.y - 5; // adjust for core's Y
                 // Update lensflare and glow position
                 if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
                 if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
             });
         }
-        // --- Selective Bloom Render ---
-        // 1. Render bloom pass (only glowing objects)
-        camera.layers.set(BLOOM_LAYER);
+        // Render the scene with bloom
+        camera.layers.set(0); // Render non-bloom objects
         composer.render();
-
-        // 2. Render the rest of the scene (non-bloom objects, no bloom)
-        camera.layers.set(0);
-        renderer.autoClear = false;
-        renderer.clearDepth(); // Clear depth so both layers show up
-        renderer.render(scene, camera);
-        renderer.autoClear = true;
     }
     animate();
-}
+
+    let resizeTimeout;
+    window.addEventListener('resize', function () {
+        if (resizeTimeout) clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }, 250); 
+    });
+} 
+
 		</script>
 	</body>
 </html>

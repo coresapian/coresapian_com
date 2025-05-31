@@ -1,33 +1,12 @@
 <!DOCTYPE html>
-<!--
-  File: index.html
-  Description: Main Three.js scene for Coresapian.
 
-  Sections:
-    1. Importmap: maps module specifiers ('three', 'three/addons/') to CDN URLs.
-    2. GSAP import: loads GSAP via CDN for timeline-based animations.
-    3. Main script (<script type="module">): imports Three.js core and addons (OrbitControls, Water, Sky, GLTFLoader, Lensflare, post-processing passes).
-    4. init(): entry function that sets up renderer, scene, camera, post-processing, lighting, water surface, sky shader, sun meshes, model loading, and resize handling.
-    5. Renderer: configures WebGLRenderer with toneMapping, pixel ratio, and performance options.
-    6. Scene: creates main Three.js Scene instance.
-    7. Camera: sets up PerspectiveCamera with optimized frustum for large sky sphere (far plane extended to 20,000).
-    8. Post-processing: EffectComposer with RenderPass and UnrealBloomPass for selective bloom layering.
-    9. Lighting: adds ambient and directional lights for scene illumination.
-   10. Water surface: large PlaneGeometry using Water shader with normal map, distortion, and caustics.
-   11. Custom shader sphere (noiseSphere): large inverted SphereGeometry using GLSL noise-based fragment shader to simulate dynamic skybox.
-   12. GSAP animations: animates noise shader uniforms and noiseSphere scale for breathing effect.
-   13. Sun meshes: four MeshBasicMaterial spheres with emissive colors, individual sizes, each orbiting around the abstract core; includes bloom, lensflare, and glow sprite layers.
-   14. Model loading: GLTFLoader loads 'abstract_core.glb', adds to scene, scales/positions model, and updates sun orbit center.
-   15. Animation loop: updates shader time uniform, composer render (selective bloom first), model rotation/floating, sun orbit, and renders scene each frame.
-   16. Resize handler: listens to window resize, debounces updates to camera aspect and renderer size.
--->
 <html lang="en">
 	<head>
 		<title>coresapian</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<style>
-/* Loading screen styles - temporarily disabled
+
 @font-face {
     font-family: 'Press Start 2P';
     src: url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -79,7 +58,7 @@
     50% { opacity: 0.5; }
     100% { opacity: 1; }
 }
-*/
+
 
 body {
     margin: 0;
@@ -121,14 +100,14 @@ body {
 		</style>
 	</head>
 	<body>
-		<!-- Loading screen HTML - temporarily disabled
+
 <div id="loading-screen">
     <div id="loading-text">LOADING...</div>
     <div id="progress-container">
         <div id="progress-bar"></div>
     </div>
 </div>
--->
+
 <div id="container"></div>
 		<div id="info">
 			coresapian.com
@@ -162,8 +141,7 @@ body {
 			let controls, water, sun;
 			let abstractCore;
 
-			/* Loading progress tracking - temporarily disabled
-// Track loading progress
+			// Track loading progress
 let totalAssets = 0;
 let loadedAssets = 0;
 
@@ -197,11 +175,10 @@ loadingManager.onProgress = (url, itemsLoaded, itemsTotal) => {
     loadedAssets = itemsLoaded;
     updateLoadingProgress();
 };
-*/
 
 init();
 
-			/**
+/**
  * Initializes the 3D scene: sets up renderer, scene, camera, water surface,
  * skybox, lighting environment, loads the puzzle core model, orbit controls,
  * post-processing effects, and window resize handling.

@@ -214,8 +214,6 @@ function init() {
     let orbitCenter = new THREE.Vector3(0, 5, 0);
     // Store sun meshes and their orbit data
     const suns = [];
-    const lensflares = [];
-    const glowSprites = [];
     const textureLoader = new THREE.TextureLoader();
     const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
     const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
@@ -237,23 +235,6 @@ function init() {
         // Enable bloom layer for this sun
         setBloomLayer(sunMesh);
 
-        // Lens flare for each sun
-        const lensflare = new Lensflare();
-        lensflare.addElement(new LensflareElement(flareTexture, 700, 0, param.color));
-        lensflare.addElement(new LensflareElement(flareTexture2, 60, 0.6));
-        lensflare.addElement(new LensflareElement(flareTexture2, 70, 0.7));
-        lensflare.addElement(new LensflareElement(flareTexture2, 120, 0.9));
-        lensflare.position.copy(sunMesh.position);
-        scene.add(lensflare);
-        lensflares.push(lensflare);
-
-        // Glow sprite for each sun
-        const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: 0.6 });
-        const glowSprite = new THREE.Sprite(glowMaterial);
-        glowSprite.scale.set(800, 800, 1);
-        glowSprite.position.copy(sunMesh.position);
-        scene.add(glowSprite);
-        glowSprites.push(glowSprite);
     });
 
     // When the core model loads, update orbitCenter
@@ -504,8 +485,6 @@ function init() {
                 sun.mesh.position.z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
                 sun.mesh.position.y = sun.y + orbitCenter.y - 5; // adjust for core's Y
                 // Update lensflare and glow position
-                if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
-                if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
             });
         }
         // Render the scene with bloom

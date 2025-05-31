@@ -1,26 +1,5 @@
 <!DOCTYPE html>
-<!--
-  File: index.html
-  Description: Main Three.js scene for Coresapian.
 
-  Sections:
-    1. Importmap: maps module specifiers ('three', 'three/addons/') to CDN URLs.
-    2. GSAP import: loads GSAP via CDN for timeline-based animations.
-    3. Main script (<script type="module">): imports Three.js core and addons (OrbitControls, Water, Sky, GLTFLoader, Lensflare, post-processing passes).
-    4. init(): entry function that sets up renderer, scene, camera, post-processing, lighting, water surface, sky shader, sun meshes, model loading, and resize handling.
-    5. Renderer: configures WebGLRenderer with toneMapping, pixel ratio, and performance options.
-    6. Scene: creates main Three.js Scene instance.
-    7. Camera: sets up PerspectiveCamera with optimized frustum for large sky sphere (far plane extended to 20,000).
-    8. Post-processing: EffectComposer with RenderPass and UnrealBloomPass for selective bloom layering.
-    9. Lighting: adds ambient and directional lights for scene illumination.
-   10. Water surface: large PlaneGeometry using Water shader with normal map, distortion, and caustics.
-   11. Custom shader sphere (noiseSphere): large inverted SphereGeometry using GLSL noise-based fragment shader to simulate dynamic skybox.
-   12. GSAP animations: animates noise shader uniforms and noiseSphere scale for breathing effect.
-   13. Sun meshes: four MeshBasicMaterial spheres with emissive colors, individual sizes, each orbiting around the abstract core; includes bloom, lensflare, and glow sprite layers.
-   14. Model loading: GLTFLoader loads 'abstract_core.glb', adds to scene, scales/positions model, and updates sun orbit center.
-   15. Animation loop: updates shader time uniform, composer render (selective bloom first), model rotation/floating, sun orbit, and renders scene each frame.
-   16. Resize handler: listens to window resize, debounces updates to camera aspect and renderer size.
--->
 <html lang="en">
 	<head>
 		<title>coresapian</title>

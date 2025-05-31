@@ -1,6 +1,278 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>coresapian - three.js ocean scene</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { margin: 0; background: #000; color: #fff; font-family: Monospace; }
+        #container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; overflow: hidden; }
+        #info { position: absolute; top: 0; width: 100%; padding: 10px; text-align: center; z-index: 1; pointer-events: none; }
+        a { color: #ff0; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Press Start 2P', cursive, monospace;
+            color: #fff;
+            image-rendering: pixelated;
+            transition: opacity 0.8s cubic-bezier(0.4,0,0.2,1);
+            opacity: 1;
+        }
+        #loading-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        #loading-text {
+            font-size: 32px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px #000;
+            animation: blink 1s infinite;
+            letter-spacing: 2px;
+            image-rendering: pixelated;
+        }
+        #progress-container {
+            width: 300px;
+            height: 30px;
+            background: #111;
+            border: 4px solid #fff;
+            padding: 3px;
+            image-rendering: pixelated;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background: #0f0;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px #0f0;
+        }
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <div id="loading-text">LOADING...</div>
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+        </div>
+    </div>
+    <div id="container"></div>
+    <div id="info">
+        <a href="https://threejs.org" target="_blank" rel="noopener">three.js</a> - ocean, sky, core, and orbiting suns
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { Water } from 'three/addons/objects/Water.js';
+        import { Sky } from 'three/addons/objects/Sky.js';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        let container, camera, scene, renderer, controls;
+        let water, sky, coreModel;
+        let suns = [], lensflares = [], glowSprites = [];
+        let orbitCenter = new THREE.Vector3(0, 5, 0);
+        const SUN_PARAMS = [
+            { color: 0xFFFFCC, emissive: 0xFFFFAA, size: 25, y: 50, z: 2800, orbitSpeed: 0.04, angle: 0 },
+            { color: 0xFFA500, emissive: 0xFF8800, size: 20, y: 50, z: 2200, orbitSpeed: 0.08, angle: Math.PI / 2 },
+            { color: 0x00CCFF, emissive: 0x00AADD, size: 40, y: 40, z: 1500, orbitSpeed: 0.05, angle: Math.PI },
+            { color: 0xFF33CC, emissive: 0xFF33AA, size: 30, y: 30, z: 900, orbitSpeed: 0.07, angle: Math.PI * 1.5 },
+        ];
+        const GLOW_SPRITE_SCALE = 800;
+        const GLOW_OPACITY = 0.6;
+        let clock = new THREE.Clock();
+
+        // Asset loading state
+        let assetsToLoad = 1 + 3 + 3; // coreModel (GLB), 3 textures for water, 3 for suns
+        let assetsLoaded = 0;
+        function updateLoadingProgress() {
+            assetsLoaded++;
+            const progress = Math.min(assetsLoaded / assetsToLoad, 1);
+            document.getElementById('progress-bar').style.width = `${progress * 100}%`;
+            if (progress === 1) {
+                setTimeout(() => {
+                    document.getElementById('loading-screen').classList.add('fade-out');
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                    }, 900);
+                }, 300);
+            }
+        }
+
+        init();
+        animate();
+
+        function init() {
+            container = document.getElementById('container');
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 0.5;
+            container.appendChild(renderer.domElement);
+
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
+            camera.position.set(30, 30, 100);
+
+            // Water
+            const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+            water = new Water(
+                waterGeometry,
+                {
+                    textureWidth: 512,
+                    textureHeight: 512,
+                    waterNormals: new THREE.TextureLoader().load('https://threejs.org/examples/textures/waternormals.jpg', function (texture) {
+                        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                        updateLoadingProgress();
+                    }),
+                    sunDirection: new THREE.Vector3(),
+                    sunColor: 0xffffff,
+                    waterColor: 0x001e0f,
+                    distortionScale: 3.7,
+                    fog: scene.fog !== undefined
+                }
+            );
+            water.rotation.x = -Math.PI / 2;
+            scene.add(water);
+
+            // Sky
+            sky = new Sky();
+            sky.scale.setScalar(10000);
+            scene.add(sky);
+            const skyUniforms = sky.material.uniforms;
+            skyUniforms['turbidity'].value = 10;
+            skyUniforms['rayleigh'].value = 2;
+            skyUniforms['mieCoefficient'].value = 0.005;
+            skyUniforms['mieDirectionalG'].value = 0.8;
+
+            // Sun position for sky and water
+            const parameters = { elevation: 2, azimuth: 180 };
+            const sun = new THREE.Vector3();
+            function updateSun() {
+                const phi = THREE.MathUtils.degToRad(90 - parameters.elevation);
+                const theta = THREE.MathUtils.degToRad(parameters.azimuth);
+                sun.setFromSphericalCoords(1, phi, theta);
+                sky.material.uniforms['sunPosition'].value.copy(sun);
+                water.material.uniforms['sunDirection'].value.copy(sun).normalize();
+            }
+            updateSun();
+
+            // Load abstract core model
+            const loader = new GLTFLoader();
+            loader.load('abstract_core.glb', function(gltf) {
+                coreModel = gltf.scene;
+                coreModel.position.set(0, 5, 0);
+                coreModel.scale.set(10, 10, 10);
+                scene.add(coreModel);
+                updateLoadingProgress();
+            }, undefined, function(error) {
+                console.error('Error loading abstract_core.glb:', error);
+                updateLoadingProgress();
+            });
+
+            // Orbiting suns
+            const textureLoader = new THREE.TextureLoader();
+            const flareTexture = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png', updateLoadingProgress);
+            const flareTexture2 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png', updateLoadingProgress);
+            const glowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/glow.png', updateLoadingProgress);
+            SUN_PARAMS.forEach((param, i) => {
+                const sunMaterial = new THREE.MeshBasicMaterial({ color: param.color, emissive: param.emissive, emissiveIntensity: 1 });
+                const sunGeometry = new THREE.SphereGeometry(param.size, 32, 32);
+                const sunMesh = new THREE.Mesh(sunGeometry, sunMaterial);
+                // Orbit radius and angle
+                const dx = 200 - orbitCenter.x;
+                const dz = param.z - orbitCenter.z;
+                const radius = Math.sqrt(dx * dx + dz * dz);
+                const initialAngle = Math.atan2(dz, dx);
+                sunMesh.position.set(orbitCenter.x + radius * Math.cos(initialAngle), param.y, orbitCenter.z + radius * Math.sin(initialAngle));
+                scene.add(sunMesh);
+                suns.push({ mesh: sunMesh, radius, y: param.y, speed: param.orbitSpeed, angle: initialAngle, color: param.color });
+                // Lensflare
+                const lensflare = new THREE.Group();
+                const flareSprite1 = new THREE.Sprite(new THREE.SpriteMaterial({ map: flareTexture, color: param.color, transparent: true, opacity: 0.6 }));
+                flareSprite1.scale.set(120, 120, 1);
+                lensflare.add(flareSprite1);
+                const flareSprite2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: flareTexture2, color: param.color, transparent: true, opacity: 0.4 }));
+                flareSprite2.scale.set(60, 60, 1);
+                lensflare.add(flareSprite2);
+                lensflare.position.copy(sunMesh.position);
+                scene.add(lensflare);
+                lensflares.push(lensflare);
+                // Glow sprite
+                const glowMaterial = new THREE.SpriteMaterial({ map: glowTexture, color: param.color, transparent: true, opacity: GLOW_OPACITY });
+                const glowSprite = new THREE.Sprite(glowMaterial);
+                glowSprite.scale.set(GLOW_SPRITE_SCALE, GLOW_SPRITE_SCALE, 1);
+                glowSprite.position.copy(sunMesh.position);
+                scene.add(glowSprite);
+                glowSprites.push(glowSprite);
+            });
+
+            // Controls
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.maxPolarAngle = Math.PI * 0.495;
+            controls.target.set(0, 10, 0);
+            controls.minDistance = 40.0;
+            controls.maxDistance = 200.0;
+            controls.update();
+
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = performance.now() * 0.001;
+            // Animate core
+            if (coreModel) {
+                coreModel.rotation.x = Math.sin(time * 0.5) * 0.2;
+                coreModel.rotation.y = Math.cos(time * 0.3) * 0.3;
+                coreModel.rotation.z = Math.sin(time * 0.4) * 0.1;
+                coreModel.position.y = 5 + Math.sin(time * 0.8) * 0.5;
+            }
+            // Animate suns
+            suns.forEach((sun, i) => {
+                sun.angle += sun.speed;
+                const x = orbitCenter.x + sun.radius * Math.cos(sun.angle);
+                const z = orbitCenter.z + sun.radius * Math.sin(sun.angle);
+                sun.mesh.position.set(x, sun.y, z);
+                if (lensflares[i]) lensflares[i].position.copy(sun.mesh.position);
+                if (glowSprites[i]) glowSprites[i].position.copy(sun.mesh.position);
+            });
+            // Animate water
+            if (water) water.material.uniforms['time'].value += 1.0 / 60.0;
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>
+<head>
     <title>coresapian</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
@@ -136,7 +408,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 // === CONSTANTS ===
 const CAMERA_FOV = 55;
 const CAMERA_NEAR = 1;
-const CAMERA_FAR = 20000;
+const CAMERA_FAR = 10000;
 const CAMERA_START_POS = { x: 30, y: 30, z: 100 };
 const BLOOM_LAYER = 1;
 const BLOOM_PARAMS = { exposure: 1, bloomStrength: 0.1, bloomThreshold: 0, bloomRadius: 0.2 };
@@ -144,10 +416,10 @@ const WATER_SIZE = 10000;
 const WATER_TEXTURE_SIZE = 1024;
 const WATER_COLOR = 0x0064B4;
 const WATER_DISTORTION = 8.0;
-const WATER_OPACITY = 0.9;
+const WATER_OPACITY = 0.8;
 const WATER_CAUSTICS_INTENSITY = 2.3;
 const WATER_CAUSTICS_SCALE = 1.8;
-const WATER_CAUSTICS_SPEED = 0.6;
+const WATER_CAUSTICS_SPEED = 0.2;
 const ORBIT_CONTROLS = {
     maxPolarAngle: Math.PI * 0.495,
     target: { x: 0, y: 10, z: 0 },
@@ -169,8 +441,7 @@ const CORE_FALLBACK_DETAIL = 2;
 const ANIMATION_PAUSE_DURATION = 5;
 const ANIMATION_EASING_DURATION = 1.0;
 const ANIMATION_ROTATION_SPEED = 0.1;
-const NOISE_SPHERE_RADIUS = 10000;
-const NOISE_SPHERE_SEGMENTS = 64;
+
 
 // === GLOBALS ===
 let container, camera, scene, renderer, composer;
@@ -242,7 +513,7 @@ function init() {
     water = initWater(scene, sun); // Add water surface
     initLighting(scene); // Add ambient and directional lights
     controls = initControls(camera, renderer.domElement); // Set up orbit controls
-    initSky(scene); // Add noise sphere sky
+    createStarfield(scene); // Add procedural starfield skybox
     initSuns(scene); // Add orbiting suns, lensflares, and glow sprites
     abstractCore = initCoreModel(scene); // Load core model
     initAssetLoading(); // Set up asset loading manager and progress
@@ -458,32 +729,40 @@ function initCoreModel(scene) {
 /**
  * Add noise sphere sky to the scene
  */
-function initSky(scene) {
-    // Create noise sphere
-    const sphereGeometry = new THREE.SphereGeometry(NOISE_SPHERE_RADIUS, NOISE_SPHERE_SEGMENTS, NOISE_SPHERE_SEGMENTS);
-    const noiseMaterial = new THREE.ShaderMaterial({
-        uniforms: {
-            iTime: { value: 0 },
-            iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-            iMouse: { value: new THREE.Vector2(0, 0) }
-        },
-        vertexShader: noiseSphereShader.vertexShader,
-        fragmentShader: noiseSphereShader.fragmentShader.replace(
-            /gl_FragColor = vec4\(1\.0, 1\.0, 1\.0, noise\);/, 
-            'gl_FragColor = vec4(vec3(noise), 1.0);'
-        ),
-        transparent: false,
-        depthWrite: false,
-        depthTest: false,
-        side: THREE.BackSide // Render on inside of sphere
+// === PROCEDURAL STARFIELD SKYBOX ===
+function createStarfield(scene, {
+    starCount = 4000,
+    radius = 9000,
+    minSize = 0.5,
+    maxSize = 2.2
+} = {}) {
+    const geometry = new THREE.BufferGeometry();
+    const positions = [];
+    const sizes = [];
+    for (let i = 0; i < starCount; i++) {
+        // Random point on sphere
+        const theta = Math.random() * 2 * Math.PI;
+        const phi = Math.acos(2 * Math.random() - 1);
+        const r = radius;
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = r * Math.sin(phi) * Math.sin(theta);
+        const z = r * Math.cos(phi);
+        positions.push(x, y, z);
+        sizes.push(minSize + Math.random() * (maxSize - minSize));
+    }
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+    const material = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 2.0,
+        sizeAttenuation: true,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false
     });
-
-    const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
-    noiseSphere.renderOrder = -1;
-    scene.add(noiseSphere);
-
-    // Modular GSAP noise sphere animation
-    initNoiseSphereAnimation(noiseMaterial, noiseSphere);
+    const starfield = new THREE.Points(geometry, material);
+    starfield.frustumCulled = false;
+    scene.add(starfield);
 }
 
 /**
@@ -646,140 +925,6 @@ function initLighting(scene) {
     scene.add(fillLight);
 }
 
-/** Add noise sphere shader */
-const noiseSphereShader = {
-    vertexShader: `
-        varying vec2 vUv;
-        varying vec3 vPosition;
-        void main() {
-            vUv = uv;
-            vPosition = position;
-            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-    `,
-    fragmentShader: `
-        uniform float iTime;
-        uniform vec2 iMouse;
-        uniform vec2 iResolution;
-        varying vec2 vUv;
-        varying vec3 vPosition;
-
-        vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
-        vec4 taylorInvSqrt(vec4 r){return 1.79284291400159 - 0.85373472095314 * r;}
-
-        float snoise(vec3 v){ 
-            const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
-            const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
-
-            vec3 i  = floor(v + dot(v, C.yyy) );
-            vec3 x0 =   v - i + dot(i, C.xxx) ;
-
-            vec3 g = step(x0.yzx, x0.xyz);
-            vec3 l = 1.0 - g;
-            vec3 i1 = min( g.xyz, l.zxy );
-            vec3 i2 = max( g.xyz, l.zxy );
-
-            vec3 x1 = x0 - i1 + 1.0 * C.xxx;
-            vec3 x2 = x0 - i2 + 2.0 * C.xxx;
-            vec3 x3 = x0 - 1. + 3.0 * C.xxx;
-
-            i = mod(i, 289.0 ); 
-            vec4 p = permute( permute( permute( 
-                                i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-                            + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
-                            + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
-
-            float n_ = 1.0/7.0;
-            vec3  ns = n_ * D.wyz - D.xzx;
-
-            vec4 j = p - 49.0 * floor(p * ns.z *ns.z);
-
-            vec4 x_ = floor(j * ns.z);
-            vec4 y_ = floor(j - 7.0 * x_ );
-
-            vec4 x = x_ *ns.x + ns.yyyy;
-            vec4 y = y_ *ns.x + ns.yyyy;
-            vec4 h = 1.0 - abs(x) - abs(y);
-
-            vec4 b0 = vec4( x.xy, y.xy );
-            vec4 b1 = vec4( x.zw, y.zw );
-
-            vec4 s0 = floor(b0)*2.0 + 1.0;
-            vec4 s1 = floor(b1)*2.0 + 1.0;
-            vec4 sh = -step(h, vec4(0.0));
-
-            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
-            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
-
-            vec3 p0 = vec3(a0.xy,h.x);
-            vec3 p1 = vec3(a0.zw,h.y);
-            vec3 p2 = vec3(a1.xy,h.z);
-            vec3 p3 = vec3(a1.zw,h.w);
-
-            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
-            p0 *= norm.x;
-            p1 *= norm.y;
-            p2 *= norm.z;
-            p3 *= norm.w;
-
-            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-            m = m * m;
-            return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), 
-                                                                        dot(p2,x2), dot(p3,x3) ) );
-        }
-
-        float fbm( vec3 p ) {
-            float f = 0.0;
-            f += 0.5000*snoise( p ); p = p*2.02;
-            f += 0.2500*snoise( p ); p = p*2.03;
-            f += 0.1250*snoise( p ); p = p*2.01;
-            f += 0.0625*snoise( p );
-            return f/0.9375;
-        }
-
-        void main() {
-            // Use sphere position for noise input instead of UV
-            vec3 pos = normalize(vPosition);
-            float mouseRatio = 0.5; // Fixed value since we don't need mouse interaction
-            float noise = 0.25 + fbm(vec3(pos * 12.0, iTime * 0.18));
-            noise *= 0.25 + snoise(vec3(pos * 4.0, iTime * 0.15));
-            gl_FragColor = vec4(1.0, 1.0, 1.0, noise);
-        }
-    `
-};
-
-// Create noise sphere
-const sphereGeometry = new THREE.SphereGeometry(10000, 64, 64);
-const noiseMaterial = new THREE.ShaderMaterial({
-    uniforms: {
-        iTime: { value: 0 },
-        iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-        iMouse: { value: new THREE.Vector2(0, 0) }
-    },
-    vertexShader: noiseSphereShader.vertexShader,
-    fragmentShader: noiseSphereShader.fragmentShader.replace(
-        /gl_FragColor = vec4\(1\.0, 1\.0, 1\.0, noise\);/, 
-        'gl_FragColor = vec4(vec3(noise), 1.0);'
-    ),
-    transparent: false,
-    depthWrite: false,
-    depthTest: false,
-    side: THREE.BackSide // Render on inside of sphere
-});
-
-const noiseSphere = new THREE.Mesh(sphereGeometry, noiseMaterial);
-noiseSphere.renderOrder = -1;
-scene.add(noiseSphere);
-
-// GSAP animations for the noise sphere
-gsap.to(noiseMaterial.uniforms.iMouse.value, {
-    x: window.innerWidth,
-    y: window.innerHeight,
-    duration: 4,
-    repeat: -1,
-    yoyo: true,
-    ease: "sine.inOut"
-});
 
 // Subtle scale animation
 gsap.to(noiseSphere.scale, {

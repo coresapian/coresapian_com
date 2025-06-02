@@ -60,8 +60,9 @@ function init() {
     scene = new THREE.Scene();
 
     // Camera
-    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000); 
-    camera.position.set(30, 30, 100);
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 50000); // Increased far clipping plane
+    camera.position.set(0, 3100, 1500); // Adjusted camera position for larger scene
+    camera.lookAt(0, 3000, 0); // Look at the core on the water surface
     camera.layers.enableAll(); // Enable all layers for rendering by default
 
     // Post-processing
@@ -195,11 +196,16 @@ function init() {
         abstractCore = loadedCore;
         mixer = loadedMixer;
         if (abstractCore && abstractCore.position) {
-            orbitCenter.copy(abstractCore.position); 
-             suns.forEach(sunObj => {
+            abstractCore.position.set(0, 3000, 0); // Position core on the surface of the water sphere (radius 3000)
+            orbitCenter.copy(abstractCore.position); // Update orbit center for suns
+            // Adjust sun positions relative to the new orbitCenter
+            suns.forEach(sunObj => {
+                // Recalculate radius based on new orbitCenter if z was defining distance from old center
+                // For now, let's assume sunObj.radius is still the desired orbital distance from the new center
                 sunObj.mesh.position.x = orbitCenter.x + sunObj.radius * Math.cos(sunObj.angle);
                 sunObj.mesh.position.z = orbitCenter.z + sunObj.radius * Math.sin(sunObj.angle);
-                sunObj.mesh.position.y = sunObj.y + orbitCenter.y -5; 
+                // Y-position for suns will now be relative to the core's new height
+                // The y-undulation logic in animate() will handle the actual y value based on its own yCenter
             });
         }
         if (abstractCore) {
@@ -213,8 +219,9 @@ function init() {
     controls.dampingFactor = 0.05;
     controls.screenSpacePanning = false;
     controls.minDistance = 10;
-    controls.maxDistance = 2000; 
-    controls.maxPolarAngle = Math.PI / 2; 
+    controls.maxDistance = 10000; // Increased max distance for orbit controls
+    controls.target.set(0, 3000, 0); // Set orbit controls target to the core
+    controls.maxPolarAngle = Math.PI; // Allow looking from below 
 
     window.addEventListener('resize', onWindowResize);
     onWindowResize(); 
@@ -267,9 +274,9 @@ function animate() {
             sunObj.mesh.position.x = orbitCenter.x + sunObj.radius * Math.cos(sunObj.angle);
             sunObj.mesh.position.z = orbitCenter.z + sunObj.radius * Math.sin(sunObj.angle);
 
-            // Y-position undulation (range 10 to 100)
-            const yCenter = 55;
-            const yAmplitude = 45;
+            // Y-position undulation (range orbitCenter.y +/- 450, scaled up for planet)
+            const yCenter = orbitCenter.y; // Suns undulate around the core's Y level
+            const yAmplitude = 450; // Increased amplitude for larger scale
             const yUndulation = Math.sin(elapsedTime * sunObj.yUndulationSpeed + sunObj.yUndulationPhase) * yAmplitude;
             sunObj.mesh.position.y = yCenter + yUndulation;
 

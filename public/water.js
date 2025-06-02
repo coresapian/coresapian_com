@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
 
 export function createWater(scene, sun) {
-    const waterGeometry = new THREE.SphereGeometry(500, 64, 32); 
+    const waterGeometry = new THREE.SphereGeometry(3000, 128, 64); // Increased radius and segments for planet size 
     const water = new Water(waterGeometry, {
         textureWidth: 1024,
         textureHeight: 1024,
@@ -11,7 +11,7 @@ export function createWater(scene, sun) {
             'https://threejs.org/examples/textures/waternormals.jpg', 
             function (texture) {
                 texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-                texture.repeat.set(8, 8); 
+                texture.repeat.set(64, 64); // Increased repeat for larger surface area 
             },
             undefined,
             function (error) {

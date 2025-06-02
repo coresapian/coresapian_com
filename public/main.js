@@ -22,6 +22,7 @@ let sun;      // THREE.Vector3 for sun direction (used by water)
 let water;    // Water mesh from water.js
 let abstractCore; // Model from abstract_core.js
 let mixer;    // AnimationMixer from abstract_core.js
+const clock = new THREE.Clock();
 
 // Variables for sun meshes
 let suns = [];
@@ -198,7 +199,6 @@ function onWindowResize() {
     composer.setSize(window.innerWidth, window.innerHeight); 
 }
 
-const clock = new THREE.Clock();
 
 function animate() {
     requestAnimationFrame(animate);

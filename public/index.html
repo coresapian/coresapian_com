@@ -127,9 +127,9 @@ function init() {
     const BLOOM_LAYER = 1;
     const bloomParams = {
         exposure: 1,
-        bloomStrength: 2.5,
-        bloomThreshold: 0,
-        bloomRadius: 0.25
+        bloomStrength: 0.2,
+        bloomThreshold: 0.8,
+        bloomRadius: 0.05
     };
     composer = new EffectComposer(renderer);
     const renderScene = new RenderPass(scene, camera);
@@ -205,9 +205,9 @@ function init() {
     const sunGeometry = new THREE.SphereGeometry(120, 32, 32); // Sun size
     const sunParams = [
         // color, emissive, y, z, orbitSpeed (radians/sec), initial angle
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 4.12, angle: 0 }, // original
-        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 3.16, angle: Math.PI / 2 },
-        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 2.08, angle: Math.PI },
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 1.52, angle: 0 }, 
+        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 1.26, angle: Math.PI / 2 },
+        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 1.08, angle: Math.PI },
         { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 1.18, angle: Math.PI * 1.5 },
     ];
     // Center of orbit (will be updated to abstractCore position if loaded)
@@ -242,31 +242,55 @@ function init() {
         orbitCenter = vec3.clone ? vec3.clone() : new THREE.Vector3(vec3.x, vec3.y, vec3.z);
     };
 
-    /** Create skybox - reduced geometry complexity */
-    const skyGeometry = new THREE.SphereGeometry(5000, 64, 64); // Reduced segments
-    // Flip the geometry inside out
-    skyGeometry.scale(-1, 1, 1);
-    
-    // Load the skybox texture
-    const skyboxLoader = new GLTFLoader();
-    skyboxLoader.load(
-        'skybox.glb',
-        (gltf) => {
-            // Get the first material from the model
-            let skyMaterial;
-            gltf.scene.traverse((child) => {
-                if (child.isMesh && !skyMaterial) {
-                    skyMaterial = child.material.clone();
-                }
-            });
-            
-            if (skyMaterial) {
-                const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
-                // skyMesh.rotation.y = Math.PI; // Adjust initial rotation if needed
-                // scene.add(skyMesh); // Removed as scene.background handles the skybox
-            }
-        }
-    );
+    /** Create procedural starfield skybox with varied colors and brightness */
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({
+        size: 1.5,       // Adjust star size as needed
+        sizeAttenuation: true, // Stars further away appear smaller
+        vertexColors: true    // Enable per-vertex colors
+        // Optional: for softer/textured stars or specific effects:
+        // map: new THREE.TextureLoader().load('path/to/your/star_texture.png'),
+        // blending: THREE.AdditiveBlending, // Makes stars brighter when overlapping
+        // transparent: true,
+        // depthWrite: false // Important for additive blending and transparency
+    });
+
+    const starVertices = [];
+    const starColors = []; // Array to store colors for each star
+    const numStars = 15000; // Number of stars
+    const skyboxRadius = 5000; // Matches original skybox sphere radius
+
+    const baseColors = [
+        new THREE.Color(0xffffff), // White
+        new THREE.Color(0xffa500), // Orange
+        new THREE.Color(0xff0000)  // Red
+    ];
+
+    for (let i = 0; i < numStars; i++) {
+        // Generate random points on the surface of a sphere
+        const u = Math.random();
+        const v = Math.random();
+        const theta = 2 * Math.PI * u;
+        const phi = Math.acos(2 * v - 1);
+
+        const x = skyboxRadius * Math.sin(phi) * Math.cos(theta);
+        const y = skyboxRadius * Math.sin(phi) * Math.sin(theta);
+        const z = skyboxRadius * Math.cos(phi);
+        starVertices.push(x, y, z);
+
+        // Assign a random color and brightness
+        const baseColor = baseColors[Math.floor(Math.random() * baseColors.length)].clone();
+        const brightness = Math.random() * 0.5 + 0.5; // Random brightness between 0.5 and 1.0
+        baseColor.multiplyScalar(brightness);
+        
+        starColors.push(baseColor.r, baseColor.g, baseColor.b);
+    }
+
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3)); // Set the color attribute
+
+    const starField = new THREE.Points(starGeometry, starMaterial);
+    scene.add(starField); // Add the starfield to the scene
 
     /** Load GLB model for the puzzle core */
     const loader = new GLTFLoader();

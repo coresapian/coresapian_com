@@ -77,6 +77,9 @@ function init() {
     composer.addPass(ssaoPass); 
     composer.addPass(bloomPass); 
 
+    const outputPass = new OutputPass();
+    composer.addPass(outputPass);
+
     // Sun direction vector (for water)
     sun = new THREE.Vector3(1,1,1); 
 
@@ -87,9 +90,9 @@ function init() {
     createSkybox(scene, parallaxLayers); 
 
     // Lighting
-    const hemisphereLight = new THREE.HemisphereLight(0x707070, 0x444444, 0.4);
+    const hemisphereLight = new THREE.HemisphereLight(0x707070, 0x444444, 1.4);
     scene.add(hemisphereLight);
-    const ambientLight = new THREE.AmbientLight(0x606070, 0.4);
+    const ambientLight = new THREE.AmbientLight(0x606070, 1.4);
     scene.add(ambientLight);
     
     const shadowLight1 = new THREE.DirectionalLight(0xffffff, 0.6); 
@@ -123,24 +126,46 @@ function init() {
     // Orbiting Suns with Lensflares
     const sunGeometry = new THREE.SphereGeometry(120, 32, 32);
     const sunParams = [
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 0.02, angle: 0 }, 
-        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 0.016, angle: Math.PI / 2 },
-        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 0.012, angle: Math.PI },
-        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 0.010, angle: Math.PI * 1.5 },
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 0.52, angle: 0 }, 
+        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 0.36, angle: Math.PI / 2 },
+        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 0.22, angle: Math.PI },
+        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 0.39, angle: Math.PI * 1.5 },
     ];
     const textureLoader = new THREE.TextureLoader(); 
     const flareTexture0 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
     const flareTexture3 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
 
     sunParams.forEach(param => {
-        const material = new THREE.MeshBasicMaterial({
+        const material = new THREE.MeshStandardMaterial({
             color: param.color,
             emissive: param.emissive,
             emissiveIntensity: 1,
+            metalness: 0, // Suns are not metallic
+            roughness: 0.8, // Adjust for desired appearance
         });
         const mesh = new THREE.Mesh(sunGeometry, material);
         const radius = Math.sqrt(Math.pow(200 - orbitCenter.x, 2) + Math.pow(param.z - orbitCenter.z, 2));
-        mesh.position.set(orbitCenter.x + radius * Math.cos(param.angle), param.y + orbitCenter.y -5 , orbitCenter.z + radius * Math.sin(param.angle));
+
+        // New animation parameters
+        const baseSize = Math.random() * 0.4 + 0.8; // Base scale multiplier (0.8 to 1.2)
+        const scaleSpeed = Math.random() * 0.5 + 0.2; // Speed of size oscillation
+        const scalePhase = Math.random() * Math.PI * 2; // Initial phase of size oscillation
+        const yUndulationSpeed = Math.random() * 0.3 + 0.1; // Speed of y-axis undulation
+        const yUndulationPhase = Math.random() * Math.PI * 2; // Initial phase of y-axis undulation
+
+        // Set initial y position based on undulation (range 10 to 100)
+        const yCenter = 55;
+        const yAmplitude = 45;
+        const initialY = yCenter + Math.sin(yUndulationPhase) * yAmplitude;
+
+        mesh.position.set(
+            orbitCenter.x + radius * Math.cos(param.angle),
+            initialY,
+            orbitCenter.z + radius * Math.sin(param.angle)
+        );
+
+        // Set initial scale
+        mesh.scale.set(baseSize, baseSize, baseSize);
         
         const lensflare = new Lensflare();
         lensflare.addElement(new LensflareElement(flareTexture0, 700, 0, material.color));
@@ -151,7 +176,17 @@ function init() {
         mesh.add(lensflare);
         
         scene.add(mesh);
-        suns.push({ mesh: mesh, radius, y: param.y, speed: param.orbitSpeed, angle: param.angle });
+        suns.push({
+            mesh: mesh,
+            radius: radius,
+            speed: param.orbitSpeed,
+            angle: param.angle,
+            baseSize: baseSize,
+            scaleSpeed: scaleSpeed,
+            scalePhase: scalePhase,
+            yUndulationSpeed: yUndulationSpeed,
+            yUndulationPhase: yUndulationPhase
+        });
         setBloomLayer(mesh); 
     });
 
@@ -226,11 +261,22 @@ function animate() {
     
     if (suns.length > 0 && abstractCore) { 
         suns.forEach(sunObj => {
+            // Orbital movement (XZ plane)
             sunObj.angle += sunObj.speed * delta;
             if (sunObj.angle > Math.PI * 2) sunObj.angle -= Math.PI * 2;
             sunObj.mesh.position.x = orbitCenter.x + sunObj.radius * Math.cos(sunObj.angle);
             sunObj.mesh.position.z = orbitCenter.z + sunObj.radius * Math.sin(sunObj.angle);
-            sunObj.mesh.position.y = orbitCenter.y + sunObj.y -5 ;
+
+            // Y-position undulation (range 10 to 100)
+            const yCenter = 55;
+            const yAmplitude = 45;
+            const yUndulation = Math.sin(elapsedTime * sunObj.yUndulationSpeed + sunObj.yUndulationPhase) * yAmplitude;
+            sunObj.mesh.position.y = yCenter + yUndulation;
+
+            // Scale animation (grow/shrink a little)
+            const scaleOscillation = Math.sin(elapsedTime * sunObj.scaleSpeed + sunObj.scalePhase) * 0.1; // +/- 10% variation
+            const currentScale = sunObj.baseSize * (1 + scaleOscillation);
+            sunObj.mesh.scale.set(currentScale, currentScale, currentScale);
         });
     }
 

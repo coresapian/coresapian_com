@@ -41,6 +41,7 @@ export function loadAbstractCore(scene, onLoaded) {
 
             abstractCoreModel.traverse(function (child) {
                 if (child.isMesh) {
+                    console.log('Mesh Name:', child.name, '; UUID:', child.uuid); // Log mesh name and UUID
                     child.castShadow = true;
                     child.receiveShadow = true;
                     

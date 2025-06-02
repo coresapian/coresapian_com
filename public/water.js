@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { Water } from 'three/addons/objects/Water.js';
 
 export function createWater(scene, sun) {
-    const waterGeometry = new THREE.PlaneGeometry(10000, 10000);
+    const waterGeometry = new THREE.SphereGeometry(500, 64, 32); 
     const water = new Water(waterGeometry, {
         textureWidth: 1024,
         textureHeight: 1024,
@@ -33,7 +33,7 @@ export function createWater(scene, sun) {
         opacity: 0.9
     });
 
-    water.rotation.x = -Math.PI / 2;
+
     water.receiveShadow = true;
     scene.add(water);
     return water;

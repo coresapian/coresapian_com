@@ -30,7 +30,7 @@ export function createWater(scene, sun) {
         causticsScale: 1.8,
         causticsSpeed: 0.6,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.4
     });
 
 

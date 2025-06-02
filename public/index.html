@@ -71,10 +71,20 @@ body {
 			import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 			import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
+// Array to hold layers for parallax effect
+const parallaxLayers = [];
+
 			let container;
 			let camera, scene, renderer, composer;
 			let controls, water, sun;
 			let abstractCore;
+
+// Starfield variables for module-scope access (for twinkling)
+let starGeometry, starMaterial, starField;
+let starVertices = [], starColors = [];
+let numStars, skyboxRadius;
+let baseColors = []; // For main stars
+let starInitialBrightnessFactors = []; // Store initial brightness for twinkling
 
 			init();
 
@@ -243,10 +253,10 @@ function init() {
     };
 
     /** Create procedural starfield skybox with varied colors and brightness */
-    const starGeometry = new THREE.BufferGeometry();
-    const starMaterial = new THREE.PointsMaterial({
-        size: 1.5,       // Adjust star size as needed
-        sizeAttenuation: true, // Stars further away appear smaller
+    starGeometry = new THREE.BufferGeometry();
+    starMaterial = new THREE.PointsMaterial({
+        size: 1.5, // Base star size, can be adjusted
+        sizeAttenuation: true, // Stars further away appear smaller (perspective effect)
         vertexColors: true    // Enable per-vertex colors
         // Optional: for softer/textured stars or specific effects:
         // map: new THREE.TextureLoader().load('path/to/your/star_texture.png'),
@@ -255,15 +265,18 @@ function init() {
         // depthWrite: false // Important for additive blending and transparency
     });
 
-    const starVertices = [];
-    const starColors = []; // Array to store colors for each star
-    const numStars = 15000; // Number of stars
-    const skyboxRadius = 5000; // Matches original skybox sphere radius
+    // starVertices = []; // Already initialized in module scope
+    // starColors = []; // Already initialized in module scope
+    numStars = 15000; // Number of stars
+    skyboxRadius = 5000; // Matches original skybox sphere radius
 
-    const baseColors = [
+    // Expanded color palette for more realistic star temperatures
+    baseColors = [
+        new THREE.Color(0xaadcff), // Blueish-white (hotter stars)
         new THREE.Color(0xffffff), // White
+        new THREE.Color(0xfff4d4), // Yellowish-white
         new THREE.Color(0xffa500), // Orange
-        new THREE.Color(0xff0000)  // Red
+        new THREE.Color(0xff6347)  // Tomato/Reddish-Orange (cooler stars)
     ];
 
     for (let i = 0; i < numStars; i++) {
@@ -278,9 +291,18 @@ function init() {
         const z = skyboxRadius * Math.cos(phi);
         starVertices.push(x, y, z);
 
-        // Assign a random color and brightness
+        // Assign a random color from the palette
         const baseColor = baseColors[Math.floor(Math.random() * baseColors.length)].clone();
-        const brightness = Math.random() * 0.5 + 0.5; // Random brightness between 0.5 and 1.0
+        
+        // Realistic brightness distribution (more dim stars, fewer bright ones)
+        // Power-law distribution: Math.pow(random, exponent)
+        // Adjust exponent (e.g., 2.0 to 3.0) to control falloff.
+        // Higher exponent = more dim stars, fewer bright ones.
+        let brightness = Math.pow(Math.random(), 2.5); 
+        // Scale to a desired range, e.g., 0.3 (min brightness) to 1.0 (max brightness)
+        brightness = 0.3 + brightness * 0.7;
+        
+        starInitialBrightnessFactors.push(brightness); // Store initial brightness factor
         baseColor.multiplyScalar(brightness);
         
         starColors.push(baseColor.r, baseColor.g, baseColor.b);
@@ -289,8 +311,57 @@ function init() {
     starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
     starGeometry.setAttribute('color', new THREE.Float32BufferAttribute(starColors, 3)); // Set the color attribute
 
-    const starField = new THREE.Points(starGeometry, starMaterial);
+    starField = new THREE.Points(starGeometry, starMaterial);
     scene.add(starField); // Add the starfield to the scene
+    parallaxLayers.push({ field: starField, factor: 0.8, name: 'starField' }); // factor: 0=sticks to cam, 1=world static
+
+    /** Create procedural star dust layer */
+    const dustGeometry = new THREE.BufferGeometry();
+    const dustMaterial = new THREE.PointsMaterial({
+        size: 0.2, // Very small particles
+        sizeAttenuation: true,
+        vertexColors: true,
+        // Optional: for very faint dust, consider transparency and blending
+        // transparent: true,
+        // opacity: 0.5, 
+        // blending: THREE.AdditiveBlending,
+        // depthWrite: false
+    });
+
+    const dustVertices = [];
+    const dustColors = [];
+    const numDustStars = 50000; // More numerous dust particles
+    const dustSkyboxRadius = skyboxRadius * 1.2; // Slightly further away
+
+    // Dust can use a simpler color scheme, mostly faint white/grey
+    const dustBaseColor = new THREE.Color(0xcccccc); 
+
+    for (let i = 0; i < numDustStars; i++) {
+        const u = Math.random();
+        const v = Math.random();
+        const theta = 2 * Math.PI * u;
+        const phi = Math.acos(2 * v - 1);
+
+        const x = dustSkyboxRadius * Math.sin(phi) * Math.cos(theta);
+        const y = dustSkyboxRadius * Math.sin(phi) * Math.sin(theta);
+        const z = dustSkyboxRadius * Math.cos(phi);
+        dustVertices.push(x, y, z);
+
+        const finalColor = dustBaseColor.clone();
+        // Dust brightness: generally fainter, less variation than main stars
+        let brightness = Math.pow(Math.random(), 3.0); // Even more skewed to dim
+        brightness = 0.1 + brightness * 0.4; // Range: 0.1 to 0.5
+        finalColor.multiplyScalar(brightness);
+        
+        dustColors.push(finalColor.r, finalColor.g, finalColor.b);
+    }
+
+    dustGeometry.setAttribute('position', new THREE.Float32BufferAttribute(dustVertices, 3));
+    dustGeometry.setAttribute('color', new THREE.Float32BufferAttribute(dustColors, 3));
+
+    const dustField = new THREE.Points(dustGeometry, dustMaterial);
+    scene.add(dustField);
+    parallaxLayers.push({ field: dustField, factor: 0.9, name: 'dustField' }); // factor: 0=sticks to cam, 1=world static
 
     /** Load GLB model for the puzzle core */
     const loader = new GLTFLoader();
@@ -414,9 +485,12 @@ function init() {
     controls = new OrbitControls(camera, renderer.domElement);
     controls.maxPolarAngle = Math.PI * 0.495;
     controls.target.set(0, 10, 0);
-    controls.minDistance = 250.0;
-    controls.maxDistance = 1000.0;
-    controls.update();
+    controls.minDistance = 250.0; // Restored
+    controls.maxDistance = 1000.0; // Restored
+    controls.enableDamping = true; // Assuming damping is desired for smooth control
+    controls.dampingFactor = 0.05;
+    // controls.autoRotate = true; // Uncomment if auto-rotation is desired
+    controls.update(); // Initial update in init
 
     /** Animation loop */
     let clock = new THREE.Clock();
@@ -429,6 +503,49 @@ function init() {
         
         // Update animations
         const delta = clock.getDelta();
+
+        // Update OrbitControls if damping or autoRotate is enabled
+        if (controls.enableDamping || controls.autoRotate) {
+            controls.update();
+        }
+
+        // Parallax effect for star layers
+        if (parallaxLayers.length > 0) {
+            const cameraQuaternion = camera.quaternion;
+            parallaxLayers.forEach(layer => {
+                layer.field.quaternion.copy(cameraQuaternion).slerp(new THREE.Quaternion(), layer.factor);
+            });
+        }
+
+        // Star twinkling effect
+        if (starGeometry && starColors.length > 0 && numStars > 0) {
+            const twinkleSpeed = 0.05; // Percentage of stars to twinkle per frame (e.g., 0.005 for 0.5%)
+            const starsToTwinkle = Math.floor(numStars * twinkleSpeed);
+            
+            for (let i = 0; i < starsToTwinkle; i++) {
+                const starIndex = Math.floor(Math.random() * numStars);
+                
+                // Retrieve original base color (re-picking randomly for simplicity here)
+                // A more robust way would be to store the baseColor index per star if colors are not to change
+                const originalBaseColor = baseColors[Math.floor(Math.random() * baseColors.length)].clone();
+                const initialBrightness = starInitialBrightnessFactors[starIndex];
+
+                // Modulate brightness: oscillation around initial brightness
+                // Twinkle intensity: how much it deviates. Max deviation: initialBrightness +/- (initialBrightness * twinkleIntensity)
+                const twinkleIntensityFactor = 0.6; // Max 60% deviation from its initial brightness
+                let newBrightness = initialBrightness + (Math.random() - 0.5) * initialBrightness * twinkleIntensityFactor * 2;
+                newBrightness = Math.max(0.1, Math.min(newBrightness, initialBrightness * (1 + twinkleIntensityFactor) ) ); // Clamp brightness
+                newBrightness = Math.min(newBrightness, 1.5); // Absolute cap to prevent overly bright stars if initial is high
+
+                const newColor = originalBaseColor.multiplyScalar(newBrightness);
+                
+                starColors[starIndex * 3] = newColor.r;
+                starColors[starIndex * 3 + 1] = newColor.g;
+                starColors[starIndex * 3 + 2] = newColor.b;
+            }
+            starGeometry.attributes.color.needsUpdate = true;
+        }
+
         if (mixer && window.animationState) {
             const state = window.animationState;
             const actions = state.actions;

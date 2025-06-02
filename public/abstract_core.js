@@ -29,7 +29,7 @@ function createGlowMaterial(color, intensity) {
 export function loadAbstractCore(scene, onLoaded) {
     const loader = new GLTFLoader();
     loader.load(
-        'abstract_core.glb', // Ensure this path is correct relative to public/index.html
+        'abstract_core.glb', 
         function (gltf) {
             abstractCoreModel = gltf.scene;
             abstractCoreModel.scale.set(1, 1, 1); 
@@ -47,7 +47,7 @@ export function loadAbstractCore(scene, onLoaded) {
                     
                     // Apply glow material to specific parts based on name
                     // Adjust these names to match your GLB model's structure
-                    if (child.name.includes('Core_Energy') || child.name.includes('Inner_Glow_Object')) {
+                    if (child.name.includes('Core_Energy') || child.name.includes('Inner_Glow_Object') || child.name === 'Sphere_Core_0') {
                         child.material = glowMaterial.clone(); 
                     } else if (child.material) {
                         // Ensure other parts have standard materials
@@ -63,6 +63,20 @@ export function loadAbstractCore(scene, onLoaded) {
             });
             
             scene.add(abstractCoreModel);
+
+            // Add multiple PointLights for better illumination from various angles
+            const lightConfigs = [
+                { position: [0, 15, 0], intensity: 1.5, distance: 150, decay: 1.5 }, // Top
+                { position: [0, -15, 0], intensity: 1.0, distance: 150, decay: 1.5 }, // Bottom
+                { position: [15, 0, 5], intensity: 1.2, distance: 150, decay: 1.5 },  // Front-ish/Side
+                { position: [-15, 0, -5], intensity: 1.2, distance: 150, decay: 1.5 }  // Back-ish/Side
+            ];
+
+            lightConfigs.forEach(config => {
+                const light = new THREE.PointLight(0xffffff, config.intensity, config.distance, config.decay);
+                light.position.set(config.position[0], config.position[1], config.position[2]);
+                abstractCoreModel.add(light);
+            });
 
             mixer = new THREE.AnimationMixer(abstractCoreModel);
             if (gltf.animations && gltf.animations.length) {

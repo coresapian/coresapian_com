@@ -9,7 +9,7 @@ import { SSAOPass } from 'three/addons/postprocessing/SSAOPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 
 // Import new modules
-import { createWater, updateWater } from './water.js';
+import { createWater, updateWater, effectController as waterEffectController } from './water.js'; // Import effectController if you want to tweak it from main.js or GUI
 import { createSkybox, updateSkyboxTwinkle } from './skybox.js';
 import { loadAbstractCore, updateAbstractCoreAnimation } from './abstract_core.js';
 
@@ -18,15 +18,13 @@ const parallaxLayers = []; // Populated by createSkybox
 let container;
 let camera, scene, renderer, composer;
 let controls; // OrbitControls
-let sun;      // THREE.Vector3 for sun direction (used by water)
-let water;    // Water mesh from water.js
+let sunDirectionVector; // Renamed for clarity, as it's a direction, not the light object itself
+let waterData; // Will store the object returned by createWater (mesh, GPGPU data, etc.)
 let abstractCore; // Model from abstract_core.js
 let mixer;    // AnimationMixer from abstract_core.js
 const clock = new THREE.Clock();
-
-// Variables for sun meshes
-let suns = [];
-let orbitCenter = new THREE.Vector3(0, 5, 0); // Default, updated by abstract core
+const physicalLights = [];
+const NUM_PHYSICAL_LIGHTS = 3;
 
 const BLOOM_LAYER = 1; // Layer for objects that should bloom
 
@@ -46,10 +44,11 @@ function init() {
     });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 0.5; 
+    renderer.toneMappingExposure = 0.8; 
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Or THREE.VSMShadowMap for better quality if performance allows
     container.appendChild(renderer.domElement);
     renderer.domElement.addEventListener('webglcontextlost', event => {
         console.error('WebGL context lost');
@@ -81,11 +80,12 @@ function init() {
     const outputPass = new OutputPass();
     composer.addPass(outputPass);
 
-    // Sun direction vector (for water)
-    sun = new THREE.Vector3(1,1,1); 
+    // Sun direction vector (original use, might be repurposed or removed if not needed by new water directly)
+    sunDirectionVector = new THREE.Vector3(1,1,1); 
 
-    // Water
-    water = createWater(scene, sun); 
+    // Water - new GPGPU water system
+    // createWater now needs renderer, scene, and camera
+    waterData = createWater(renderer, scene, camera); 
 
     // Skybox (Procedural Stars & Dust)
     createSkybox(scene, parallaxLayers); 
@@ -136,6 +136,7 @@ function init() {
     const flareTexture0 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
     const flareTexture3 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
 
+    const suns = [];
     sunParams.forEach(param => {
         const material = new THREE.MeshStandardMaterial({
             color: param.color,
@@ -168,6 +169,22 @@ function init() {
         // Set initial scale
         mesh.scale.set(baseSize, baseSize, baseSize);
         
+        // Add physical light properties to the sun
+        const sunPointLight = new THREE.PointLight(param.color, undefined, 0, 2); // Color, Intensity (from power), Distance, Decay
+        sunPointLight.power = param.intensity * 20000; // Convert existing intensity to a power value (adjust multiplier as needed)
+        sunPointLight.castShadow = true;
+        sunPointLight.shadow.mapSize.width = 512;
+        sunPointLight.shadow.mapSize.height = 512;
+        sunPointLight.shadow.camera.near = baseSize; // Near plane should be beyond the sun's surface
+        sunPointLight.shadow.camera.far = Math.max(5000, radius * 2.5); // Ensure it covers the orbit
+        sunPointLight.shadow.bias = -0.005;
+        // sunPointLight.shadow.radius = 2; // For PCFSoftShadowMap
+
+        mesh.add(sunPointLight); // Add the light as a child of the sun mesh
+
+        mesh.layers.enable(BLOOM_LAYER);
+        scene.add(mesh);
+
         const lensflare = new Lensflare();
         lensflare.addElement(new LensflareElement(flareTexture0, 700, 0, material.color));
         lensflare.addElement(new LensflareElement(flareTexture3, 60, 0.6));
@@ -223,6 +240,37 @@ function init() {
     controls.target.set(0, 3000, 0); // Set orbit controls target to the core
     controls.maxPolarAngle = Math.PI; // Allow looking from below 
 
+    // Create physical orbiting lights
+    for (let i = 0; i < NUM_PHYSICAL_LIGHTS; i++) {
+        const lightColor = new THREE.Color().setHSL(Math.random(), 0.7, 0.6).getHex();
+        const lightPower = 80000 + Math.random() * 120000; // Lumens (e.g., 80k to 200k)
+        const bulbRadius = 15;
+
+        const light = createPhysicalLight(lightColor, lightPower, bulbRadius);
+
+        // Random orbit parameters around the abstract core
+        const orbitAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+        const orbitRadius = 700 + Math.random() * 600; // Orbit distance from core center
+        const orbitSpeed = 0.15 + Math.random() * 0.2; // Radians per second
+        
+        // Initial position on the sphere of orbitRadius
+        let initialRelativePosition = new THREE.Vector3(orbitRadius, 0, 0);
+        const randomRotationAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+        const randomInitialAngle = Math.random() * Math.PI * 2;
+        const initialQuaternion = new THREE.Quaternion().setFromAxisAngle(randomRotationAxis, randomInitialAngle);
+        initialRelativePosition.applyQuaternion(initialQuaternion);
+
+        light.userData.orbit = {
+            axis: orbitAxis,
+            speed: orbitSpeed,
+            currentRelativePosition: initialRelativePosition,
+            rotationQuaternion: new THREE.Quaternion()
+        };
+
+        scene.add(light);
+        physicalLights.push(light);
+    }
+
     window.addEventListener('resize', onWindowResize);
     onWindowResize(); 
 }
@@ -241,6 +289,32 @@ function onWindowResize() {
     composer.setSize(window.innerWidth, window.innerHeight); 
 }
 
+function createPhysicalLight(color, power, bulbRadius = 15) {
+    const pointLight = new THREE.PointLight(color, undefined, 0, 2); // Color, Intensity (set by power), Distance (0=infinite), Decay (2=physical)
+    pointLight.power = power; // Power in lumens
+
+    const bulbGeometry = new THREE.SphereGeometry(bulbRadius, 16, 8);
+    const bulbMaterial = new THREE.MeshStandardMaterial({
+        emissive: color,
+        emissiveIntensity: 30.0, // Tuned for bloom and exposure, may need adjustment
+        color: 0x000000, // Black base color, glow comes from emissive
+        metalness: 0,
+        roughness: 0.5
+    });
+    const bulbMesh = new THREE.Mesh(bulbGeometry, bulbMaterial);
+    bulbMesh.layers.enable(BLOOM_LAYER); // Ensure bulb contributes to bloom
+    pointLight.add(bulbMesh);
+
+    pointLight.castShadow = true;
+    pointLight.shadow.mapSize.width = 512; // Decent quality for multiple lights
+    pointLight.shadow.mapSize.height = 512;
+    pointLight.shadow.camera.near = Math.max(10, bulbRadius * 2); // Near plane should be beyond the bulb
+    pointLight.shadow.camera.far = 5000; // Adjust based on scene scale and orbit radius
+    pointLight.shadow.bias = -0.005; // Helps prevent shadow acne
+    // pointLight.shadow.radius = 2; // For PCFSoftShadowMap, if using soft shadows
+
+    return pointLight;
+}
 
 function animate() {
     requestAnimationFrame(animate);
@@ -249,12 +323,44 @@ function animate() {
 
     controls.update(); 
 
-    updateWater(water, elapsedTime); 
+    // updateWater now takes the waterData object and the camera
+    if (waterData && waterData.heightmapVariable) { // Ensure GPGPU water is ready
+        updateWater(waterData, camera, elapsedTime); 
+    } 
 
     updateSkyboxTwinkle(); 
 
     if (abstractCore && mixer) { 
         updateAbstractCoreAnimation(); 
+
+        // Abstract core interaction with water
+        if (waterData && waterData.heightmapVariable) {
+            const coreWorldPosition = new THREE.Vector3();
+            abstractCore.getWorldPosition(coreWorldPosition);
+            const waterLevel = 3000; // As defined in water.js for waterMesh.position.y
+            const coreInteractionSize = 150; // Radius of core's influence
+            const coreInteractionDepth = 15.0; // How much it displaces water
+
+            // Check if the bottom of the core (approximated) might be touching or in the water
+            // This is a simple check; a more accurate one might use bounding box intersection
+            if (coreWorldPosition.y <= waterLevel + coreInteractionSize * 0.5) { // Check if core's center is near/in water
+                // Convert core's world XZ to water plane's local XZ for the uniform
+                // waterMesh is at (0, 3000, 0) and rotated -PI/2 around X.
+                // So, world X becomes plane's local X, and world Z becomes plane's local Y (or -Y depending on shader interpretation).
+                // The shader uses 'vec2(mousePos.x, -mousePos.y)' and 'vec2(objectPos.x, -objectPos.y)'
+                // This implies that the second component of the uniform should be the negative of the world Z relative to water center.
+                // Since waterMesh is at (0, 3000, 0), its local coords match world XZ for points on its surface before rotation.
+                // After rotation, world X is local X, world Z is local Y.
+                // The shader uses `vec2(objectPos.x, -objectPos.y)`. If objectPos is (worldX, worldZ), then it becomes (worldX, -worldZ).
+                // This seems correct for a plane in XZ with Y up, where the texture's V might correspond to -Z.
+                waterData.heightmapVariable.material.uniforms.objectPos.value.set(coreWorldPosition.x, coreWorldPosition.z);
+                waterData.heightmapVariable.material.uniforms.objectSize.value = coreInteractionSize;
+                waterData.heightmapVariable.material.uniforms.objectDeep.value = coreInteractionDepth;
+            } else {
+                // If core is not interacting, move the influence point far away
+                waterData.heightmapVariable.material.uniforms.objectPos.value.set(10000, 10000);
+            }
+        }
     }
 
     if (camera && parallaxLayers.length > 0) {
@@ -267,6 +373,11 @@ function animate() {
     }
     
     if (suns.length > 0 && abstractCore) { 
+        let interactingSunsCount = 0;
+        const waterLevel = 3000;
+        const sunInteractionBaseSize = 80; // Base size of sun's influence, will be scaled by sun's actual size
+        const sunInteractionBaseDepth = 8.0; // Base depth of sun's influence
+
         suns.forEach(sunObj => {
             // Orbital movement (XZ plane)
             sunObj.angle += sunObj.speed * delta;
@@ -284,7 +395,31 @@ function animate() {
             const scaleOscillation = Math.sin(elapsedTime * sunObj.scaleSpeed + sunObj.scalePhase) * 0.1; // +/- 10% variation
             const currentScale = sunObj.baseSize * (1 + scaleOscillation);
             sunObj.mesh.scale.set(currentScale, currentScale, currentScale);
+
+            // Sun interaction with water
+            if (waterData && waterData.heightmapVariable && interactingSunsCount < 2) {
+                const sunWorldPosition = sunObj.mesh.position;
+                const sunRadius = currentScale / 2; // Approximate radius from its scale
+
+                if (sunWorldPosition.y - sunRadius <= waterLevel) { // Check if bottom of sun touches water
+                    const sunUniformSet = interactingSunsCount === 0 ? 'sun1' : 'sun2';
+                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Pos'].value.set(sunWorldPosition.x, sunWorldPosition.z);
+                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Size'].value = sunInteractionBaseSize * (currentScale / sunObj.baseSize); // Scale interaction size with sun's current scale
+                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Deep'].value = sunInteractionBaseDepth;
+                    interactingSunsCount++;
+                }
+            }
         });
+
+        // If fewer than 2 suns are interacting, move the unused influence points away
+        if (waterData && waterData.heightmapVariable) {
+            if (interactingSunsCount < 1) {
+                waterData.heightmapVariable.material.uniforms.sun1Pos.value.set(10000, 10000);
+            }
+            if (interactingSunsCount < 2) {
+                waterData.heightmapVariable.material.uniforms.sun2Pos.value.set(10000, 10000);
+            }
+        }
     }
 
     composer.render(delta);

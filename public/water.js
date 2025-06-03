@@ -177,7 +177,7 @@ function fillInitialTexture(texture) {
 
 export function createWater(renderer, scene, camera) {
     // Geometry: A large sphere for the water surface
-    const PLANET_RADIUS = 15000;
+    const PLANET_RADIUS = 300;
     const geometry = new THREE.SphereGeometry(PLANET_RADIUS, 128, 64); // Planet radius, width segments, height segments
 
     // Material
@@ -187,9 +187,10 @@ export function createWater(renderer, scene, camera) {
         roughness: 0.1,
         transparent: true,
         opacity: 0.9,
-        side: THREE.DoubleSide, // Render both sides
-        envMapIntensity: 0.5,
+        side: THREE.DoubleSide, // Render both sides for waves that might dip below original surface
     });
+    waterMaterial.defines.BOUNDS = PLANET_RADIUS.toFixed(1); // Ensure visual material also uses correct radius for texelSize calc
+    waterMaterial.envMapIntensity = 0.5;
 
     waterMesh = new THREE.Mesh(geometry, waterMaterial); // Use the new 'geometry' variable
     waterMesh.receiveShadow = true;
@@ -238,7 +239,7 @@ export function createWater(renderer, scene, camera) {
     heightmapVariable.material.uniforms['sun2Size'] = { value: 0.015 }; // Placeholder UV size
     heightmapVariable.material.uniforms['sun2Deep'] = { value: 3.0 };
 
-    heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
+    heightmapVariable.material.defines.BOUNDS = PLANET_RADIUS.toFixed(1); // Use actual planet radius for GPGPU calcs
 
     const error = gpuCompute.init();
     if (error !== null) {
@@ -253,17 +254,8 @@ export function createWater(renderer, scene, camera) {
             ((event.clientX - rect.left) / rect.width) * 2 - 1,
             -((event.clientY - rect.top) / rect.height) * 2 + 1
         );
-        if (mousedown) {
-             // Optional: update raycast continuously while mouse is down and moving
-            raycaster.setFromCamera(mouseCoords, camera);
-            const intersects = raycaster.intersectObject(meshRay, false); // Don't intersect children
-            if (intersects.length > 0) {
-                const point = intersects[0].point;
-                // Convert world point to plane's local coords for uniform
-                const localPoint = waterMesh.worldToLocal(point.clone()); 
-                heightmapVariable.material.uniforms['mousePos'].value.set(localPoint.x, localPoint.y); // Plane is XY locally
-            }
-        }
+        // Mouse intersection point is captured by onPointerDown.
+        // main.js polls getMouseIntersectionPoint and updates mouseUV & mouseSize uniforms.
     }
     function onPointerDown(event) {
         mousedown = true;
@@ -298,9 +290,9 @@ export function updateWater(waterData, camera) {
     }
 
     // Update uniforms that might change per frame (e.g., from effectController)
-    waterData.heightmapVariable.material.uniforms['mouseSize'].value = effectController.mouseSize;
+    // Note: mouseSize is now scaled to UV space and set in main.js, so not updated from effectController here.
     waterData.heightmapVariable.material.uniforms['viscosity'].value = effectController.viscosity;
-    waterData.heightmapVariable.material.uniforms['deep'].value = effectController.mouseDeep;
+    waterData.heightmapVariable.material.uniforms['deep'].value = effectController.mouseDeep; // This is mouseDeep for the GPGPU shader
 
     // Object interaction uniforms will be updated from main.js directly on waterData.heightmapVariable.material.uniforms
 

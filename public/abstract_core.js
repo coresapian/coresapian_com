@@ -41,7 +41,6 @@ export function loadAbstractCore(scene, onLoaded) {
 
             abstractCoreModel.traverse(function (child) {
                 if (child.isMesh) {
-                    console.log('Mesh Name:', child.name, '; UUID:', child.uuid); // Log mesh name and UUID
                     child.castShadow = true;
                     child.receiveShadow = true;
                     
@@ -49,34 +48,14 @@ export function loadAbstractCore(scene, onLoaded) {
                     // Adjust these names to match your GLB model's structure
                     if (child.name.includes('Core_Energy') || child.name.includes('Inner_Glow_Object') || child.name === 'Sphere_Core_0') {
                         child.material = glowMaterial.clone(); 
-                    } else if (child.material) {
-                        // Ensure other parts have standard materials
-                        const originalMaterial = child.material;
-                        child.material = new THREE.MeshStandardMaterial({
-                            color: originalMaterial.color || 0xffffff,
-                            map: originalMaterial.map || null,
-                            metalness: originalMaterial.metalness || 0.5,
-                            roughness: originalMaterial.roughness || 0.5,
-                        });
-                    }
+                    } // Original materials for other parts will be used
+
                 }
             });
             
             scene.add(abstractCoreModel);
 
-            // Add multiple PointLights for better illumination from various angles
-            const lightConfigs = [
-                { position: [0, 15, 0], intensity: 1.5, distance: 150, decay: 1.5 }, // Top
-                { position: [0, -15, 0], intensity: 1.0, distance: 150, decay: 1.5 }, // Bottom
-                { position: [15, 0, 5], intensity: 1.2, distance: 150, decay: 1.5 },  // Front-ish/Side
-                { position: [-15, 0, -5], intensity: 1.2, distance: 150, decay: 1.5 }  // Back-ish/Side
-            ];
-
-            lightConfigs.forEach(config => {
-                const light = new THREE.PointLight(0xffffff, config.intensity, config.distance, config.decay);
-                light.position.set(config.position[0], config.position[1], config.position[2]);
-                abstractCoreModel.add(light);
-            });
+            // Lights are now handled externally in main.js (physical orbiting lights)
 
             mixer = new THREE.AnimationMixer(abstractCoreModel);
             if (gltf.animations && gltf.animations.length) {

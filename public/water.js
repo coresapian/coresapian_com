@@ -14,6 +14,7 @@ let waterMesh, meshRay; // meshRay for mouse raycasting
 
 const mouseCoords = new THREE.Vector2();
 let mousedown = false;
+let intersectionPoint = null; // To store 3D mouse intersection with water
 
 // Publicly accessible effect controller for potential GUI integration
 export const effectController = {
@@ -29,24 +30,31 @@ let simFrame = 0;
 const shaderSnippets = {
     heightmap_fragment: /* glsl */`
         #include <common>
-        uniform vec2 mousePos; // Mouse position in world space on the water plane
+        uniform vec2 mouseUV; // Mouse position in UV space (0-1)
         uniform float mouseSize;
         uniform float viscosity;
         uniform float deep;
 
-        uniform vec2 objectPos; // Position of the interacting object (e.g., core)
+        uniform vec2 objectUV; // Object position in UV space (0-1)
         uniform float objectSize;
         uniform float objectDeep;
 
-        uniform vec2 sun1Pos;
+        uniform vec2 sun1UV;
         uniform float sun1Size;
         uniform float sun1Deep;
 
-        uniform vec2 sun2Pos;
+        uniform vec2 sun2UV;
         uniform float sun2Size;
         uniform float sun2Deep;
 
-        void main() {
+        float distUV(vec2 uv1, vec2 uv2) {
+    float dU = abs(uv1.x - uv2.x);
+    float wrappedDU = min(dU, 1.0 - dU);
+    float dV = abs(uv1.y - uv2.y);
+    return length(vec2(wrappedDU, dV));
+}
+
+void main() {
             vec2 cellSize = 1.0 / resolution.xy;
             vec2 uv = gl_FragCoord.xy * cellSize;
 
@@ -62,23 +70,21 @@ const shaderSnippets = {
 
             float newHeight = ((north.x + south.x + east.x + west.x) * 0.5 - heightmapValue.y) * viscosity;
 
-            // Mouse influence
-            // Map UV (0-1) to world space (-BOUNDS/2 to BOUNDS/2 for interaction calculation)
-            vec2 worldUV = (uv - vec2(0.5)) * BOUNDS;
-            // mousePos is already in world space relative to water plane center
-            float mousePhase = clamp(length(worldUV - vec2(mousePos.x, -mousePos.y)) * PI / mouseSize, 0.0, PI);
+            // Mouse influence (mouseUV is already in UV space)
+            // mouseSize is now radius in UV space (0-1)
+            float mousePhase = clamp(distUV(uv, mouseUV) * PI / mouseSize, 0.0, PI);
             newHeight -= (cos(mousePhase) + 1.0) * deep;
 
-            // Object influence (e.g., abstract core)
-            float objectPhase = clamp(length(worldUV - vec2(objectPos.x, -objectPos.y)) * PI / objectSize, 0.0, PI);
+            // Object influence (objectUV is already in UV space)
+            float objectPhase = clamp(distUV(uv, objectUV) * PI / objectSize, 0.0, PI);
             newHeight -= (cos(objectPhase) + 1.0) * objectDeep;
 
-            // Sun 1 influence
-            float sun1Phase = clamp(length(worldUV - vec2(sun1Pos.x, -sun1Pos.y)) * PI / sun1Size, 0.0, PI);
+            // Sun 1 influence (sun1UV is already in UV space)
+            float sun1Phase = clamp(distUV(uv, sun1UV) * PI / sun1Size, 0.0, PI);
             newHeight -= (cos(sun1Phase) + 1.0) * sun1Deep;
 
-            // Sun 2 influence
-            float sun2Phase = clamp(length(worldUV - vec2(sun2Pos.x, -sun2Pos.y)) * PI / sun2Size, 0.0, PI);
+            // Sun 2 influence (sun2UV is already in UV space)
+            float sun2Phase = clamp(distUV(uv, sun2UV) * PI / sun2Size, 0.0, PI);
             newHeight -= (cos(sun2Phase) + 1.0) * sun2Deep;
 
             heightmapValue.y = heightmapValue.x;
@@ -110,7 +116,8 @@ const shaderSnippets = {
     water_vertex_begin: /* glsl */`
         // Displace vertices based on heightmap
         float heightValue = texture2D(heightmap, uv).x;
-        vec3 transformed = vec3(position.x, position.y, heightValue); // Assuming plane is X,Y and height is Z before rotation
+        // For a sphere centered at origin, normalize(position) gives the outward normal direction.
+        vec3 transformed = position + normalize(position) * heightValue;
 
         #ifdef USE_ALPHAHASH
             vPosition = vec3(position.xy, heightValue); // Use transformed Z for alpha hash if needed
@@ -169,8 +176,9 @@ function fillInitialTexture(texture) {
 }
 
 export function createWater(renderer, scene, camera) {
-    // Geometry: A large plane for the water surface
-    const waterGeometry = new THREE.PlaneGeometry(BOUNDS, BOUNDS, WIDTH - 1, WIDTH - 1);
+    // Geometry: A large sphere for the water surface
+    const PLANET_RADIUS = 15000;
+    const geometry = new THREE.SphereGeometry(PLANET_RADIUS, 128, 64); // Planet radius, width segments, height segments
 
     // Material
     const waterMaterial = new WaterMaterial({
@@ -183,9 +191,7 @@ export function createWater(renderer, scene, camera) {
         envMapIntensity: 0.5,
     });
 
-    waterMesh = new THREE.Mesh(waterGeometry, waterMaterial);
-    waterMesh.rotation.x = -Math.PI / 2; // Make it horizontal
-    waterMesh.position.y = 3000; // Position at the desired scene level
+    waterMesh = new THREE.Mesh(geometry, waterMaterial); // Use the new 'geometry' variable
     waterMesh.receiveShadow = true;
     waterMesh.castShadow = true; // Ripples might cast subtle shadows
     scene.add(waterMesh);
@@ -212,24 +218,24 @@ export function createWater(renderer, scene, camera) {
     heightmapVariable = gpuCompute.addVariable('heightmap', shaderSnippets.heightmap_fragment, initialHeightmap);
     gpuCompute.setVariableDependencies(heightmapVariable, [heightmapVariable]);
 
-    heightmapVariable.material.uniforms['mousePos'] = { value: new THREE.Vector2(10000, 10000) }; // Far away initially
-    heightmapVariable.material.uniforms['mouseSize'] = { value: effectController.mouseSize };
+    heightmapVariable.material.uniforms['mouseUV'] = { value: new THREE.Vector2(-1.0, -1.0) }; // Off-screen UV
+    heightmapVariable.material.uniforms['mouseSize'] = { value: 0.02 }; // Placeholder UV size
     heightmapVariable.material.uniforms['viscosity'] = { value: effectController.viscosity };
     heightmapVariable.material.uniforms['deep'] = { value: effectController.mouseDeep };
 
     // Uniforms for object interaction (e.g., abstract core)
-    heightmapVariable.material.uniforms['objectPos'] = { value: new THREE.Vector2(10000, 10000) }; // Far away initially
-    heightmapVariable.material.uniforms['objectSize'] = { value: 50.0 }; // Example size for core
+    heightmapVariable.material.uniforms['objectUV'] = { value: new THREE.Vector2(-1.0, -1.0) }; // Off-screen UV
+    heightmapVariable.material.uniforms['objectSize'] = { value: 0.03 }; // Placeholder UV size
     heightmapVariable.material.uniforms['objectDeep'] = { value: 5.0 };  // Example depth for core
 
     // Uniforms for Sun 1 interaction
-    heightmapVariable.material.uniforms['sun1Pos'] = { value: new THREE.Vector2(10000, 10000) };
-    heightmapVariable.material.uniforms['sun1Size'] = { value: 30.0 }; // Example size for suns
+    heightmapVariable.material.uniforms['sun1UV'] = { value: new THREE.Vector2(-1.0, -1.0) }; // Off-screen UV
+    heightmapVariable.material.uniforms['sun1Size'] = { value: 0.015 }; // Placeholder UV size
     heightmapVariable.material.uniforms['sun1Deep'] = { value: 3.0 };  // Example depth for suns
 
     // Uniforms for Sun 2 interaction
-    heightmapVariable.material.uniforms['sun2Pos'] = { value: new THREE.Vector2(10000, 10000) };
-    heightmapVariable.material.uniforms['sun2Size'] = { value: 30.0 };
+    heightmapVariable.material.uniforms['sun2UV'] = { value: new THREE.Vector2(-1.0, -1.0) }; // Off-screen UV
+    heightmapVariable.material.uniforms['sun2Size'] = { value: 0.015 }; // Placeholder UV size
     heightmapVariable.material.uniforms['sun2Deep'] = { value: 3.0 };
 
     heightmapVariable.material.defines.BOUNDS = BOUNDS.toFixed(1);
@@ -265,21 +271,25 @@ export function createWater(renderer, scene, camera) {
         raycaster.setFromCamera(mouseCoords, camera);
         const intersects = raycaster.intersectObject(meshRay, false);
         if (intersects.length > 0) {
-            const point = intersects[0].point;
-            const localPoint = waterMesh.worldToLocal(point.clone());
-            heightmapVariable.material.uniforms['mousePos'].value.set(localPoint.x, localPoint.y);
+            intersectionPoint = intersects[0].point;
+        } else {
+            intersectionPoint = null;
         }
     }
     function onPointerUp() {
         mousedown = false;
-        heightmapVariable.material.uniforms['mousePos'].value.set(10000, 10000); // Move mouse influence away
+        intersectionPoint = null;
     }
     renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
     
     // Return all necessary components for the update loop and potential external control
-    return { waterMesh, waterMaterial, gpuCompute, heightmapVariable, effectController, meshRay, raycaster };
+    return { waterMesh, waterMaterial, gpuCompute, heightmapVariable, effectController, meshRay, raycaster, getMouseIntersectionPoint };
+}
+
+function getMouseIntersectionPoint() { // Keep as internal helper, or ensure it's part of the returned object if used directly by main.js
+    return mousedown ? intersectionPoint : null; // Only return if mouse is down
 }
 
 export function updateWater(waterData, camera) {

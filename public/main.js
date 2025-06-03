@@ -27,7 +27,24 @@ const physicalLights = [];
 const NUM_PHYSICAL_LIGHTS = 3;
 let suns = []; // For original sun objects that also act as lights
 
-const BLOOM_LAYER = 1; // Layer for objects that should bloom
+const BLOOM_LAYER = 1;
+
+// Utility to convert a 3D world position on a sphere to UV coordinates
+function worldToSphericalUV(worldPosition, planetRadius) {
+    // Ensure the position is on the sphere's surface for accurate UV mapping
+    const pointOnSphere = worldPosition.clone().normalize().multiplyScalar(planetRadius);
+
+    // u (longitude): atan2(x, z) maps z-axis to 0, positive x-axis to 0.25 PI, etc.
+    // We add 0.5 to shift range from [-0.5, 0.5] to [0, 1]
+    const u = (Math.atan2(pointOnSphere.x, pointOnSphere.z) / (2 * Math.PI)) + 0.5;
+
+    // v (latitude): asin(y / radius) maps y from -radius to +radius to -PI/2 to PI/2.
+    // Divide by PI and add 0.5 to map to [0, 1]
+    const v = (Math.asin(pointOnSphere.y / planetRadius) / Math.PI) + 0.5;
+
+    return new THREE.Vector2(u, v);
+}
+const PLANET_RADIUS = 15000; // Matches water.js // Layer for objects that should bloom
 
 init();
 animate(); // Start animation loop
@@ -60,9 +77,9 @@ function init() {
     scene = new THREE.Scene();
 
     // Camera
-    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 50000); // Increased far clipping plane
-    camera.position.set(0, 3100, 1500); // Adjusted camera position for larger scene
-    camera.lookAt(0, 3000, 0); // Look at the core on the water surface
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 100, PLANET_RADIUS * 4); // Adjusted near/far for planet scale
+    camera.position.set(0, PLANET_RADIUS + 3000, PLANET_RADIUS * 1.2); // Position camera relative to planet surface
+    camera.lookAt(0, PLANET_RADIUS, 0); // Look at the core on the water planet surface
     camera.layers.enableAll(); // Enable all layers for rendering by default
 
     // Post-processing
@@ -212,17 +229,8 @@ function init() {
         abstractCore = loadedCore;
         mixer = loadedMixer;
         if (abstractCore && abstractCore.position) {
-            abstractCore.position.set(0, 3000, 0); // Position core on the surface of the water sphere (radius 3000)
-            orbitCenter.copy(abstractCore.position); // Update orbit center for suns
-            // Adjust sun positions relative to the new orbitCenter
-            suns.forEach(sunObj => {
-                // Recalculate radius based on new orbitCenter if z was defining distance from old center
-                // For now, let's assume sunObj.radius is still the desired orbital distance from the new center
-                sunObj.mesh.position.x = orbitCenter.x + sunObj.radius * Math.cos(sunObj.angle);
-                sunObj.mesh.position.z = orbitCenter.z + sunObj.radius * Math.sin(sunObj.angle);
-                // Y-position for suns will now be relative to the core's new height
-                // The y-undulation logic in animate() will handle the actual y value based on its own yCenter
-            });
+            abstractCore.position.set(0, PLANET_RADIUS, 0); // Position core on the surface of the water planet surface of the water sphere (radius 3000)
+            orbitCenter.copy(abstractCore.position); // Update orbit center if used elsewhere
         }
         if (abstractCore) {
             setBloomLayer(abstractCore); 
@@ -323,6 +331,22 @@ function animate() {
     controls.update(); 
 
     // updateWater now takes the waterData object and the camera
+    if (waterData && waterData.gpuCompute && waterData.heightmapVariable) {
+        // Mouse interaction
+        const mouseHitPoint = waterData.getMouseIntersectionPoint();
+        if (mouseHitPoint) {
+            const mouseUV = worldToSphericalUV(mouseHitPoint, PLANET_RADIUS);
+            waterData.heightmapVariable.material.uniforms.mouseUV.value.copy(mouseUV);
+            // Approximate UV size: world size / (half circumference)
+            // This is a rough approximation. A more accurate way might involve projecting two points defining the diameter.
+            const mouseSizeWorld = waterData.effectController.mouseSize; // from water.js effectController
+            const mouseSizeUV = mouseSizeWorld / (Math.PI * PLANET_RADIUS); // Fraction of half circumference
+            waterData.heightmapVariable.material.uniforms.mouseSize.value = Math.max(0.001, mouseSizeUV); // Ensure non-zero
+        } else {
+            waterData.heightmapVariable.material.uniforms.mouseUV.value.set(-1.0, -1.0); // Off-screen
+        }
+    }
+
     if (waterData && waterData.heightmapVariable) { // Ensure GPGPU water is ready
         updateWater(waterData, camera, elapsedTime); 
     } 
@@ -336,28 +360,21 @@ function animate() {
         if (waterData && waterData.heightmapVariable) {
             const coreWorldPosition = new THREE.Vector3();
             abstractCore.getWorldPosition(coreWorldPosition);
-            const waterLevel = 3000; // As defined in water.js for waterMesh.position.y
+            const waterLevel = PLANET_RADIUS; // Water surface is now at planet radius
             const coreInteractionSize = 150; // Radius of core's influence
             const coreInteractionDepth = 15.0; // How much it displaces water
 
             // Check if the bottom of the core (approximated) might be touching or in the water
             // This is a simple check; a more accurate one might use bounding box intersection
             if (coreWorldPosition.y <= waterLevel + coreInteractionSize * 0.5) { // Check if core's center is near/in water
-                // Convert core's world XZ to water plane's local XZ for the uniform
-                // waterMesh is at (0, 3000, 0) and rotated -PI/2 around X.
-                // So, world X becomes plane's local X, and world Z becomes plane's local Y (or -Y depending on shader interpretation).
-                // The shader uses 'vec2(mousePos.x, -mousePos.y)' and 'vec2(objectPos.x, -objectPos.y)'
-                // This implies that the second component of the uniform should be the negative of the world Z relative to water center.
-                // Since waterMesh is at (0, 3000, 0), its local coords match world XZ for points on its surface before rotation.
-                // After rotation, world X is local X, world Z is local Y.
-                // The shader uses `vec2(objectPos.x, -objectPos.y)`. If objectPos is (worldX, worldZ), then it becomes (worldX, -worldZ).
-                // This seems correct for a plane in XZ with Y up, where the texture's V might correspond to -Z.
-                waterData.heightmapVariable.material.uniforms.objectPos.value.set(coreWorldPosition.x, coreWorldPosition.z);
-                waterData.heightmapVariable.material.uniforms.objectSize.value = coreInteractionSize;
+                const coreUV = worldToSphericalUV(coreWorldPosition, PLANET_RADIUS);
+                waterData.heightmapVariable.material.uniforms.objectUV.value.copy(coreUV);
+                const coreSizeUV = coreInteractionSize / (Math.PI * PLANET_RADIUS); 
+                waterData.heightmapVariable.material.uniforms.objectSize.value = Math.max(0.001, coreSizeUV);
                 waterData.heightmapVariable.material.uniforms.objectDeep.value = coreInteractionDepth;
             } else {
                 // If core is not interacting, move the influence point far away
-                waterData.heightmapVariable.material.uniforms.objectPos.value.set(10000, 10000);
+                waterData.heightmapVariable.material.uniforms.objectUV.value.set(-1.0, -1.0); // Off-screen UV
             }
         }
     }
@@ -373,7 +390,7 @@ function animate() {
     
     if (suns.length > 0 && abstractCore) { 
         let interactingSunsCount = 0;
-        const waterLevel = 3000;
+        const waterLevel = PLANET_RADIUS;
         const sunInteractionBaseSize = 80; // Base size of sun's influence, will be scaled by sun's actual size
         const sunInteractionBaseDepth = 8.0; // Base depth of sun's influence
 
@@ -402,8 +419,11 @@ function animate() {
 
                 if (sunWorldPosition.y - sunRadius <= waterLevel) { // Check if bottom of sun touches water
                     const sunUniformSet = interactingSunsCount === 0 ? 'sun1' : 'sun2';
-                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Pos'].value.set(sunWorldPosition.x, sunWorldPosition.z);
-                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Size'].value = sunInteractionBaseSize * (currentScale / sunObj.baseSize); // Scale interaction size with sun's current scale
+                    const sunUV = worldToSphericalUV(sunWorldPosition, PLANET_RADIUS);
+                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'UV'].value.copy(sunUV);
+                    const currentSunWorldSize = sunInteractionBaseSize * (currentScale / sunObj.baseSize);
+                    const sunSizeUV = currentSunWorldSize / (Math.PI * PLANET_RADIUS);
+                    waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Size'].value = Math.max(0.001, sunSizeUV);
                     waterData.heightmapVariable.material.uniforms[sunUniformSet + 'Deep'].value = sunInteractionBaseDepth;
                     interactingSunsCount++;
                 }

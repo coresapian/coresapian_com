@@ -44,7 +44,7 @@ function worldToSphericalUV(worldPosition, planetRadius) {
 
     return new THREE.Vector2(u, v);
 }
-const PLANET_RADIUS = 15000; // Matches water.js // Layer for objects that should bloom
+const PLANET_RADIUS = 300; // Matches water.js // Layer for objects that should bloom
 
 init();
 animate(); // Start animation loop
@@ -77,8 +77,8 @@ function init() {
     scene = new THREE.Scene();
 
     // Camera
-    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 100, PLANET_RADIUS * 4); // Adjusted near/far for planet scale
-    camera.position.set(0, PLANET_RADIUS + 3000, PLANET_RADIUS * 1.2); // Position camera relative to planet surface
+    camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 10, 20000); // Far plane increased for skybox
+    camera.position.set(0, PLANET_RADIUS + 100, PLANET_RADIUS * 2.0); // Position camera relative to new planet surface
     camera.lookAt(0, PLANET_RADIUS, 0); // Look at the core on the water planet surface
     camera.layers.enableAll(); // Enable all layers for rendering by default
 
@@ -433,10 +433,10 @@ function animate() {
         // If fewer than 2 suns are interacting, move the unused influence points away
         if (waterData && waterData.heightmapVariable) {
             if (interactingSunsCount < 1) {
-                waterData.heightmapVariable.material.uniforms.sun1Pos.value.set(10000, 10000);
+                waterData.heightmapVariable.material.uniforms.sun1UV.value.set(-1.0, -1.0); // Off-screen UV
             }
             if (interactingSunsCount < 2) {
-                waterData.heightmapVariable.material.uniforms.sun2Pos.value.set(10000, 10000);
+                waterData.heightmapVariable.material.uniforms.sun2UV.value.set(-1.0, -1.0); // Off-screen UV
             }
         }
     }

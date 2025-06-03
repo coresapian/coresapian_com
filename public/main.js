@@ -25,6 +25,7 @@ let mixer;    // AnimationMixer from abstract_core.js
 const clock = new THREE.Clock();
 const physicalLights = [];
 const NUM_PHYSICAL_LIGHTS = 3;
+let suns = []; // For original sun objects that also act as lights
 
 const BLOOM_LAYER = 1; // Layer for objects that should bloom
 
@@ -127,16 +128,15 @@ function init() {
     // Orbiting Suns with Lensflares
     const sunGeometry = new THREE.SphereGeometry(120, 32, 32);
     const sunParams = [
-        { color: 0xFFFFCC, emissive: 0xFFFFAA, y: 50, z: 2800, orbitSpeed: 0.52, angle: 0 }, 
-        { color: 0xFFA500, emissive: 0xFF8800, y: 50, z: 2200, orbitSpeed: 0.36, angle: Math.PI / 2 },
-        { color: 0x00CCFF, emissive: 0x00AADD, y: 40, z: 1500, orbitSpeed: 0.22, angle: Math.PI },
-        { color: 0xFF33CC, emissive: 0xFF33AA, y: 30, z: 900, orbitSpeed: 0.39, angle: Math.PI * 1.5 },
+        { color: 0xFFFFCC, emissive: 0xFFFFAA, yOffset: 50, orbitRadius: 2800, orbitSpeed: 0.52, angle: 0, lightPower: 70000 }, 
+        { color: 0xFFA500, emissive: 0xFF8800, yOffset: 50, orbitRadius: 2200, orbitSpeed: 0.36, angle: Math.PI / 2, lightPower: 60000 },
+        { color: 0x00CCFF, emissive: 0x00AADD, yOffset: 40, orbitRadius: 1500, orbitSpeed: 0.22, angle: Math.PI, lightPower: 50000 },
+        { color: 0xFF33CC, emissive: 0xFF33AA, yOffset: 30, orbitRadius: 900, orbitSpeed: 0.39, angle: Math.PI * 1.5, lightPower: 55000 },
     ];
     const textureLoader = new THREE.TextureLoader(); 
     const flareTexture0 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare0.png');
     const flareTexture3 = textureLoader.load('https://threejs.org/examples/textures/lensflare/lensflare3.png');
 
-    const suns = [];
     sunParams.forEach(param => {
         const material = new THREE.MeshStandardMaterial({
             color: param.color,
@@ -146,7 +146,7 @@ function init() {
             roughness: 0.8, // Adjust for desired appearance
         });
         const mesh = new THREE.Mesh(sunGeometry, material);
-        const radius = Math.sqrt(Math.pow(200 - orbitCenter.x, 2) + Math.pow(param.z - orbitCenter.z, 2));
+        const radius = param.orbitRadius; // Use the orbitRadius defined in sunParams
 
         // New animation parameters
         const baseSize = Math.random() * 0.4 + 0.8; // Base scale multiplier (0.8 to 1.2)
@@ -161,9 +161,9 @@ function init() {
         const initialY = yCenter + Math.sin(yUndulationPhase) * yAmplitude;
 
         mesh.position.set(
-            orbitCenter.x + radius * Math.cos(param.angle),
-            initialY,
-            orbitCenter.z + radius * Math.sin(param.angle)
+            0 + radius * Math.cos(param.angle), // Initial X relative to world origin
+            initialY, // initialY is calculated locally and is fine
+            0 + radius * Math.sin(param.angle)  // Initial Z relative to world origin
         );
 
         // Set initial scale
@@ -171,7 +171,7 @@ function init() {
         
         // Add physical light properties to the sun
         const sunPointLight = new THREE.PointLight(param.color, undefined, 0, 2); // Color, Intensity (from power), Distance, Decay
-        sunPointLight.power = param.intensity * 20000; // Convert existing intensity to a power value (adjust multiplier as needed)
+        sunPointLight.power = param.lightPower; // Use the defined lightPower from sunParams
         sunPointLight.castShadow = true;
         sunPointLight.shadow.mapSize.width = 512;
         sunPointLight.shadow.mapSize.height = 512;
@@ -192,13 +192,12 @@ function init() {
         lensflare.addElement(new LensflareElement(flareTexture3, 120, 0.9));
         lensflare.addElement(new LensflareElement(flareTexture3, 70, 1.0));
         mesh.add(lensflare);
-        
-        scene.add(mesh);
+
         suns.push({
             mesh: mesh,
-            radius: radius,
-            speed: param.orbitSpeed,
-            angle: param.angle,
+            lensflare: lensflare,
+            param: param, // Store the original parameters
+            currentAngle: param.angle, // Initialize current orbital angle
             baseSize: baseSize,
             scaleSpeed: scaleSpeed,
             scalePhase: scalePhase,
@@ -380,16 +379,16 @@ function animate() {
 
         suns.forEach(sunObj => {
             // Orbital movement (XZ plane)
-            sunObj.angle += sunObj.speed * delta;
-            if (sunObj.angle > Math.PI * 2) sunObj.angle -= Math.PI * 2;
-            sunObj.mesh.position.x = orbitCenter.x + sunObj.radius * Math.cos(sunObj.angle);
-            sunObj.mesh.position.z = orbitCenter.z + sunObj.radius * Math.sin(sunObj.angle);
+            sunObj.currentAngle += sunObj.param.orbitSpeed * delta;
+            if (sunObj.currentAngle > Math.PI * 2) sunObj.currentAngle -= Math.PI * 2;
+            sunObj.mesh.position.x = abstractCore.position.x + sunObj.param.orbitRadius * Math.cos(sunObj.currentAngle);
+            sunObj.mesh.position.z = abstractCore.position.z + sunObj.param.orbitRadius * Math.sin(sunObj.currentAngle);
 
-            // Y-position undulation (range orbitCenter.y +/- 450, scaled up for planet)
-            const yCenter = orbitCenter.y; // Suns undulate around the core's Y level
-            const yAmplitude = 450; // Increased amplitude for larger scale
+            // Y-position undulation
+            const yBase = abstractCore.position.y + sunObj.param.yOffset;
+            const yAmplitude = 450; // Increased amplitude for larger scale, can be param-specific if needed
             const yUndulation = Math.sin(elapsedTime * sunObj.yUndulationSpeed + sunObj.yUndulationPhase) * yAmplitude;
-            sunObj.mesh.position.y = yCenter + yUndulation;
+            sunObj.mesh.position.y = yBase + yUndulation;
 
             // Scale animation (grow/shrink a little)
             const scaleOscillation = Math.sin(elapsedTime * sunObj.scaleSpeed + sunObj.scalePhase) * 0.1; // +/- 10% variation
@@ -399,7 +398,7 @@ function animate() {
             // Sun interaction with water
             if (waterData && waterData.heightmapVariable && interactingSunsCount < 2) {
                 const sunWorldPosition = sunObj.mesh.position;
-                const sunRadius = currentScale / 2; // Approximate radius from its scale
+                const sunRadius = 120 * currentScale; // Actual world radius of the sun sphere (model radius * current scale)
 
                 if (sunWorldPosition.y - sunRadius <= waterLevel) { // Check if bottom of sun touches water
                     const sunUniformSet = interactingSunsCount === 0 ? 'sun1' : 'sun2';

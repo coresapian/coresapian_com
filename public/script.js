@@ -12,12 +12,12 @@ function animateVisualizers() {
     update3DVisualizer();
   }
   // Keep other visualizers if they exist and are still desired
-  // if (typeof drawSpectrumAnalyzer === 'function' && spectrumCtx && audioAnalyser) {
-  //   drawSpectrumAnalyzer(); // This function also calls getByteFrequencyData
-  // }
-  // if (typeof updateAudioWave === 'function' && waveformCtx && audioAnalyser) {
-  //   updateAudioWave(); // This function calls getByteTimeDomainData
-  // }
+  if (typeof drawSpectrumAnalyzer === 'function' && spectrumCtx && audioAnalyser) {
+    drawSpectrumAnalyzer(); // This function also calls getByteFrequencyData
+  }
+  if (typeof updateAudioWave === 'function' && audioAnalyser) { // waveformCtx check removed as it's not used by the current updateAudioWave
+    updateAudioWave(); // This function calls getByteTimeDomainData
+  }
   // If you have other visualizers to animate, call them here too
   // e.g., drawSpectrumAnalyzer(); drawWaveform(); (if they are designed to be in a RAF loop)
   requestAnimationFrame(animateVisualizers);
@@ -52,18 +52,31 @@ function animateLoadingMessages() {
     onComplete: () => {
       currentLoadingMessageIndex = (currentLoadingMessageIndex + 1) % loadingMessages.length;
       // Wait a bit before typing the next message or finishing
-      if (currentLoadingMessageIndex !== 0 || loadingMessages.length === 1) { // Continue if not looped back to start or only one message
+      if (currentLoadingMessageIndex !== 0) { // Continue if not looped back to start (meaning, not completed one full cycle yet)
          gsap.delayedCall(1.5, animateLoadingMessages); // Delay before next message
-      } else {
-        // Optionally, do something when all messages have been shown once
-        // For now, it will loop. If you want it to stop, you can add logic here.
-        // For example, to stop after one full cycle:
-        // if (currentLoadingMessageIndex === 0 && loadingMessages.length > 1) { /* stop */ }
-        // To keep looping as it is now, no change needed here for the 'else'.
-        // If you want to stop after the last message: 
-        // if (currentLoadingMessageIndex === (loadingMessages.length -1)) { /* hide loading overlay or something */ }
-        // For now, let it loop indefinitely or until loading is complete by other means.
-        gsap.delayedCall(1.5, animateLoadingMessages); // Loop back
+      } else { // Reached the end of the messages array (one full cycle completed)
+        // Fade out loading overlay and then show main app
+        const loadingOverlay = document.getElementById("loading-overlay");
+        if (loadingOverlay) {
+          gsap.to(loadingOverlay, {
+            duration: 1,
+            autoAlpha: 0, // Fades out and sets display:none
+            ease: "power1.inOut",
+            onComplete: () => {
+              document.body.classList.add('app-loaded');
+              // Call a function here if specific elements need to be initialized or made visible
+              // e.g., initializeMainAppInterface();
+              console.log("Loading complete, main app revealed.");
+              // Start other animations that should only begin after loading
+              if (typeof startMainSceneAnimations === 'function') { // Example placeholder
+                // startMainSceneAnimations();
+              }
+            }
+          });
+        } else {
+          // Fallback if overlay not found, just add class
+          document.body.classList.add('app-loaded');
+        }
       }
     }
   });
@@ -98,11 +111,19 @@ function applyScrambleEffect(element, normalText, crypticTextPrefix) {
       }
     });
   });
-  // Optional: Reset to original text on mouseleave if the animation was interrupted or for consistency
-  // element.addEventListener('mouseleave', () => {
-  //   gsap.killTweensOf(element); // Stop any ongoing scramble
-  //   element.textContent = originalText;
-  // });
+  element.addEventListener('mouseleave', () => {
+    gsap.killTweensOf(element); // Stop any ongoing scramble animation
+    // Check if the scramble was to cryptic text or back to normal
+    // If it was scrambling to cryptic, or is currently cryptic, revert to originalText
+    // If it was scrambling back to normal and is already normal, this is fine.
+    if (element.textContent !== originalText) { // Only revert if not already original
+        gsap.to(element, {
+            duration: 0.3, // Quick revert
+            scrambleText: { text: originalText, chars: "X*#@", revealDelay: 0, speed: 0.3 },
+            ease: "power1.in"
+        });
+    }
+  });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -195,7 +216,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let pointCloud;
   let sphereMaterial;
   let pointsMaterial;
-  const numPointCloudPoints = 5000; // Example number of points for the point cloud
+  const numPointCloudPoints = 1000; // Example number of points for the point cloud
   let initialPointPositions; // To store original positions for displacement calculations
   let pointCloudGeometry; // To access attributes later
 

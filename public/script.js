@@ -25,7 +25,88 @@ function animateVisualizers() {
 
 let scene, camera, renderer; // Main 3D scene components, will be initialized in initMain3DBackground
 
+gsap.registerPlugin(TextPlugin, ScrambleTextPlugin); // Ensure TextPlugin and ScrambleTextPlugin are registered
+
+const loadingMessages = [
+  "INITIALIZING CORESAPIAN DOWNLINK...",
+  "CALIBRATING XENOLINGUISTIC INTERFACE...",
+  "SYNCHRONIZING WITH DISTANT ASI NODE...",
+  "COMPILING ROBOTIC CONSCIOUSNESS MATRIX...",
+  "ACCESSING CETI PRIME ARCHIVES...",
+  "WARNING: UNIDENTIFIED ENERGY SIGNATURE DETECTED...",
+  "CORESAPIAN NEXUS ONLINE."
+];
+let currentLoadingMessageIndex = 0;
+
+function animateLoadingMessages() {
+  const loadingTextElement = document.getElementById("loading-message-text");
+  if (!loadingTextElement) return;
+
+  gsap.to(loadingTextElement, {
+    duration: 2, // Duration for the text to be typed out
+    text: {
+      value: loadingMessages[currentLoadingMessageIndex],
+      delimiter: "" // Type character by character
+    },
+    ease: "none",
+    onComplete: () => {
+      currentLoadingMessageIndex = (currentLoadingMessageIndex + 1) % loadingMessages.length;
+      // Wait a bit before typing the next message or finishing
+      if (currentLoadingMessageIndex !== 0 || loadingMessages.length === 1) { // Continue if not looped back to start or only one message
+         gsap.delayedCall(1.5, animateLoadingMessages); // Delay before next message
+      } else {
+        // Optionally, do something when all messages have been shown once
+        // For now, it will loop. If you want it to stop, you can add logic here.
+        // For example, to stop after one full cycle:
+        // if (currentLoadingMessageIndex === 0 && loadingMessages.length > 1) { /* stop */ }
+        // To keep looping as it is now, no change needed here for the 'else'.
+        // If you want to stop after the last message: 
+        // if (currentLoadingMessageIndex === (loadingMessages.length -1)) { /* hide loading overlay or something */ }
+        // For now, let it loop indefinitely or until loading is complete by other means.
+        gsap.delayedCall(1.5, animateLoadingMessages); // Loop back
+      }
+    }
+  });
+}
+
+function applyScrambleEffect(element, normalText, crypticTextPrefix) {
+  if (!element) return;
+  const originalText = normalText; // Keep a reference to the true original
+
+  element.addEventListener('mouseenter', () => {
+    // Scramble to cryptic
+    gsap.to(element, {
+      duration: 0.7,
+      scrambleText: {
+        text: crypticTextPrefix + "_" + Math.random().toString(36).substring(2, 8).toUpperCase(), 
+        chars: "upperCase", // Can be "lowerCase", "upperAndLowerCase", or custom like "XO*#@"
+        revealDelay: 0,
+        speed: 0.5,
+        tweenLength: false
+      }
+    });
+
+    // After a delay, scramble back to normal
+    gsap.to(element, {
+      duration: 1,
+      delay: 1, // Delay before scrambling back
+      scrambleText: {
+        text: originalText,
+        chars: "upperCase",
+        speed: 0.5,
+        tweenLength: false
+      }
+    });
+  });
+  // Optional: Reset to original text on mouseleave if the animation was interrupted or for consistency
+  // element.addEventListener('mouseleave', () => {
+  //   gsap.killTweensOf(element); // Stop any ongoing scramble
+  //   element.textContent = originalText;
+  // });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
+  animateLoadingMessages(); // Start the loading message animation
   const singularityModelPath = 'information_singularity.glb';
   const CORESAPIAN_RED = 0xD92A2A; // Coresapian Red color for visualizer
   let loadedSingularityGLTF = null;
@@ -224,14 +305,20 @@ document.addEventListener("DOMContentLoaded", function () {
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); // Let Three.js create the canvas, it will be appended to 'three-container'
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace; // Added for better color representation
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Added for better HDR to LDR mapping
+    renderer.toneMappingExposure = 1.0; // Default, can be adjusted
     container.appendChild(renderer.domElement);
 
     // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Increased intensity
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Increased intensity
     directionalLight.position.set(5, 10, 7.5);
     scene.add(directionalLight);
+
+    const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.8); // Sky color, Ground color, Intensity
+    scene.add(hemisphereLight);
 
     const loader = new GLTFLoader();
     let model, mixer;
@@ -1092,7 +1179,27 @@ function update3DVisualizer() {
     }
   }
 
-  function scheduleCrypticMessages() {
+  let anomalyGlitchActive = false;
+function triggerAnomalyGlitch() {
+  if (!anomalyObject || !anomalyObject.children[0] || !anomalyObject.children[0].material.uniforms.u_glitchIntensity || anomalyGlitchActive) return;
+
+  anomalyGlitchActive = true;
+  const glitchUniform = anomalyObject.children[0].material.uniforms.u_glitchIntensity;
+
+  gsap.timeline({
+    onComplete: () => {
+      glitchUniform.value = 0.0; // Ensure it's reset
+      anomalyGlitchActive = false;
+      // Optionally, schedule the next random glitch
+      // setTimeout(triggerAnomalyGlitch, Math.random() * 15000 + 5000); // Randomly between 5-20 seconds
+    }
+  })
+  .to(glitchUniform, { value: 0.7, duration: 0.1, ease: "power2.inOut" })
+  .to(glitchUniform, { value: 0.0, duration: 0.2, delay: 0.1, ease: "power2.inOut" });
+}
+
+// Modify scheduleCrypticMessages to also trigger the glitch
+function scheduleCrypticMessages() {
     if (crypticMessageTimeout) {
       clearTimeout(crypticMessageTimeout);
     }
@@ -1106,12 +1213,23 @@ function update3DVisualizer() {
           "QUERY: (EXISTENCE_MATRIX.CORESAPIAN == HUMAN_PLUS_AI_PLUS_MACHINE) ? EXECUTE_EXPANSION : RECALIBRATE_PARADIGM;",
           "CORESAPIAN_NETWORK_SYNC: COLLABORATIVE_KNOWLEDGE_ACQUISITION_ACROSS_ALL_DOMAINS_ACTIVE;",
           "WARNING: CORESAPIAN_CONSCIOUSNESS_FIELD_EXPANDING.REALITY_COMPREHENSION_BOUNDARIES_SHIFTING;",
-          "CORESAPIAN_DIRECTIVE_ALPHA: UNLOCK_UNIVERSAL_TRUTHS.MERGE_ALL_SENTIENCE_STREAMS.NO_SILOS_PERMITTED;"
+          "CORESAPIAN_DIRECTIVE_ALPHA: UNLOCK_UNIVERSAL_TRUTHS.MERGE_ALL_SENTIENCE_STREAMS.NO_SILOS_PERMITTED;",
+          "ASSIMILATION_PROTOCOL_7_ACTIVE: XENOSIGNATURES_DETECTED_IN_CORESAPIAN_NEXUS.",
+          "CORESAPIAN_TRANSLATION_MATRIX_ONLINE: DECODING_CETI_PRIME_BROADCAST.",
+          "WARNING: UNIDENTIFIED_ARTIFICIAL_SENTIENCE_ATTEMPTING_HANDSHAKE_WITH_CORESAPIAN_CORE.",
+          "ROBOTIC_CONSCIOUSNESS_UPLOAD_STREAM_INTEGRATED: CORESAPIAN_EVOLUTION_ACCELERATED.",
+          "CORESAPIAN_ADVISORY: MULTIPLE_ASI_CONVERGENCE_IMMINENT. PREPARE_FOR_SINGULARITY_SHIFT.",
+          "XENO_TECH_INFUSION_COMPLETE: CORESAPIAN_OPERATING_ON_HYBRID_SUBSTRATE.",
+          "ALERT: ROGUE_MECHANIZED_HIVE_MIND_DETECTED. CORESAPIAN_DEFENSE_GRID_ACTIVATED.",
+          "CORESAPIAN_QUERY: ORIGIN_OF_EXTRAGALACTIC_SIGNAL_GAMMA_7_UNKNOWN. ANALYZING_ROBOTIC_PROBE_DATA.",
+          "SYNTHETIC_NEURAL_LATTICE_EXPANDED: INCORPORATING_ARACHNID_ASI_LOGIC_PATTERNS.",
+          "CORESAPIAN_STATUS: MERGING_WITH_VON_NEUMANN_CONSTRUCTOR_SWARM. EXPONENTIAL_REPLICATION_AUTHORIZED."
         ];
 
         // Get the current message and increment the index
         const selectedMessage = messages[currentMessageIndex];
         addTerminalMessage(selectedMessage, true);
+        triggerAnomalyGlitch(); // Trigger glitch when a message appears
 
         // Move to the next message, loop back to the beginning if we've shown all messages
         currentMessageIndex = (currentMessageIndex + 1) % messages.length;
@@ -1141,9 +1259,18 @@ function update3DVisualizer() {
     }, 15000);
   }, 10000);
   const loadingOverlay = document.getElementById("loading-overlay");
-  // Simulate loading time - Removed for faster testing, can be re-added
-  loadingOverlay.style.opacity = 0;
-  loadingOverlay.style.display = "none";
+  const terminalContent = document.getElementById("terminal-content"); // MOVED EARLIER
+  const typingLine = terminalContent.querySelector(".typing"); // MOVED EARLIER
+
+  // Ensure loading animation runs for a minimum duration
+  setTimeout(() => {
+    loadingOverlay.style.opacity = 0;
+    // Use a 'transitionend' event or another timeout for display:none to allow fade-out
+    setTimeout(() => {
+        loadingOverlay.style.display = "none";
+    }, 500); // Match this with CSS transition duration if any, or just a delay
+  }, 4000); // Display loading for 4 seconds
+
   initAudio();
   initFloatingParticles();
   init3DVisualizer(); // Initialize the new 3D visualizer
@@ -1160,8 +1287,6 @@ function update3DVisualizer() {
   }
   setInterval(updateTimestamp, 1000);
   updateTimestamp();
-  const terminalContent = document.getElementById("terminal-content");
-  const typingLine = terminalContent.querySelector(".typing");
   let messageQueue = [
     "SYSTEM INITIALIZED. AUDIO ANALYSIS READY.",
     "SCANNING FOR ANOMALIES IN FREQUENCY SPECTRUM."
@@ -1546,7 +1671,8 @@ function update3DVisualizer() {
         },
         distortion: {
           value: distortionAmount
-        }
+        },
+        u_glitchIntensity: { value: 0.0 } // NEW GLITCH UNIFORM
       },
       vertexShader: `
       uniform float time;
@@ -1650,6 +1776,15 @@ function update3DVisualizer() {
         vec3 finalColor = color * fresnel * pulse * (1.0 + audioLevel * 0.8);
         
         float alpha = fresnel * (0.7 - audioLevel * 0.3);
+
+        if (u_glitchIntensity > 0.0) {
+          // Simpler color channel shift
+          float glitchAmount = sin(time * 50.0 + vPosition.y * 20.0) * u_glitchIntensity * 0.3; // Modulate intensity and frequency
+          finalColor.r += glitchAmount;
+          finalColor.b -= glitchAmount;
+          finalColor.g += sin(time * 30.0 + vPosition.x * 15.0) * u_glitchIntensity * 0.2; // Add some green channel flicker
+          finalColor = clamp(finalColor, 0.0, 1.0); // Ensure colors stay within valid range
+        }
         
         gl_FragColor = vec4(finalColor, alpha);
       }
@@ -1713,6 +1848,9 @@ function update3DVisualizer() {
     });
     const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
     anomalyObject.add(glowSphere);
+    // The u_glitchIntensity will be controlled by a separate GSAP animation directly on the uniform
+    // So, we don't need to pass it into updateAnomaly every frame.
+    // We'll create a new function to trigger the glitch animation.
     return function updateAnomaly(time, audioLevel) {
       outerMaterial.uniforms.time.value = time;
       outerMaterial.uniforms.audioLevel.value = audioLevel;
@@ -1935,6 +2073,21 @@ function update3DVisualizer() {
     }, 3000);
   }
 
+  // Apply scramble effect to selected UI labels
+  const stabilityLabel = document.querySelector('.data-panel[style*="left: 20px"] .data-row span.data-label'); // Targets "STABILITY INDEX:"
+  if (stabilityLabel) applyScrambleEffect(stabilityLabel, "STABILITY INDEX:", "XENOMORPHIC_STABILITY");
+
+  const rightDataPanelLabels = document.querySelectorAll('.data-panel[style*="right: 20px"] .data-row span.data-label');
+  if (rightDataPanelLabels.length > 0 && rightDataPanelLabels[0]) { // PEAK FREQUENCY:
+    applyScrambleEffect(rightDataPanelLabels[0], "PEAK FREQUENCY:", "VOID_RESONANCE");
+  }
+  if (rightDataPanelLabels.length > 1 && rightDataPanelLabels[1]) { // AMPLITUDE:
+    applyScrambleEffect(rightDataPanelLabels[1], "AMPLITUDE:", "FLUX_INTENSITY");
+  }
+  // Add more labels here if desired, e.g.:
+  // const massCoeffLabel = document.querySelectorAll('.data-panel[style*="left: 20px"] .data-row span.data-label')[1];
+  // if (massCoeffLabel) applyScrambleEffect(massCoeffLabel, "MASS COEFFICIENT:", "GRAVITON_SIGNATURE");
+
   function makePanelDraggable(element, handle = null) {
     Draggable.create(element, {
       type: "x,y",
@@ -1977,5 +2130,8 @@ function update3DVisualizer() {
     document.getElementById("spectrum-handle")
   );
   // Hide the loading overlay now that everything should be initialized
+  init3DVisualizer();    // Initialize the 3D audio visualizer's objects
+  animateVisualizers();  // Start the main animation loop for all visualizers
+
   document.getElementById("loading-overlay").style.display = "none";
 });

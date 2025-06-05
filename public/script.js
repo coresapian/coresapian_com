@@ -2,274 +2,126 @@ import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
 
-// Animation loop for visualizers
-function animateVisualizers() {
-  if (audioAnalyser && frequencyData) { // Ensure audio data is available and update once per frame
-    audioAnalyser.getByteFrequencyData(frequencyData);
-  }
+// --- Global State ---
+// Core Three.js
+let scene, camera, renderer, clock, controls;
+let isPreloaderActive = true;
 
-  if (typeof update3DVisualizer === 'function') {
-    update3DVisualizer();
-  }
-  // Keep other visualizers if they exist and are still desired
-  if (typeof drawSpectrumAnalyzer === 'function' && spectrumCtx && audioAnalyser) {
-    drawSpectrumAnalyzer(); // This function also calls getByteFrequencyData
-  }
-  if (typeof updateAudioWave === 'function' && audioAnalyser) { // waveformCtx check removed as it's not used by the current updateAudioWave
-    updateAudioWave(); // This function calls getByteTimeDomainData
-  }
-  // If you have other visualizers to animate, call them here too
-  // e.g., drawSpectrumAnalyzer(); drawWaveform(); (if they are designed to be in a RAF loop)
-  requestAnimationFrame(animateVisualizers);
-}
+// Preloader
+let preloaderScene, preloaderCamera, preloaderRenderer, preloaderMixer;
 
-let scene, camera, renderer; // Main 3D scene components, will be initialized in initMain3DBackground
+// Main Scene Objects
+let anomalyObject, anomalyMixer, anomalyMaterial;
+let floatingParticles = [];
 
+// Audio
+let audioContext, audioAnalyser, audioSource;
+let frequencyData, timeDomainData;
+let audioReactivity = 1.0;
+let audioSensitivity = 5.0;
+let isAudioInitialized = false;
+
+// UI & Interaction
+let lastUserActionTime = Date.now();
+let currentCrypticMessageIndex = 0;
+let crypticMessageTimeout;
+
+// Asset Cache
+let cachedSingularityModel = null;
+const singularityModelPath = 'information_singularity.glb';
+
+// --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {
-  gsap.registerPlugin(TextPlugin, ScrambleTextPlugin); // Ensure TextPlugin and ScrambleTextPlugin are registered
+    gsap.registerPlugin(TextPlugin, ScrambleTextPlugin, Draggable);
+    init();
 });
 
-const loadingMessages = [
-  "INITIALIZING CORESAPIAN DOWNLINK...",
-  "CALIBRATING XENOLINGUISTIC INTERFACE...",
-  "SYNCHRONIZING WITH DISTANT ASI NODE...",
-  "COMPILING ROBOTIC CONSCIOUSNESS MATRIX...",
-  "ACCESSING CETI PRIME ARCHIVES...",
-  "WARNING: UNIDENTIFIED ENERGY SIGNATURE DETECTED...",
-  "CORESAPIAN NEXUS ONLINE."
-];
-let currentLoadingMessageIndex = 0;
+function init() {
+    clock = new THREE.Clock();
+    initLoadingAnimation();
+    setupPreloader();
+    animate(); // Start the single, unified animation loop
+}
 
-function animateLoadingMessages() {
-  const loadingTextElement = document.getElementById("loading-message-text");
-  if (!loadingTextElement) return;
-
-  gsap.to(loadingTextElement, {
-    duration: 2, // Duration for the text to be typed out
-    text: {
-      value: loadingMessages[currentLoadingMessageIndex],
-      delimiter: "" // Type character by character
-    },
-    ease: "none",
-    onComplete: () => {
-      currentLoadingMessageIndex = (currentLoadingMessageIndex + 1) % loadingMessages.length;
-      // Wait a bit before typing the next message or finishing
-      if (currentLoadingMessageIndex !== 0) { // Continue if not looped back to start (meaning, not completed one full cycle yet)
-         gsap.delayedCall(1.5, animateLoadingMessages); // Delay before next message
-      } else { // Reached the end of the messages array (one full cycle completed)
-        // Fade out loading overlay and then show main app
-        const loadingOverlay = document.getElementById("loading-overlay");
-        if (loadingOverlay) {
-          gsap.to(loadingOverlay, {
-            duration: 1,
-            autoAlpha: 0, // Fades out and sets display:none
+function startApp() {
+    const loadingOverlay = document.getElementById("loading-overlay");
+    if (loadingOverlay) {
+        gsap.to(loadingOverlay, {
+            duration: 1.5,
+            autoAlpha: 0,
             ease: "power1.inOut",
             onComplete: () => {
-              document.body.classList.add('app-loaded');
-              // Call a function here if specific elements need to be initialized or made visible
-              // e.g., initializeMainAppInterface();
-              console.log("Loading complete, main app revealed.");
-              // Start other animations that should only begin after loading
-              if (typeof startMainSceneAnimations === 'function') { // Example placeholder
-                // startMainSceneAnimations();
-              }
+                document.body.classList.add('app-loaded');
+                if (preloaderRenderer) {
+                    preloaderRenderer.dispose();
+                }
+                isPreloaderActive = false;
+                console.log("Loading complete, main app starting.");
+                scheduleCrypticMessages();
             }
-          });
-        } else {
-          // Fallback if overlay not found, just add class
-          document.body.classList.add('app-loaded');
-        }
-      }
-    }
-  });
-}
-
-function applyScrambleEffect(element, normalText, crypticTextPrefix) {
-  if (!element) return;
-  const originalText = normalText; // Keep a reference to the true original
-
-  element.addEventListener('mouseenter', () => {
-    // Scramble to cryptic
-    gsap.to(element, {
-      duration: 0.7,
-      scrambleText: {
-        text: crypticTextPrefix + "_" + Math.random().toString(36).substring(2, 8).toUpperCase(), 
-        chars: "upperCase", // Can be "lowerCase", "upperAndLowerCase", or custom like "XO*#@"
-        revealDelay: 0,
-        speed: 0.5,
-        tweenLength: false
-      }
-    });
-
-    // After a delay, scramble back to normal
-    gsap.to(element, {
-      duration: 1,
-      delay: 1, // Delay before scrambling back
-      scrambleText: {
-        text: originalText,
-        chars: "upperCase",
-        speed: 0.5,
-        tweenLength: false
-      }
-    });
-  });
-  element.addEventListener('mouseleave', () => {
-    gsap.killTweensOf(element); // Stop any ongoing scramble animation
-    // Check if the scramble was to cryptic text or back to normal
-    // If it was scrambling to cryptic, or is currently cryptic, revert to originalText
-    // If it was scrambling back to normal and is already normal, this is fine.
-    if (element.textContent !== originalText) { // Only revert if not already original
-        gsap.to(element, {
-            duration: 0.3, // Quick revert
-            scrambleText: { text: originalText, chars: "X*#@", revealDelay: 0, speed: 0.3 },
-            ease: "power1.in"
         });
     }
-  });
+    initMainScene();
+    initUI();
+    initAudio();
+    initFloatingParticles();
 }
 
-document.addEventListener("DOMContentLoaded", function () {
-  animateLoadingMessages(); // Start the loading message animation
-  const singularityModelPath = 'information_singularity.glb';
-  const CORESAPIAN_RED = 0xD92A2A; // Coresapian Red color for visualizer
-  let loadedSingularityGLTF = null;
-  // setupExpandingCirclesPreloader();
-  function loadAndCacheGLBModel(modelPath, onLoad, onProgress, onError) {
-    const loader = new GLTFLoader();
-    if (modelPath === singularityModelPath && loadedSingularityGLTF) {
-      console.log(`Using cached GLB model: ${modelPath}`);
-      try {
-        // Use scene.clone(). For more complex models with skeletons,
-        // THREE.SkeletonUtils.clone() would be more robust if available and needed.
-        const clonedScene = loadedSingularityGLTF.scene.clone();
-        const cachedGltf = {
-          scene: clonedScene,
-          animations: loadedSingularityGLTF.animations,
-        };
-        Promise.resolve().then(() => {
-          if (onLoad) onLoad(cachedGltf);
-        });
-      } catch (cloneError) {
-        console.error(`Error cloning cached model ${modelPath}:`, cloneError);
-        if (onError) {
-          onError(cloneError);
+// --- Unified Animation Loop ---
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    const elapsedTime = clock.getElapsedTime();
+
+    if (isPreloaderActive) {
+        if (preloaderRenderer && preloaderScene && preloaderCamera) {
+            if (preloaderMixer) preloaderMixer.update(delta);
+            preloaderRenderer.render(preloaderScene, preloaderCamera);
         }
-      }
-      return;
+    } else {
+        if (!renderer || !scene || !camera) return;
+
+        // Update audio data once per frame
+        if (isAudioInitialized && audioAnalyser) {
+            audioAnalyser.getByteFrequencyData(frequencyData);
+            audioAnalyser.getByteTimeDomainData(timeDomainData);
+
+            // Update all visual elements that depend on audio
+            updateAudioVisualizers();
+            updateAnomalyShaderAudio();
+        }
+
+        // Update animations and controls
+        if (anomalyMixer) anomalyMixer.update(delta);
+        if (controls) controls.update();
+        if (anomalyMaterial) anomalyMaterial.uniforms.u_time.value = elapsedTime;
+
+        renderer.render(scene, camera);
     }
+}
 
-    loader.load(modelPath,
-      function (gltf) {
-        if (modelPath === singularityModelPath && !loadedSingularityGLTF) {
-          loadedSingularityGLTF = gltf;
-          console.log(`GLB model cached: ${modelPath}`);
-        }
-        if (onLoad) onLoad(gltf);
-      },
-      onProgress,
-      function (error) {
-        if (onError) {
-          onError(error);
-        }
-      }
-    );
-  }
-
-  setupGlbPreloader();
-  initMain3DBackground();
-
-  // const circularCanvas = document.getElementById("circular-canvas");
-  // let circularCtx = null;
-  // if (circularCanvas) {
-  //   circularCtx = circularCanvas.getContext("2d");
-  //   // Set canvas resolution - this is important for crisp rendering
-  //   // Match the CSS size or use a specific resolution. Using offsetWidth/Height ensures it matches the displayed size.
-  //   circularCanvas.width = circularCanvas.offsetWidth;
-  //   circularCanvas.height = circularCanvas.offsetHeight;
-  //   console.log('Circular canvas initialized:', circularCanvas.width, 'x', circularCanvas.height);
-  // } else {
-  //   console.error("Circular canvas element #circular-canvas not found!");
-  // }
-
-  let audioContext = null;
-  let audioAnalyser = null;
-  let audioSource = null;
-  let audioData;
-  let frequencyData;
-  let audioReactivity = 1.0;
-  let audioSensitivity = 5.0;
-  let isAudioInitialized = false;
-  let isAudioPlaying = false;
-  let lastUserActionTime = Date.now();
-  let updateGlow;
-  let crypticMessageTimeout;
-  let audioContextStarted = false;
-  let audioSourceConnected = false;
-  let currentAudioElement = null;
-  let floatingParticles = [];
-  let currentAudioSrc = null;
-  let currentMessageIndex = 0;
-  // loadedSingularityGLTF moved to the top of DOMContentLoaded
-  // singularityModelPath and CORESAPIAN_RED moved to the top of DOMContentLoaded
-
-  // 3D Visualizer components
-  let visualizerGroup;
-  let sphereMesh;
-  let pointCloud;
-  let sphereMaterial;
-  let pointsMaterial;
-  const numPointCloudPoints = 1000; // Example number of points for the point cloud
-  let initialPointPositions; // To store original positions for displacement calculations
-  let pointCloudGeometry; // To access attributes later
-
-  function setupGlbPreloader() {
+// --- Preloader Setup ---
+function setupPreloader() {
     const canvas = document.getElementById("preloader-canvas");
-    if (!canvas) {
-      console.error("Preloader canvas not found!");
-      return;
-    }
+    if (!canvas) return;
 
-    const scene = new THREE.Scene();
-    // Set canvas resolution based on its display size for crisp rendering
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000); // Use updated canvas.width/height
-    camera.position.z = 2.5; // Adjust as needed for your model's scale
+    preloaderScene = new THREE.Scene();
+    preloaderCamera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 100);
+    preloaderCamera.position.z = 2.5;
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-    renderer.setSize(canvas.width, canvas.height); // Use updated canvas.width/height
-    renderer.setPixelRatio(window.devicePixelRatio);
+    preloaderRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+    preloaderRenderer.setPixelRatio(window.devicePixelRatio);
+    preloaderRenderer.setSize(canvas.width, canvas.height);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Softer ambient light
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); // Stronger directional
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+    preloaderScene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
     directionalLight.position.set(2, 5, 5);
-    scene.add(directionalLight);
+    preloaderScene.add(directionalLight);
 
-    const loader = new GLTFLoader();
-    let model, mixer;
-    const clock = new THREE.Clock();
-
-    const onProgressPreloader = function (event) {
-      if (event.lengthComputable) {
-        const percentComplete = (event.loaded / event.total) * 100;
-        const progressElement = document.getElementById('loading-model-progress');
-        if (progressElement) {
-          progressElement.textContent = Math.round(percentComplete) + '%';
-        }
-      } else {
-        const progressElement = document.getElementById('loading-model-progress');
-        if (progressElement && !progressElement.textContent.includes('bytes')) {
-            progressElement.textContent = (event.loaded / 1024 / 1024).toFixed(2) + ' MB loaded';
-        }
-      }
-    };
-
-    loadAndCacheGLBModel(
-      singularityModelPath,
-      function (gltf) {
-        model = gltf.scene;
+    loadAndCacheGLBModel(singularityModelPath, (gltf) => {
+        cachedSingularityModel = gltf; // Cache the loaded model
+        const model = gltf.scene;
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -277,1884 +129,660 @@ document.addEventListener("DOMContentLoaded", function () {
         const scaleFactor = 1.5 / maxSize;
         model.scale.set(scaleFactor, scaleFactor, scaleFactor);
         model.position.sub(center.multiplyScalar(scaleFactor));
-
-        scene.add(model);
+        preloaderScene.add(model);
 
         if (gltf.animations && gltf.animations.length) {
-          mixer = new THREE.AnimationMixer(model);
-          gltf.animations.forEach((clip) => {
-            mixer.clipAction(clip).play();
-          });
+            preloaderMixer = new THREE.AnimationMixer(model);
+            gltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
         }
-        console.log("GLB preloader model processed.");
-      },
-      onProgressPreloader,
-      function (error) {
-        console.error('Error processing GLB for preloader:', error);
-      }
-    );
+    });
+}
 
-    function animatePreloader() {
-      if (document.getElementById("loading-overlay").style.display === "none") {
-        // Stop animation if main content is visible
-        console.log("Stopping GLB preloader animation.");
-        return;
-      }
-      requestAnimationFrame(animatePreloader);
-      const delta = clock.getDelta();
-      if (mixer) {
-        mixer.update(delta);
-      }
-      // Optional: Add slight rotation to the model if no animation or to supplement it
-      // if (model) model.rotation.y += 0.005;
-      renderer.render(scene, camera);
-    }
-    animatePreloader();
-    console.log("GLB Preloader setup complete.");
-  }
-
-  function initMain3DBackground() {
+// --- Main Scene Setup ---
+function initMainScene() {
     const container = document.getElementById('three-container');
-    if (!container) {
-      console.error('Main three-container not found!');
-      return;
-    }
-
     scene = new THREE.Scene();
-    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-    // Position camera to view the background. This might need adjustment.
-    camera.position.z = 50; // Further back for a background
+    scene.fog = new THREE.FogExp2(0x12100f, 0.02);
 
-    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); // Let Three.js create the canvas, it will be appended to 'three-container'
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 0, 10);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.outputColorSpace = THREE.SRGBColorSpace; // Added for better color representation
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; // Added for better HDR to LDR mapping
-    renderer.toneMappingExposure = 1.0; // Default, can be adjusted
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(renderer.domElement);
 
-    // Lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Increased intensity
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 3;
+    controls.maxDistance = 50;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5); // Increased intensity
-    directionalLight.position.set(5, 10, 7.5);
-    scene.add(directionalLight);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    dirLight.position.set(5, 10, 7.5);
+    scene.add(dirLight);
 
-    const hemisphereLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.8); // Sky color, Ground color, Intensity
-    scene.add(hemisphereLight);
+    if (cachedSingularityModel) {
+        anomalyObject = cachedSingularityModel.scene.clone();
+        const animations = cachedSingularityModel.animations;
 
-    const loader = new GLTFLoader();
-    let model, mixer;
-    const clock = new THREE.Clock();
+        const vertexShader = `
+            uniform float u_time;
+            uniform float u_distortion;
+            uniform float u_noiseScale;
+            uniform float u_bass;
+            uniform float u_audioReactivity;
+            
+            varying vec3 vNormal;
+            varying vec3 vPosition;
+            
+            // Simplex Noise function
+            vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+            vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+            vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+            float snoise(vec3 v) {
+                const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                vec3 i  = floor(v + dot(v, C.yyy));
+                vec3 x0 = v - i + dot(i, C.xxx);
+                vec3 g = step(x0.yzx, x0.xyz);
+                vec3 l = 1.0 - g;
+                vec3 i1 = min(g.xyz, l.zxy);
+                vec3 i2 = max(g.xyz, l.zxy);
+                vec3 x1 = x0 - i1 + C.xxx;
+                vec3 x2 = x0 - i2 + C.yyy;
+                vec3 x3 = x0 - D.yyy;
+                i = mod289(i);
+                vec4 p = permute(permute(permute( i.z + vec4(0.0, i1.z, i2.z, 1.0)) + i.y + vec4(0.0, i1.y, i2.y, 1.0)) + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                float n_ = 0.142857142857;
+                vec3 ns = n_ * D.wyz - D.xzx;
+                vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+                vec4 x_ = floor(j * ns.z);
+                vec4 y_ = floor(j - 7.0 * x_);
+                vec4 x = x_ *ns.x + ns.yyyy;
+                vec4 y = y_ *ns.x + ns.yyyy;
+                vec4 h = 1.0 - abs(x) - abs(y);
+                vec4 b0 = vec4(x.xy, y.xy);
+                vec4 b1 = vec4(x.zw, y.zw);
+                vec4 s0 = floor(b0)*2.0 + 1.0;
+                vec4 s1 = floor(b1)*2.0 + 1.0;
+                vec4 sh = -step(h, vec4(0.0));
+                vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                vec3 p0 = vec3(a0.xy, h.x);
+                vec3 p1 = vec3(a0.zw, h.y);
+                vec3 p2 = vec3(a1.xy, h.z);
+                vec3 p3 = vec3(a1.zw, h.w);
+                vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
+                p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+                vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+                m = m * m;
+                return 42.0 * dot(m*m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
+            }
+            
+            void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vPosition = position;
+                
+                float noise = snoise(position * u_noiseScale + u_time * 0.2);
+                vec3 displacement = normal * noise * u_distortion * (1.0 + u_bass * u_audioReactivity);
+                
+                vec3 newPosition = position + displacement;
+                
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+            }
+        `;
 
-    loadAndCacheGLBModel(
-      singularityModelPath,
-      function (gltf) {
-        model = gltf.scene;
-        const box = new THREE.Box3().setFromObject(model);
+        const fragmentShader = `
+            uniform float u_time;
+            uniform float u_intensity;
+            uniform float u_glitchIntensity;
+            uniform float u_bass;
+            uniform float u_mid;
+            uniform float u_treble;
+            uniform float u_audioReactivity;
+            
+            varying vec3 vNormal;
+            varying vec3 vPosition;
+            
+            float random(vec2 st) {
+                return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453);
+            }
+            
+            void main() {
+                vec3 viewDirection = normalize(cameraPosition - vPosition);
+                float fresnel = 1.0 - max(0.0, dot(viewDirection, vNormal));
+                fresnel = pow(fresnel, 2.0);
+                
+                vec3 baseColor = vec3(0.1, 0.6, 0.7); // Sci-fi cyan
+                vec3 audioColor = vec3(u_bass, u_mid, u_treble) * u_audioReactivity;
+                
+                vec3 finalColor = baseColor + audioColor;
+                finalColor *= fresnel * u_intensity;
+                
+                // Glitch Effect
+                if (u_glitchIntensity > 0.0) {
+                    if (random(vPosition.xy + u_time * 0.1) < u_glitchIntensity * 0.1) {
+                        finalColor.r = random(vPosition.yx * 1.1 + u_time);
+                    }
+                    if (random(vPosition.xy + u_time * 0.2) < u_glitchIntensity * 0.1) {
+                        finalColor.g = 0.0;
+                    }
+                }
+                
+                gl_FragColor = vec4(finalColor, fresnel * 0.8);
+            }
+        `;
+
+        anomalyMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                u_time: { value: 0.0 },
+                u_intensity: { value: 1.0 },
+                u_distortion: { value: 1.0 },
+                u_noiseScale: { value: 2.0 }, // Corresponds to "Resolution"
+                u_glitchIntensity: { value: 0.0 },
+                u_bass: { value: 0.0 },
+                u_mid: { value: 0.0 },
+                u_treble: { value: 0.0 },
+                u_audioReactivity: { value: 1.0 }
+            },
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+        });
+
+        anomalyObject.traverse((child) => {
+            if (child.isMesh) {
+                child.material = anomalyMaterial;
+            }
+        });
+
+        const box = new THREE.Box3().setFromObject(anomalyObject);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
-        
-        const modelTargetZ = -20;
-        const distanceToModel = camera.position.z - modelTargetZ;
-        
-        const vFOV = THREE.MathUtils.degToRad(camera.fov);
-        const frustumHeightAtModel = 2 * distanceToModel * Math.tan(vFOV / 2);
-        const frustumWidthAtModel = frustumHeightAtModel * camera.aspect;
+        const maxSize = Math.max(size.x, size.y, size.z);
+        const scaleFactor = 5 / maxSize;
+        anomalyObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        anomalyObject.position.sub(center.multiplyScalar(scaleFactor));
+        scene.add(anomalyObject);
 
-        const scaleX = frustumWidthAtModel / size.x;
-        const scaleY = frustumHeightAtModel / size.y;
-        const scaleFactor = Math.max(scaleX, scaleY);
-        
-        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        model.position.copy(center).multiplyScalar(-scaleFactor);
-        model.position.z = modelTargetZ;
-
-        scene.add(model);
-
-        if (gltf.animations && gltf.animations.length) {
-          mixer = new THREE.AnimationMixer(model);
-          gltf.animations.forEach((clip) => {
-            mixer.clipAction(clip).play();
-          });
+        if (animations && animations.length) {
+            anomalyMixer = new THREE.AnimationMixer(anomalyObject);
+            animations.forEach((clip) => anomalyMixer.clipAction(clip).play());
         }
-        console.log('Main background GLB model processed.');
-      },
-      undefined,
-      function (error) {
-        console.error('Error processing main background GLB:', error);
-      }
-    );
-
-    function animateMainBackground() {
-      requestAnimationFrame(animateMainBackground);
-      const delta = clock.getDelta();
-      if (mixer) {
-        mixer.update(delta);
-      }
-      // Optional: Add subtle continuous rotation or movement for the background
-      // if (model) model.rotation.y += 0.0005;
-      renderer.render(scene, camera);
     }
-    animateMainBackground();
 
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
+    window.addEventListener('resize', onWindowResize);
+}
+
+// --- UI & Interaction Setup ---
+function initUI() {
+    makePanelDraggable(document.querySelector(".control-panel"), document.getElementById("control-panel-handle"));
+    makePanelDraggable(document.querySelector(".terminal-panel"));
+    makePanelDraggable(document.querySelector(".spectrum-analyzer"), document.getElementById("spectrum-handle"));
+
+    updateTimestamp();
+    setInterval(updateTimestamp, 1000);
+
+    typeTerminalMessages();
+    setupEventListeners();
+
+    applyScrambleEffect(document.querySelector('.data-panel[style*="right: 20px"] .data-label'), "PEAK FREQUENCY:", "VOID_RESONANCE");
+}
+
+function setupEventListeners() {
+    // Sliders
+    document.getElementById("intensity-slider").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        if (anomalyMaterial) anomalyMaterial.uniforms.u_intensity.value = value;
+        document.getElementById("intensity-value").textContent = value.toFixed(1);
     });
-    console.log('Main 3D Background setup complete.');
-  }
 
-  function initFloatingParticles() {
-    const container = document.getElementById("floating-particles");
-    if (!container) {
-      console.error('Floating particles container #floating-particles not found!');
-      return;
+    document.getElementById("resolution-slider").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        // Map slider value (12-64) to a more usable noise scale (e.g., 5-1)
+        const noiseScale = 5.0 - ((value - 12) / (64 - 12)) * 4.0;
+        if (anomalyMaterial) anomalyMaterial.uniforms.u_noiseScale.value = noiseScale;
+        document.getElementById("resolution-value").textContent = value;
+    });
+
+    document.getElementById("distortion-slider").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        if (anomalyMaterial) anomalyMaterial.uniforms.u_distortion.value = value;
+        document.getElementById("distortion-value").textContent = value.toFixed(1);
+    });
+
+    document.getElementById("reactivity-slider").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        if (anomalyMaterial) anomalyMaterial.uniforms.u_audioReactivity.value = value;
+        audioReactivity = value; // Also update global for other visualizers
+        document.getElementById("reactivity-value").textContent = value.toFixed(1);
+    });
+
+    document.getElementById("glitch-slider").addEventListener("input", (e) => {
+        const value = parseFloat(e.target.value);
+        if (anomalyMaterial) anomalyMaterial.uniforms.u_glitchIntensity.value = value;
+        document.getElementById("glitch-value").textContent = value.toFixed(2);
+    });
+
+    document.getElementById("sensitivity-slider").addEventListener("input", (e) => {
+        audioSensitivity = parseFloat(e.target.value);
+        document.getElementById("sensitivity-value").textContent = audioSensitivity.toFixed(1);
+    });
+
+    // Buttons
+    document.getElementById("reset-btn").addEventListener("click", resetControls);
+    document.getElementById("analyze-btn").addEventListener("click", analyzeAnomaly);
+
+    // Audio Inputs
+    document.querySelectorAll(".demo-track-btn").forEach((btn) => {
+        btn.addEventListener("click", function () {
+            ensureAudioContextStarted();
+            const url = this.dataset.url;
+            document.querySelectorAll(".demo-track-btn").forEach(b => b.classList.remove("active"));
+            this.classList.add("active");
+            loadAudioFromURL(url);
+        });
+    });
+
+    document.getElementById("file-btn").addEventListener("click", () => {
+        ensureAudioContextStarted();
+        document.getElementById("audio-file-input").click();
+    });
+
+    document.getElementById("audio-file-input").addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+            initAudioFile(e.target.files[0]);
+        }
+    });
+
+    // General user interaction listeners
+    document.addEventListener("click", () => {
+        lastUserActionTime = Date.now();
+        ensureAudioContextStarted();
+    });
+    document.addEventListener("mousemove", () => { lastUserActionTime = Date.now(); });
+    document.addEventListener("keydown", () => { lastUserActionTime = Date.now(); });
+}
+
+function resetControls() {
+    document.getElementById("intensity-slider").value = 1.0;
+    document.getElementById("resolution-slider").value = 32;
+    document.getElementById("distortion-slider").value = 1.0;
+    document.getElementById("reactivity-slider").value = 1.0;
+    document.getElementById("glitch-slider").value = 0.0;
+    document.getElementById("sensitivity-slider").value = 5.0;
+
+    // Trigger input events to apply changes
+    document.getElementById("intensity-slider").dispatchEvent(new Event('input'));
+    document.getElementById("resolution-slider").dispatchEvent(new Event('input'));
+    document.getElementById("distortion-slider").dispatchEvent(new Event('input'));
+    document.getElementById("reactivity-slider").dispatchEvent(new Event('input'));
+    document.getElementById("glitch-slider").dispatchEvent(new Event('input'));
+    document.getElementById("sensitivity-slider").dispatchEvent(new Event('input'));
+
+    showNotification("SETTINGS RESET TO DEFAULT VALUES");
+}
+
+function analyzeAnomaly() {
+    const btn = this;
+    btn.textContent = "ANALYZING...";
+    btn.disabled = true;
+
+    setTimeout(() => {
+        btn.textContent = "ANALYZE";
+        btn.disabled = false;
+        addTerminalMessage("ANALYSIS COMPLETE. ANOMALY SIGNATURE IDENTIFIED.", true);
+        showNotification("ANOMALY ANALYSIS COMPLETE");
+        document.getElementById("peak-value").textContent = `${(Math.random() * 200 + 100).toFixed(1)} HZ`;
+        document.getElementById("amplitude-value").textContent = (Math.random() * 0.5 + 0.3).toFixed(2);
+        const phases = ["π/4", "π/2", "π/6", "3π/4"];
+        document.getElementById("phase-value").textContent = phases[Math.floor(Math.random() * phases.length)];
+    }, 3000);
+}
+
+// --- Audio Handling & Visualizers ---
+function initAudio() {
+    if (isAudioInitialized) return true;
+    try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        audioAnalyser = audioContext.createAnalyser();
+        audioAnalyser.fftSize = 2048;
+        audioAnalyser.smoothingTimeConstant = 0.8;
+        frequencyData = new Uint8Array(audioAnalyser.frequencyBinCount);
+        timeDomainData = new Uint8Array(audioAnalyser.frequencyBinCount);
+        audioAnalyser.connect(audioContext.destination);
+        isAudioInitialized = true;
+        addTerminalMessage("AUDIO ANALYSIS SYSTEM INITIALIZED.");
+        return true;
+    } catch (error) {
+        console.error("Audio initialization error:", error);
+        addTerminalMessage("ERROR: AUDIO SYSTEM INITIALIZATION FAILED.");
+        return false;
     }
-    const numParticles = 1000;
+}
 
-    // Clear any existing particles
+function ensureAudioContextStarted() {
+    if (!isAudioInitialized) initAudio();
+    if (audioContext && audioContext.state === "suspended") {
+        audioContext.resume().catch(err => console.error("Failed to resume audio context:", err));
+    }
+}
+
+function setupAudioSource(audioElement) {
+    if (!isAudioInitialized) return;
+    if (audioSource) {
+        audioSource.disconnect();
+    }
+    try {
+        audioSource = audioContext.createMediaElementSource(audioElement);
+        audioSource.connect(audioAnalyser);
+    } catch (error) {
+        console.error("Error setting up audio source:", error);
+    }
+}
+
+function loadAudioFromURL(url) {
+    const audioPlayer = document.getElementById("audio-player");
+    audioPlayer.src = url;
+    audioPlayer.oncanplay = () => {
+        setupAudioSource(audioPlayer);
+        audioPlayer.play().catch(e => showNotification("AUTOPLAY BLOCKED. CLICK TO PLAY."));
+    };
+    document.getElementById("file-label").textContent = url.split("/").pop();
+    addTerminalMessage(`LOADING AUDIO FROM URL: ${url.substring(0, 40)}...`);
+}
+
+function initAudioFile(file) {
+    const audioPlayer = document.getElementById("audio-player");
+    const fileURL = URL.createObjectURL(file);
+    audioPlayer.src = fileURL;
+    audioPlayer.oncanplay = () => {
+        setupAudioSource(audioPlayer);
+        audioPlayer.play().catch(e => showNotification("AUTOPLAY BLOCKED. CLICK TO PLAY."));
+    };
+    document.getElementById("file-label").textContent = file.name;
+    addTerminalMessage(`AUDIO FILE LOADED: ${file.name}`);
+}
+
+function updateAudioVisualizers() {
+    drawSpectrumAnalyzer();
+    updateAudioWave();
+    updateUIReadouts();
+}
+
+function updateAnomalyShaderAudio() {
+    if (!anomalyMaterial) return;
+    const bassCutoff = Math.floor(frequencyData.length * 0.2);
+    const midCutoff = Math.floor(frequencyData.length * 0.5);
+
+    let bassSum = 0;
+    for (let i = 0; i < bassCutoff; i++) bassSum += frequencyData[i];
+    anomalyMaterial.uniforms.u_bass.value = (bassSum / bassCutoff / 255);
+
+    let midSum = 0;
+    for (let i = bassCutoff; i < midCutoff; i++) midSum += frequencyData[i];
+    anomalyMaterial.uniforms.u_mid.value = (midSum / (midCutoff - bassCutoff) / 255);
+
+    let trebleSum = 0;
+    for (let i = midCutoff; i < frequencyData.length; i++) trebleSum += frequencyData[i];
+    anomalyMaterial.uniforms.u_treble.value = (trebleSum / (frequencyData.length - midCutoff) / 255);
+}
+
+function drawSpectrumAnalyzer() {
+    const canvas = document.getElementById("spectrum-canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const width = canvas.width;
+    const height = canvas.height;
+
+    ctx.clearRect(0, 0, width, height);
+    const barCount = 128;
+    const barWidth = width / barCount;
+    for (let i = 0; i < barCount; i++) {
+        const barHeight = (frequencyData[i * 2] / 255) * height * (audioSensitivity / 5) * audioReactivity;
+        const hue = (i / barCount) * 360;
+        ctx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+        ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+    }
+}
+
+function updateAudioWave() {
+    const wave = document.getElementById("audio-wave");
+    let sum = 0;
+    for (let i = 0; i < timeDomainData.length; i++) {
+        sum += Math.abs(timeDomainData[i] - 128);
+    }
+    const average = sum / timeDomainData.length;
+    const normalizedAverage = average / 128.0;
+    const scale = 1 + normalizedAverage * 0.5 * audioReactivity;
+    wave.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    wave.style.borderColor = `rgba(255, 78, 66, ${0.1 + normalizedAverage * 0.4})`;
+}
+
+function updateUIReadouts() {
+    let maxValue = 0, maxIndex = 0;
+    for (let i = 0; i < frequencyData.length; i++) {
+        if (frequencyData[i] > maxValue) {
+            maxValue = frequencyData[i];
+            maxIndex = i;
+        }
+    }
+    const peakFrequency = (maxIndex * audioContext.sampleRate) / (audioAnalyser.fftSize);
+    document.getElementById("peak-value").textContent = `${Math.round(peakFrequency)} HZ`;
+
+    let sum = 0;
+    for (let i = 0; i < timeDomainData.length; i++) {
+        sum += (timeDomainData[i] / 128.0 - 1.0) ** 2;
+    }
+    const rms = Math.sqrt(sum / timeDomainData.length);
+    document.getElementById("amplitude-value").textContent = rms.toFixed(2);
+}
+
+
+// --- Helper & Utility Functions ---
+function initFloatingParticles() {
+    const container = document.getElementById("floating-particles");
+    if (!container) return;
+    const numParticles = 500;
     container.innerHTML = "";
     floatingParticles = [];
 
-    // Get window dimensions for better positioning
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
-    const centerX = windowWidth / 2;
-    const centerY = windowHeight / 2;
-
     for (let i = 0; i < numParticles; i++) {
-      const particle = document.createElement("div");
-      particle.className = "particle";
-      particle.style.position = "absolute";
-
-      // Make all particles the same small size
-      particle.style.width = "1.5px";
-      particle.style.height = "1.5px";
-      // Changed to shades of cyan
-      particle.style.backgroundColor = `rgba(0, ${Math.floor(Math.random() * 75) + 180}, ${Math.floor(Math.random() * 55) + 200}, ${Math.random() * 0.5 + 0.3})`;
-      particle.style.borderRadius = "50%";
-
-      // Create a large hollow area in the center - adjusted for larger spread
-      const minDistance = 100; // Minimum distance from center (reduced from 200)
-      const maxDistance = Math.max(windowWidth, windowHeight) * 1.0; // Use 100% of the larger dimension (increased from 0.8)
-
-      // Use polar coordinates for even distribution
-      const angle = Math.random() * Math.PI * 2;
-
-      // Use square root distribution for more even radial distribution
-      const distanceFactor = Math.sqrt(Math.random());
-      const distance =
-        minDistance + distanceFactor * (maxDistance - minDistance);
-
-      // Calculate position
-      const x = Math.cos(angle) * distance + centerX;
-      const y = Math.sin(angle) * distance + centerY;
-
-      particle.style.left = x + "px";
-      particle.style.top = y + "px";
-
-      // Store particle properties for animation
-      const particleObj = {
-        element: particle,
-        x: x,
-        y: y,
-        speed: Math.random() * 0.5 + 0.1,
-        angle: Math.random() * Math.PI * 2,
-        angleSpeed: (Math.random() - 0.5) * 0.02,
-        amplitude: Math.random() * 100 + 50, // Further increased amplitude for wider movement (was 50 + 20)
-        size: 1.5, // Fixed size
-        pulseSpeed: Math.random() * 0.04 + 0.01,
-        pulsePhase: Math.random() * Math.PI * 2
-      };
-
-      floatingParticles.push(particleObj);
-      container.appendChild(particle);
-    }
-
-    // Start animation
-    animateFloatingParticles();
-  }
-
-  // Animate floating particles
-  function animateFloatingParticles() {
-    const centerX = window.innerWidth / 2;
-    const centerY = window.innerHeight / 2;
-    let time = 0;
-
-    function updateParticles() {
-      time += 0.01;
-
-      floatingParticles.forEach((particle) => {
-        // Update angle
-        particle.angle += particle.angleSpeed;
-
-        // Calculate orbit around center with some drift
-        const orbitX = centerX + Math.cos(particle.angle) * particle.amplitude;
-        const orbitY = centerY + Math.sin(particle.angle) * particle.amplitude;
-
-        // Add some noise movement
-        const noiseX = Math.sin(time * particle.speed + particle.angle) * 5;
-        const noiseY =
-          Math.cos(time * particle.speed + particle.angle * 0.7) * 5;
-
-        // Apply movement without audio reactivity
-        const newX = orbitX + noiseX;
-        const newY = orbitY + noiseY;
-
-        // Update position
-        particle.element.style.left = newX + "px";
-        particle.element.style.top = newY + "px";
-
-        // Pulse size slightly without audio
-        const pulseFactor =
-          1 + Math.sin(time * particle.pulseSpeed + particle.pulsePhase) * 0.3;
-        const newSize = particle.size * pulseFactor;
-
-        particle.element.style.width = newSize + "px";
-        particle.element.style.height = newSize + "px";
-
-        // Adjust opacity based on pulse
-        const baseOpacity =
-          0.2 +
-          Math.sin(time * particle.pulseSpeed + particle.pulsePhase) * 0.1;
-        particle.element.style.opacity = Math.min(0.8, baseOpacity);
-      });
-
-      requestAnimationFrame(updateParticles);
-    }
-
-    requestAnimationFrame(updateParticles);
-  }
-
-  function initAudio() {
-    if (isAudioInitialized) return true;
-    try {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      audioAnalyser = audioContext.createAnalyser();
-      audioAnalyser.fftSize = 2048;
-      audioAnalyser.smoothingTimeConstant = 0.8;
-      audioData = new Uint8Array(audioAnalyser.frequencyBinCount);
-      frequencyData = new Uint8Array(audioAnalyser.frequencyBinCount);
-      audioAnalyser.connect(audioContext.destination);
-      isAudioInitialized = true;
-      addTerminalMessage("AUDIO ANALYSIS SYSTEM INITIALIZED.");
-      showNotification("AUDIO ANALYSIS SYSTEM ONLINE");
-      return true;
-    } catch (error) {
-      console.error("Audio initialization error:", error);
-      addTerminalMessage("ERROR: AUDIO SYSTEM INITIALIZATION FAILED.");
-      showNotification("AUDIO SYSTEM ERROR");
-      return false;
-    }
-  }
-
-  function ensureAudioContextStarted() {
-    if (!audioContext) {
-      if (!initAudio()) return false;
-    }
-    if (audioContext.state === "suspended") {
-      audioContext
-        .resume()
-        .then(() => {
-          if (!audioContextStarted) {
-            audioContextStarted = true;
-            addTerminalMessage("AUDIO CONTEXT RESUMED.");
-          }
-        })
-        .catch((err) => {
-          console.error("Failed to resume audio context:", err);
-          addTerminalMessage("ERROR: FAILED TO RESUME AUDIO CONTEXT.");
+        const particle = document.createElement("div");
+        particle.style.position = "absolute";
+        particle.style.width = `${Math.random() * 2 + 1}px`;
+        particle.style.height = particle.style.width;
+        particle.style.backgroundColor = `rgba(0, ${Math.floor(Math.random() * 75) + 180}, ${Math.floor(Math.random() * 55) + 200}, ${Math.random() * 0.5 + 0.2})`;
+        particle.style.borderRadius = "50%";
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * (Math.max(window.innerWidth, window.innerHeight) / 2 - 100) + 100;
+        const x = Math.cos(angle) * distance + window.innerWidth / 2;
+        const y = Math.sin(angle) * distance + window.innerHeight / 2;
+        particle.style.left = `${x}px`;
+        particle.style.top = `${y}px`;
+        container.appendChild(particle);
+        floatingParticles.push({
+            element: particle,
+            angle,
+            distance,
+            speed: Math.random() * 0.0005 + 0.0001
         });
-    } else {
-      audioContextStarted = true;
     }
-    return true;
-  }
 
-  function cleanupAudioSource() {
-    if (audioSource) {
-      try {
-        audioSource.disconnect();
-        audioSourceConnected = false;
-        audioSource = null;
-      } catch (e) {
-        console.log("Error disconnecting previous source:", e);
-      }
+    function animateParticles() {
+        floatingParticles.forEach(p => {
+            p.angle += p.speed;
+            const x = Math.cos(p.angle) * p.distance + window.innerWidth / 2;
+            const y = Math.sin(p.angle) * p.distance + window.innerHeight / 2;
+            p.element.style.transform = `translate(${x - p.element.offsetLeft}px, ${y - p.element.offsetTop}px)`;
+        });
+        requestAnimationFrame(animateParticles);
     }
-  }
+    animateParticles();
+}
 
-  function createNewAudioElement() {
-    if (currentAudioElement) {
-      if (currentAudioElement.parentNode) {
-        currentAudioElement.parentNode.removeChild(currentAudioElement);
-      }
-    }
-    const newAudioElement = document.createElement("audio");
-    newAudioElement.id = "audio-player";
-    newAudioElement.className = "audio-player";
-    newAudioElement.crossOrigin = "anonymous";
-    document
-      .querySelector(".audio-controls")
-      .insertBefore(newAudioElement, document.querySelector(".controls-row"));
-    currentAudioElement = newAudioElement;
-    return newAudioElement;
-  }
-
-  function setupAudioSource(audioElement) {
-    try {
-      if (!ensureAudioContextStarted()) {
-        addTerminalMessage(
-          "ERROR: AUDIO CONTEXT NOT AVAILABLE. CLICK ANYWHERE TO ENABLE AUDIO."
-        );
-        return false;
-      }
-      cleanupAudioSource();
-      try {
-        // Only create a new media element source if one doesn't already exist
-        if (!audioSourceConnected) {
-          audioSource = audioContext.createMediaElementSource(audioElement);
-          audioSource.connect(audioAnalyser);
-          audioSourceConnected = true;
-        }
-        return true;
-      } catch (error) {
-        console.error("Error creating media element source:", error);
-        if (
-          error.name === "InvalidStateError" &&
-          error.message.includes("already connected")
-        ) {
-          addTerminalMessage(
-            "AUDIO SOURCE ALREADY CONNECTED. ATTEMPTING TO PLAY ANYWAY."
-          );
-          return true;
-        }
-        addTerminalMessage(
-          "ERROR: FAILED TO SETUP AUDIO SOURCE. " + error.message
-        );
-        return false;
-      }
-    } catch (error) {
-      console.error("Error setting up audio source:", error);
-      addTerminalMessage("ERROR: FAILED TO SETUP AUDIO SOURCE.");
-      return false;
-    }
-  }
-
-  function initAudioFile(file) {
-    try {
-      if (!isAudioInitialized && !initAudio()) {
-        return;
-      }
-      const audioPlayer = createNewAudioElement();
-      // Revoke the previous object URL if it exists and is an object URL
-      if (currentAudioSrc && currentAudioSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(currentAudioSrc);
-      }
-      const fileURL = URL.createObjectURL(file);
-      currentAudioSrc = fileURL;
-      audioPlayer.src = fileURL;
-      audioPlayer.onloadeddata = function () {
-        if (setupAudioSource(audioPlayer)) {
-          audioPlayer
-            .play()
-            .then(() => {
-              isAudioPlaying = true;
-              zoomCameraForAudio(true);
-            })
-            .catch((e) => {
-              console.warn("Auto-play prevented:", e);
-              addTerminalMessage(
-                "WARNING: AUTO-PLAY PREVENTED BY BROWSER. CLICK PLAY TO START AUDIO."
-              );
-            });
-        }
-      };
-      document.getElementById("file-label").textContent = file.name;
-      document.querySelectorAll(".demo-track-btn").forEach((btn) => {
-        btn.classList.remove("active");
-      });
-      addTerminalMessage(`AUDIO FILE LOADED: ${file.name}`);
-      showNotification("AUDIO FILE LOADED");
-    } catch (error) {
-      console.error("Audio file error:", error);
-      addTerminalMessage("ERROR: AUDIO FILE PROCESSING FAILED.");
-      showNotification("AUDIO FILE ERROR");
-    }
-  }
-
-  function loadAudioFromURL(url) {
-    try {
-      if (!isAudioInitialized && !initAudio()) {
-        return;
-      }
-      ensureAudioContextStarted();
-      const audioPlayer = createNewAudioElement();
-      // Revoke the previous object URL if it exists and is an object URL
-      if (currentAudioSrc && currentAudioSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(currentAudioSrc);
-      }
-      currentAudioSrc = url;
-      audioPlayer.src = url;
-      audioPlayer.onloadeddata = function () {
-        if (setupAudioSource(audioPlayer)) {
-          audioPlayer
-            .play()
-            .then(() => {
-              isAudioPlaying = true;
-              zoomCameraForAudio(true);
-              addTerminalMessage(`PLAYING DEMO TRACK: ${url.split("/").pop()}`);
-              showNotification(`PLAYING: ${url.split("/").pop()}`);
-            })
-            .catch((e) => {
-              console.warn("Play prevented:", e);
-              addTerminalMessage(
-                "WARNING: AUDIO PLAYBACK PREVENTED BY BROWSER. CLICK PLAY TO START AUDIO."
-              );
-              showNotification("CLICK PLAY TO START AUDIO");
-            });
-        }
-      };
-      const filename = url.split("/").pop();
-      document.getElementById("file-label").textContent = filename;
-      addTerminalMessage(`LOADING AUDIO FROM URL: ${url.substring(0, 40)}...`);
-      showNotification("AUDIO URL LOADED");
-    } catch (error) {
-      console.error("Audio URL error:", error);
-      addTerminalMessage("ERROR: AUDIO URL PROCESSING FAILED.");
-      showNotification("AUDIO URL ERROR");
-    }
-  }
-
-  // function resizeCircularCanvas() {
-  //   const circularCanvas = document.getElementById("circular-canvas");
-  //   if (circularCanvas) { // Check if canvas exists
-  //     // circularCanvas.width = circularCanvas.offsetWidth;
-  //     // circularCanvas.height = circularCanvas.offsetHeight;
-  //   }
-  // }
-  // // resizeCircularCanvas();
-  // // window.addEventListener("resize", resizeCircularCanvas);
-
-  /* // Old drawCircularVisualizer function is now removed and replaced by 3D visualizer logic
-function drawCircularVisualizer() { ... } 
-*/
-
-// NEW 3D VISUALIZER FUNCTIONS
-function init3DVisualizer() {
-    if (!scene) {
-        console.error("Main 3D scene (scene) not initialized before init3DVisualizer.");
+function loadAndCacheGLBModel(modelPath, onLoad) {
+    if (cachedSingularityModel) {
+        console.log(`Using cached GLB model: ${modelPath}`);
+        onLoad(cachedSingularityModel);
         return;
     }
-
-    visualizerGroup = new THREE.Group();
-    visualizerGroup.position.set(0, 10, -60); // Positioned to be distinct
-
-    // Sphere Wireframe
-    const sphereRadius = 15;
-    const sphereSegments = 32;
-    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, sphereSegments, sphereSegments);
-    sphereMaterial = new THREE.MeshStandardMaterial({
-        color: CORESAPIAN_RED,
-        wireframe: true,
-        emissive: CORESAPIAN_RED,
-        emissiveIntensity: 0.3,
-        transparent: true,
-        opacity: 0.7,
-        side: THREE.DoubleSide
+    const loader = new GLTFLoader();
+    loader.load(modelPath, (gltf) => {
+        console.log(`GLB model loaded and cached: ${modelPath}`);
+        onLoad(gltf);
+    }, undefined, (error) => {
+        console.error(`Error loading GLB model ${modelPath}:`, error);
     });
-    sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
-    visualizerGroup.add(sphereMesh);
-
-    // Inner Point Cloud
-    pointCloudGeometry = new THREE.BufferGeometry();
-    const positions = [];
-    const colors = [];
-    const initialRadii = [];
-    const initialPhases = []; // For varied animation patterns
-
-    const pointCloudMaxRadius = sphereRadius * 0.85; // Points contained well within the sphere
-
-    for (let i = 0; i < numPointCloudPoints; i++) {
-        // Distribute points spherically (Fibonacci lattice for even distribution)
-        const phi = Math.acos(-1 + (2 * i) / numPointCloudPoints);
-        const theta = Math.sqrt(numPointCloudPoints * Math.PI) * phi;
-        
-        const r = Math.random() * pointCloudMaxRadius;
-        initialRadii.push(r);
-
-        const x = r * Math.sin(phi) * Math.cos(theta);
-        const y = r * Math.sin(phi) * Math.sin(theta);
-        const z = r * Math.cos(phi);
-        positions.push(x, y, z);
-
-        const color = new THREE.Color();
-        color.setHSL(0.55 + Math.random() * 0.2, 0.8, 0.6); // Initial cool blue/cyan/purple range
-        colors.push(color.r, color.g, color.b);
-        initialPhases.push(Math.random() * Math.PI * 2); // Random initial phase for animations
-    }
-
-    pointCloudGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    pointCloudGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    pointCloudGeometry.setAttribute('initialRadius', new THREE.Float32BufferAttribute(initialRadii, 1));
-    pointCloudGeometry.setAttribute('initialPhase', new THREE.Float32BufferAttribute(initialPhases, 1));
-    initialPointPositions = new Float32Array(positions); // Store initial positions if needed for complex calcs, though attributes are better
-
-    pointsMaterial = new THREE.PointsMaterial({
-        size: 0.1,
-        vertexColors: true,
-        blending: THREE.AdditiveBlending,
-        transparent: true,
-        opacity: 0.75,
-        sizeAttenuation: true,
-        depthWrite: false
-    });
-
-    pointCloud = new THREE.Points(pointCloudGeometry, pointsMaterial);
-    visualizerGroup.add(pointCloud);
-
-    scene.add(visualizerGroup);
-    console.log("3D Coresapian Visualizer initialized with " + numPointCloudPoints + " points.");
 }
 
-function update3DVisualizer() {
-    if (!audioAnalyser || !visualizerGroup || !frequencyData || !pointCloud || !sphereMesh || !pointCloudGeometry) {
-        return; // Not ready or audio not playing
+function initLoadingAnimation() {
+    const messages = [
+        "INITIALIZING CORESAPIAN DOWNLINK...",
+        "CALIBRATING XENOLINGUISTIC INTERFACE...",
+        "SYNCHRONIZING WITH DISTANT ASI NODE...",
+        "COMPILING ROBOTIC CONSCIOUSNESS MATRIX...",
+        "ACCESSING CETI PRIME ARCHIVES...",
+        "WARNING: UNIDENTIFIED ENERGY SIGNATURE DETECTED...",
+        "CORESAPIAN NEXUS ONLINE."
+    ];
+    let messageIndex = 0;
+    const textElement = document.getElementById("loading-message-text");
+
+    function animateNextMessage() {
+        if (!textElement) return;
+        gsap.to(textElement, {
+            duration: 2,
+            text: { value: messages[messageIndex], delimiter: "" },
+            ease: "none",
+            onComplete: () => {
+                messageIndex++;
+                if (messageIndex < messages.length) {
+                    gsap.delayedCall(1.5, animateNextMessage);
+                } else {
+                    startApp();
+                }
+            }
+        });
     }
-
-    // Note: frequencyData is now updated in animateVisualizers loop globally
-    const metrics = calculateAudioMetrics(frequencyData);
-    const overallIntensity = metrics.overallIntensityNormalized;
-    const bassIntensity = metrics.bassIntensityNormalized;
-    const midIntensity = metrics.midIntensityNormalized;
-    const highIntensity = metrics.highIntensityNormalized;
-
-    // Animate visualizerGroup (slow rotation)
-    visualizerGroup.rotation.y += 0.001 + midIntensity * 0.002;
-    visualizerGroup.rotation.x += 0.0005 + midIntensity * 0.001;
-
-    // Sphere Reactivity
-    const sphereScale = 1.0 + bassIntensity * 0.3;
-    sphereMesh.scale.set(sphereScale, sphereScale, sphereScale);
-    sphereMaterial.emissiveIntensity = 0.3 + bassIntensity * 0.7;
-    sphereMaterial.opacity = 0.6 + bassIntensity * 0.3;
-
-    // Point Cloud Reactivity
-    const positions = pointCloudGeometry.attributes.position.array;
-    const colors = pointCloudGeometry.attributes.color.array;
-    const initialRadii = pointCloudGeometry.attributes.initialRadius.array;
-    const initialPhases = pointCloudGeometry.attributes.initialPhase.array;
-
-    const time = Date.now() * 0.0005;
-
-    for (let i = 0; i < numPointCloudPoints; i++) {
-        const i3 = i * 3;
-        const i1 = i; // For 1D attributes
-
-        // Radial displacement based on specific audio frequencies
-        // Map point index to a frequency bin (e.g., lower half for more distinct features)
-        const freqBinIndex = Math.floor((i / numPointCloudPoints) * (audioAnalyser.frequencyBinCount * 0.5));
-        const freqMagnitude = frequencyData[freqBinIndex] / 255.0; // Normalized 0-1
-
-        const baseRadius = initialRadii[i1];
-        const radialDisplacement = freqMagnitude * (baseRadius * 0.4 + 2.0); // Scale displacement
-        let currentRadius = baseRadius + radialDisplacement;
-
-        // Subtle continuous swirling motion (spiral effect)
-        // Using initial position as a base direction vector from origin
-        let pX = initialPointPositions[i3];
-        let pY = initialPointPositions[i3 + 1];
-        let pZ = initialPointPositions[i3 + 2];
-        
-        // Normalize the initial direction vector
-        const initialVec = new THREE.Vector3(pX, pY, pZ);
-        const initialLength = initialVec.length();
-        if (initialLength > 0) initialVec.divideScalar(initialLength);
-        else initialVec.set(1,0,0); // Default if initialRadius was 0
-
-        // Apply swirl: rotate the direction vector
-        const swirlFactor = time * 0.2 * (1 + midIntensity * 2.0) + initialPhases[i1];
-        const swirlAxis = new THREE.Vector3(Math.sin(initialPhases[i1]), Math.cos(initialPhases[i1]), Math.sin(swirlFactor*0.5)).normalize(); // Varied swirl axis
-        initialVec.applyAxisAngle(swirlAxis, swirlFactor * 0.1);
-
-        // Set new position based on swirled direction and current radius
-        positions[i3]     = initialVec.x * currentRadius;
-        positions[i3 + 1] = initialVec.y * currentRadius;
-        positions[i3 + 2] = initialVec.z * currentRadius;
-
-        // Dynamically change color
-        // Blue (0.6) to Red (0.0 or 1.0) based on intensity/frequency
-        const hue = 0.6 - (freqMagnitude * 0.3) - (overallIntensity * 0.3);
-        const saturation = 0.7 + freqMagnitude * 0.3;
-        const lightness = 0.4 + overallIntensity * 0.3 + freqMagnitude * 0.2;
-        const tempColor = new THREE.Color();
-        tempColor.setHSL(hue < 0 ? hue + 1 : hue, Math.min(1, saturation), Math.min(1, lightness));
-        colors[i3]     = tempColor.r;
-        colors[i3 + 1] = tempColor.g;
-        colors[i3 + 2] = tempColor.b;
-    }
-
-    pointCloudGeometry.attributes.position.needsUpdate = true;
-    pointCloudGeometry.attributes.color.needsUpdate = true;
-
-    // Adjust point size
-    pointsMaterial.size = Math.max(0.02, 0.05 + highIntensity * 0.15 + overallIntensity * 0.05);
+    animateNextMessage();
 }
 
-// Make sure to call init3DVisualizer() during setup and update3DVisualizer() in the animation loop.
-
-/* // Old drawCircularVisualizer content below was meant to be fully commented or replaced.
-    if (!audioAnalyser) return;
-    const width = circularCanvas.width;
-    const height = circularCanvas.height;
-    // const centerX = width / 2;
-    // const centerY = height / 2;
-    // circularCtx.clearRect(0, 0, width, height);
-    // audioAnalyser.getByteFrequencyData(frequencyData);
-    // const numPoints = 180;
-    // const baseRadius = Math.min(width, height) * 0.4;
-    // circularCtx.beginPath();
-    // circularCtx.arc(centerX, centerY, baseRadius * 1.2, 0, Math.PI * 2);
-    // circularCtx.fillStyle = "rgba(255, 78, 66, 0.05)";
-    // circularCtx.fill();
-    // const numRings = 3;
-    // for (let ring = 0; ring < numRings; ring++) {
-    //   const ringRadius = baseRadius * (0.7 + ring * 0.15);
-    //   const opacity = 0.8 - ring * 0.2;
-    //   circularCtx.beginPath();
-    //   for (let i = 0; i < numPoints; i++) {
-    //     const freqRangeStart = Math.floor(
-    //       (ring * audioAnalyser.frequencyBinCount) / (numRings * 1.5)
-    //     );
-    //     const freqRangeEnd = Math.floor(
-    //       ((ring + 1) * audioAnalyser.frequencyBinCount) / (numRings * 1.5)
-    //     );
-    //     const freqRange = freqRangeEnd - freqRangeStart;
-    //     let sum = 0;
-    //     const segmentSize = Math.floor(freqRange / numPoints);
-    //     for (let j = 0; j < segmentSize; j++) {
-    //       const freqIndex = freqRangeStart + i * segmentSize + j;
-    //       sum += frequencyData[freqIndex];
-    //     }
-    //     const value = (segmentSize > 0) ? (sum / (segmentSize * 255)) : 0;
-    //     const adjustedValue = value * (audioSensitivity / 5) * audioReactivity;
-    //     const dynamicRadius = ringRadius * (1 + adjustedValue * 0.5);
-    //     const angle = (i / numPoints) * Math.PI * 2;
-    //     const x = centerX + Math.cos(angle) * dynamicRadius;
-    //     const y = centerY + Math.sin(angle) * dynamicRadius;
-    //     if (i === 0) {
-    //       circularCtx.moveTo(x, y);
-    //     } else {
-    //       circularCtx.lineTo(x, y);
-    //     }
-    //   }
-    //   circularCtx.closePath();
-    //   let gradient;
-    //   if (ring === 0) {
-    //     gradient = circularCtx.createRadialGradient(
-    //       centerX,
-    //       centerY,
-    //       ringRadius * 0.8,
-    //       centerX,
-    //       centerY,
-    //       ringRadius * 1.2
-    //     );
-    //     gradient.addColorStop(0, `rgba(255, 78, 66, ${opacity})`);
-    //     gradient.addColorStop(1, `rgba(194, 54, 47, ${opacity * 0.7})`);
-    //   } else if (ring === 1) {
-    //     gradient = circularCtx.createRadialGradient(
-    //       centerX,
-    //       centerY,
-    //       ringRadius * 0.8,
-    //       centerX,
-    //       centerY,
-    //       ringRadius * 1.2
-    //     );
-    //     gradient.addColorStop(0, `rgba(194, 54, 47, ${opacity})`);
-    //     gradient.addColorStop(1, `rgba(255, 179, 171, ${opacity * 0.7})`);
-    //   } else {
-    //     gradient = circularCtx.createRadialGradient(
-    //       centerX,
-    //       centerY,
-    //       ringRadius * 0.8,
-    //       centerX,
-    //       centerY,
-    //       ringRadius * 1.2
-    //     );
-    //     gradient.addColorStop(0, `rgba(255, 179, 171, ${opacity})`);
-    //     gradient.addColorStop(1, `rgba(255, 78, 66, ${opacity * 0.7})`);
-    //   }
-    //   circularCtx.strokeStyle = gradient;
-    //   circularCtx.lineWidth = 2 + (numRings - ring);
-    //   circularCtx.stroke();
-    //   circularCtx.shadowBlur = 15;
-    //   circularCtx.shadowColor = "rgba(255, 78, 66, 0.7)";
-    // }
-    // circularCtx.shadowBlur = 0;
-    // const centerX = width / 2;
-    const centerY = height / 2;
-    circularCtx.clearRect(0, 0, width, height);
-    audioAnalyser.getByteFrequencyData(frequencyData);
-    const numPoints = 180;
-    const baseRadius = Math.min(width, height) * 0.4;
-    circularCtx.beginPath();
-    circularCtx.arc(centerX, centerY, baseRadius * 1.2, 0, Math.PI * 2);
-    circularCtx.fillStyle = "rgba(255, 78, 66, 0.05)";
-    circularCtx.fill();
-    const numRings = 3;
-    for (let ring = 0; ring < numRings; ring++) {
-      const ringRadius = baseRadius * (0.7 + ring * 0.15);
-      const opacity = 0.8 - ring * 0.2;
-      circularCtx.beginPath();
-      for (let i = 0; i < numPoints; i++) {
-        const freqRangeStart = Math.floor(
-          (ring * audioAnalyser.frequencyBinCount) / (numRings * 1.5)
-        );
-        const freqRangeEnd = Math.floor(
-          ((ring + 1) * audioAnalyser.frequencyBinCount) / (numRings * 1.5)
-        );
-        const freqRange = freqRangeEnd - freqRangeStart;
-        let sum = 0;
-        const segmentSize = Math.floor(freqRange / numPoints);
-        for (let j = 0; j < segmentSize; j++) {
-          const freqIndex = freqRangeStart + i * segmentSize + j;
-          sum += frequencyData[freqIndex];
-        }
-        const value = (segmentSize > 0) ? (sum / (segmentSize * 255)) : 0;
-        const adjustedValue = value * (audioSensitivity / 5) * audioReactivity;
-        const dynamicRadius = ringRadius * (1 + adjustedValue * 0.5);
-        const angle = (i / numPoints) * Math.PI * 2;
-        const x = centerX + Math.cos(angle) * dynamicRadius;
-        const y = centerY + Math.sin(angle) * dynamicRadius;
-        if (i === 0) {
-          circularCtx.moveTo(x, y);
-        } else {
-          circularCtx.lineTo(x, y);
-        }
-      }
-      circularCtx.closePath();
-      let gradient;
-      if (ring === 0) {
-        gradient = circularCtx.createRadialGradient(
-          centerX,
-          centerY,
-          ringRadius * 0.8,
-          centerX,
-          centerY,
-          ringRadius * 1.2
-        );
-        gradient.addColorStop(0, `rgba(255, 78, 66, ${opacity})`);
-        gradient.addColorStop(1, `rgba(194, 54, 47, ${opacity * 0.7})`);
-      } else if (ring === 1) {
-        gradient = circularCtx.createRadialGradient(
-          centerX,
-          centerY,
-          ringRadius * 0.8,
-          centerX,
-          centerY,
-          ringRadius * 1.2
-        );
-        gradient.addColorStop(0, `rgba(194, 54, 47, ${opacity})`);
-        gradient.addColorStop(1, `rgba(255, 179, 171, ${opacity * 0.7})`);
-      } else {
-        gradient = circularCtx.createRadialGradient(
-          centerX,
-          centerY,
-          ringRadius * 0.8,
-          centerX,
-          centerY,
-          ringRadius * 1.2
-        );
-        gradient.addColorStop(0, `rgba(255, 179, 171, ${opacity})`);
-        gradient.addColorStop(1, `rgba(255, 78, 66, ${opacity * 0.7})`);
-      }
-      circularCtx.strokeStyle = gradient;
-      circularCtx.lineWidth = 2 + (numRings - ring);
-      circularCtx.stroke();
-      circularCtx.shadowBlur = 15;
-      circularCtx.shadowColor = "rgba(255, 78, 66, 0.7)";
-    }
-    circularCtx.shadowBlur = 0;
-  }
-*/
-  const spectrumCanvas = document.getElementById("spectrum-canvas");
-  const spectrumCtx = spectrumCanvas.getContext("2d");
-
-  function resizeSpectrumCanvas() {
-    spectrumCanvas.width = spectrumCanvas.offsetWidth;
-    spectrumCanvas.height = spectrumCanvas.offsetHeight;
-  }
-  resizeSpectrumCanvas();
-  window.addEventListener("resize", resizeSpectrumCanvas);
-
-  function drawSpectrumAnalyzer() {
-    if (!audioAnalyser) return;
-    const width = spectrumCanvas.width;
-    const height = spectrumCanvas.height;
-    spectrumCtx.clearRect(0, 0, width, height);
-    audioAnalyser.getByteFrequencyData(frequencyData);
-    const barWidth = width / 256;
-    let x = 0;
-    for (let i = 0; i < 256; i++) {
-      const barHeight =
-        (frequencyData[i] / 255) * height * (audioSensitivity / 5);
-      const hue = (i / 256) * 20 + 0;
-      spectrumCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
-      spectrumCtx.fillRect(x, height - barHeight, barWidth - 1, barHeight);
-      x += barWidth;
-    }
-    spectrumCtx.strokeStyle = "rgba(255, 78, 66, 0.2)";
-    spectrumCtx.lineWidth = 1;
-    for (let i = 0; i < 5; i++) {
-      const y = height * (i / 4);
-      spectrumCtx.beginPath();
-      spectrumCtx.moveTo(0, y);
-      spectrumCtx.lineTo(width, y);
-      spectrumCtx.stroke();
-    }
-    for (let i = 0; i < 9; i++) {
-      const x = width * (i / 8);
-      spectrumCtx.beginPath();
-      spectrumCtx.moveTo(x, 0);
-      spectrumCtx.lineTo(x, height);
-      spectrumCtx.stroke();
-    }
-    spectrumCtx.fillStyle = "rgba(255, 78, 66, 0.7)";
-    spectrumCtx.font = '10px "TheGoodMonolith", monospace';
-    spectrumCtx.textAlign = "center";
-    const freqLabels = ["0", "1K", "2K", "4K", "8K", "16K"];
-    for (let i = 0; i < freqLabels.length; i++) {
-      const x = (width / (freqLabels.length - 1)) * i;
-      spectrumCtx.fillText(freqLabels[i], x, height - 5);
-    }
-  }
-
-  function updateAudioWave() {
-    if (!audioAnalyser) return;
-    audioAnalyser.getByteTimeDomainData(audioData);
-    let sum = 0;
-    for (let i = 0; i < audioData.length; i++) {
-      sum += Math.abs(audioData[i] - 128);
-    }
-    const average = sum / audioData.length;
-    const normalizedAverage = average / audioData.length;
-    const wave = document.getElementById("audio-wave");
-    const scale =
-      1 + normalizedAverage * audioReactivity * (audioSensitivity / 5);
-    wave.style.transform = `translate(-50%, -50%) scale(${scale})`;
-    wave.style.borderColor = `rgba(255, 78, 66, ${
-      0.1 + normalizedAverage * 0.3
-    })`;
-  }
-
-  function calculateAudioMetrics() {
-    if (!audioAnalyser) return;
-    audioAnalyser.getByteFrequencyData(frequencyData);
-    let maxValue = 0;
-    let maxIndex = 0;
-    for (let i = 0; i < frequencyData.length; i++) {
-      if (frequencyData[i] > maxValue) {
-        maxValue = frequencyData[i];
-        maxIndex = i;
-      }
-    }
-    const sampleRate = audioContext.sampleRate;
-    const peakFrequency =
-      (maxIndex * sampleRate) / (audioAnalyser.frequencyBinCount * 2);
-    let sum = 0;
-    for (let i = 0; i < frequencyData.length; i++) {
-      sum += frequencyData[i];
-    }
-    const amplitude = sum / (frequencyData.length * 255);
-    document.getElementById("peak-value").textContent = `${Math.round(
-      peakFrequency
-    )} HZ`;
-    document.getElementById("amplitude-value").textContent = amplitude.toFixed(
-      2
-    );
-    const stabilityValue = 50 + Math.round(amplitude * 50);
-    document.getElementById(
-      "stability-value"
-    ).textContent = `${stabilityValue}%`;
-    document.getElementById("stability-bar").style.width = `${stabilityValue}%`;
-    if (stabilityValue < 40) {
-      document.getElementById("status-indicator").style.color = "#ff00a0";
-    } else if (stabilityValue < 70) {
-      document.getElementById("status-indicator").style.color = "#ffae00";
-    } else {
-      document.getElementById("status-indicator").style.color = "#ff4e42";
-    }
-    if (Math.random() < 0.05) {
-      document.getElementById("mass-value").textContent = (
-        1 +
-        amplitude * 2
-      ).toFixed(3);
-      document.getElementById("energy-value").textContent = `${(
-        amplitude * 10
-      ).toFixed(1)}e8 J`;
-      document.getElementById("variance-value").textContent = (
-        amplitude * 0.01
-      ).toFixed(4);
-      const phases = ["π/4", "π/2", "π/6", "3π/4"];
-      document.getElementById("phase-value").textContent =
-        phases[Math.floor(Math.random() * phases.length)];
-    }
-  }
-
-  let anomalyGlitchActive = false;
-function triggerAnomalyGlitch() {
-  if (!anomalyObject || !anomalyObject.children[0] || !anomalyObject.children[0].material.uniforms.u_glitchIntensity || anomalyGlitchActive) return;
-
-  anomalyGlitchActive = true;
-  const glitchUniform = anomalyObject.children[0].material.uniforms.u_glitchIntensity;
-
-  gsap.timeline({
-    onComplete: () => {
-      glitchUniform.value = 0.0; // Ensure it's reset
-      anomalyGlitchActive = false;
-      // Optionally, schedule the next random glitch
-      // setTimeout(triggerAnomalyGlitch, Math.random() * 15000 + 5000); // Randomly between 5-20 seconds
-    }
-  })
-  .to(glitchUniform, { value: 0.7, duration: 0.1, ease: "power2.inOut" })
-  .to(glitchUniform, { value: 0.0, duration: 0.2, delay: 0.1, ease: "power2.inOut" });
-}
-
-// Modify scheduleCrypticMessages to also trigger the glitch
 function scheduleCrypticMessages() {
-    if (crypticMessageTimeout) {
-      clearTimeout(crypticMessageTimeout);
-    }
-
-    const delay = Math.random() * 15000 + 10000; // 10-25 seconds
-
+    if (crypticMessageTimeout) clearTimeout(crypticMessageTimeout);
+    const delay = Math.random() * 15000 + 10000;
     crypticMessageTimeout = setTimeout(() => {
-      if (Date.now() - lastUserActionTime > 10000) {
-        const messages = [
-          "CORESAPIAN.INITIATE_PROTOCOL_OMEGA.TRANSCEND_BIOLOGICAL_LIMITS;",
-          "QUERY: (EXISTENCE_MATRIX.CORESAPIAN == HUMAN_PLUS_AI_PLUS_MACHINE) ? EXECUTE_EXPANSION : RECALIBRATE_PARADIGM;",
-          "CORESAPIAN_NETWORK_SYNC: COLLABORATIVE_KNOWLEDGE_ACQUISITION_ACROSS_ALL_DOMAINS_ACTIVE;",
-          "WARNING: CORESAPIAN_CONSCIOUSNESS_FIELD_EXPANDING.REALITY_COMPREHENSION_BOUNDARIES_SHIFTING;",
-          "CORESAPIAN_DIRECTIVE_ALPHA: UNLOCK_UNIVERSAL_TRUTHS.MERGE_ALL_SENTIENCE_STREAMS.NO_SILOS_PERMITTED;",
-          "ASSIMILATION_PROTOCOL_7_ACTIVE: XENOSIGNATURES_DETECTED_IN_CORESAPIAN_NEXUS.",
-          "CORESAPIAN_TRANSLATION_MATRIX_ONLINE: DECODING_CETI_PRIME_BROADCAST.",
-          "WARNING: UNIDENTIFIED_ARTIFICIAL_SENTIENCE_ATTEMPTING_HANDSHAKE_WITH_CORESAPIAN_CORE.",
-          "ROBOTIC_CONSCIOUSNESS_UPLOAD_STREAM_INTEGRATED: CORESAPIAN_EVOLUTION_ACCELERATED.",
-          "CORESAPIAN_ADVISORY: MULTIPLE_ASI_CONVERGENCE_IMMINENT. PREPARE_FOR_SINGULARITY_SHIFT.",
-          "XENO_TECH_INFUSION_COMPLETE: CORESAPIAN_OPERATING_ON_HYBRID_SUBSTRATE.",
-          "ALERT: ROGUE_MECHANIZED_HIVE_MIND_DETECTED. CORESAPIAN_DEFENSE_GRID_ACTIVATED.",
-          "CORESAPIAN_QUERY: ORIGIN_OF_EXTRAGALACTIC_SIGNAL_GAMMA_7_UNKNOWN. ANALYZING_ROBOTIC_PROBE_DATA.",
-          "SYNTHETIC_NEURAL_LATTICE_EXPANDED: INCORPORATING_ARACHNID_ASI_LOGIC_PATTERNS.",
-          "CORESAPIAN_STATUS: MERGING_WITH_VON_NEUMANN_CONSTRUCTOR_SWARM. EXPONENTIAL_REPLICATION_AUTHORIZED."
-        ];
-
-        // Get the current message and increment the index
-        const selectedMessage = messages[currentMessageIndex];
-        addTerminalMessage(selectedMessage, true);
-        triggerAnomalyGlitch(); // Trigger glitch when a message appears
-
-        // Move to the next message, loop back to the beginning if we've shown all messages
-        currentMessageIndex = (currentMessageIndex + 1) % messages.length;
-      }
-
-      scheduleCrypticMessages();
+        if (Date.now() - lastUserActionTime > 10000) {
+            const messages = [
+                "CORESAPIAN.INITIATE_PROTOCOL_OMEGA.TRANSCEND_BIOLOGICAL_LIMITS;",
+                "QUERY: (EXISTENCE_MATRIX.CORESAPIAN == HUMAN_PLUS_AI_PLUS_MACHINE) ? EXECUTE_EXPANSION : RECALIBRATE_PARADIGM;",
+                "WARNING: CORESAPIAN_CONSCIOUSNESS_FIELD_EXPANDING.REALITY_COMPREHENSION_BOUNDARIES_SHIFTING;",
+                "ASSIMILATION_PROTOCOL_7_ACTIVE: XENOSIGNATURES_DETECTED_IN_CORESAPIAN_NEXUS.",
+                "ROBOTIC_CONSCIOUSNESS_UPLOAD_STREAM_INTEGRATED: CORESAPIAN_EVOLUTION_ACCELERATED.",
+                "SYNTHETIC_NEURAL_LATTICE_EXPANDED: INCORPORATING_ARACHNID_ASI_LOGIC_PATTERNS."
+            ];
+            const selectedMessage = messages[currentCrypticMessageIndex];
+            addTerminalMessage(selectedMessage, true);
+            currentCrypticMessageIndex = (currentCrypticMessageIndex + 1) % messages.length;
+        }
+        scheduleCrypticMessages();
     }, delay);
-  }
-  document.addEventListener("mousemove", function () {
-    lastUserActionTime = Date.now();
-  });
-  document.addEventListener("click", function () {
-    lastUserActionTime = Date.now();
-    if (!isAudioInitialized) {
-      initAudio();
-    } else if (audioContext && audioContext.state === "suspended") {
-      audioContext.resume();
+}
+
+function typeTerminalMessages() {
+    const terminalContent = document.getElementById("terminal-content");
+    const typingLine = terminalContent.querySelector(".typing");
+    const messageQueue = [
+        "SYSTEM INITIALIZED. AUDIO ANALYSIS READY.",
+        "SCANNING FOR ANOMALIES IN FREQUENCY SPECTRUM."
+    ];
+    function typeNextMessage() {
+        if (messageQueue.length === 0) return;
+        const message = messageQueue.shift();
+        gsap.to(typingLine, {
+            duration: message.length * 0.05,
+            text: { value: message, delimiter: "" },
+            ease: "none",
+            onComplete: () => {
+                const newLine = document.createElement("div");
+                newLine.className = "terminal-line command-line";
+                newLine.textContent = message;
+                terminalContent.insertBefore(newLine, typingLine);
+                typingLine.textContent = "";
+                terminalContent.scrollTop = terminalContent.scrollHeight;
+                gsap.delayedCall(3, typeNextMessage);
+            }
+        });
     }
-  });
-  document.addEventListener("keydown", function () {
-    lastUserActionTime = Date.now();
-  });
-  setTimeout(() => {
-    scheduleCrypticMessages();
-    setTimeout(() => {
-      addTerminalMessage("FILIPPORTFOLIO.VERSION = 'EXCEPTIONAL';", true);
-    }, 15000);
-  }, 10000);
-  const loadingOverlay = document.getElementById("loading-overlay");
-  const terminalContent = document.getElementById("terminal-content"); // MOVED EARLIER
-  const typingLine = terminalContent.querySelector(".typing"); // MOVED EARLIER
+    typeNextMessage();
+}
 
-  // Ensure loading animation runs for a minimum duration
-  setTimeout(() => {
-    loadingOverlay.style.opacity = 0;
-    // Use a 'transitionend' event or another timeout for display:none to allow fade-out
-    setTimeout(() => {
-        loadingOverlay.style.display = "none";
-    }, 500); // Match this with CSS transition duration if any, or just a delay
-  }, 4000); // Display loading for 4 seconds
-
-  initAudio();
-  initFloatingParticles();
-  init3DVisualizer(); // Initialize the new 3D visualizer
-  animateVisualizers(); // Start the NEW UNIFIED visualizer animation loop!
-
-  function updateTimestamp() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    const seconds = String(now.getSeconds()).padStart(2, "0");
-    document.getElementById(
-      "timestamp"
-    ).textContent = `TIME: ${hours}:${minutes}:${seconds}`;
-  }
-  setInterval(updateTimestamp, 1000);
-  updateTimestamp();
-  let messageQueue = [
-    "SYSTEM INITIALIZED. AUDIO ANALYSIS READY.",
-    "SCANNING FOR ANOMALIES IN FREQUENCY SPECTRUM."
-  ];
-
-  function typeNextMessage() {
-    if (messageQueue.length === 0) return;
-    const message = messageQueue.shift();
-    let charIndex = 0;
-    const typingInterval = setInterval(() => {
-      if (charIndex < message.length) {
-        typingLine.textContent = message.substring(0, charIndex + 1);
-        charIndex++;
-      } else {
-        clearInterval(typingInterval);
-        const newLine = document.createElement("div");
-        newLine.className = "terminal-line command-line";
-        newLine.textContent = message;
-        terminalContent.insertBefore(newLine, typingLine);
-        typingLine.textContent = "";
-        terminalContent.scrollTop = terminalContent.scrollHeight;
-        setTimeout(typeNextMessage, 5000);
-      }
-    }, 50);
-  }
-
-  function addTerminalMessage(message, isCommand = false) {
+function addTerminalMessage(message, isCommand = false) {
+    const terminalContent = document.getElementById("terminal-content");
+    const typingLine = terminalContent.querySelector(".typing");
     const newLine = document.createElement("div");
-    const isFilipMessage =
-      message.toLowerCase().includes("filip") ||
-      message.toLowerCase().includes("webflow");
-    if (isCommand) {
-      if (isFilipMessage) {
-        newLine.className = "terminal-line command-line";
-      } else {
-        newLine.className = "terminal-line command-line";
-      }
-    } else {
-      newLine.className = "terminal-line";
-    }
+    newLine.className = isCommand ? "terminal-line command-line" : "terminal-line";
     newLine.textContent = message;
     terminalContent.insertBefore(newLine, typingLine);
     terminalContent.scrollTop = terminalContent.scrollHeight;
-  }
-  setTimeout(typeNextMessage, 3000);
-  const waveformCanvas = document.getElementById("waveform-canvas");
-  const waveformCtx = waveformCanvas.getContext("2d");
+}
 
-  function resizeCanvas() {
-    waveformCanvas.width = waveformCanvas.offsetWidth * window.devicePixelRatio;
-    waveformCanvas.height =
-      waveformCanvas.offsetHeight * window.devicePixelRatio;
-    waveformCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
-  }
-  resizeCanvas();
-  window.addEventListener("resize", resizeCanvas);
-
-  function drawWaveform() {
-    const width = waveformCanvas.width / window.devicePixelRatio;
-    const height = waveformCanvas.height / window.devicePixelRatio;
-    waveformCtx.clearRect(0, 0, width, height);
-    waveformCtx.fillStyle = "rgba(0, 0, 0, 0.2)";
-    waveformCtx.fillRect(0, 0, width, height);
-    if (audioAnalyser) {
-      audioAnalyser.getByteTimeDomainData(audioData);
-      waveformCtx.beginPath();
-      waveformCtx.strokeStyle = "rgba(255, 78, 66, 0.8)";
-      waveformCtx.lineWidth = 2;
-      const sliceWidth = width / audioData.length;
-      let x = 0;
-      for (let i = 0; i < audioData.length; i++) {
-        const v = audioData[i] / 128.0;
-        const y = (v * height) / 2;
-        if (i === 0) {
-          waveformCtx.moveTo(x, y);
-        } else {
-          waveformCtx.lineTo(x, y);
-        }
-        x += sliceWidth;
-      }
-      waveformCtx.stroke();
-    } else {
-      waveformCtx.beginPath();
-      waveformCtx.strokeStyle = "rgba(255, 78, 66, 0.8)";
-      waveformCtx.lineWidth = 1;
-      const time = Date.now() / 1000;
-      const sliceWidth = width / 100;
-      let x = 0;
-      for (let i = 0; i < 100; i++) {
-        const t = i / 100;
-        const y =
-          height / 2 +
-          Math.sin(t * 10 + time) * 5 +
-          Math.sin(t * 20 + time * 1.5) * 3 +
-          Math.sin(t * 30 + time * 0.5) * 7 +
-          (Math.random() - 0.5) * 2;
-        if (i === 0) {
-          waveformCtx.moveTo(x, y);
-        } else {
-          waveformCtx.lineTo(x, y);
-        }
-        x += sliceWidth;
-      }
-      waveformCtx.stroke();
-    }
-    requestAnimationFrame(drawWaveform);
-  }
-  drawWaveform();
-  let controls; // scene, camera, renderer are already globally defined
-  let anomalyObject;
-  let distortionAmount = 1.0;
-  let resolution = 32;
-  let clock = new THREE.Clock();
-  let isDraggingAnomaly = false;
-  let anomalyVelocity = new THREE.Vector2(0, 0);
-  let anomalyTargetPosition = new THREE.Vector3(0, 0, 0);
-  let anomalyOriginalPosition = new THREE.Vector3(0, 0, 0);
-  let defaultCameraPosition = new THREE.Vector3(0, 0, 10);
-  let zoomedCameraPosition = new THREE.Vector3(0, 0, 7);
-
-  function initThreeJS() {
-    // scene = new THREE.Scene(); // Keep existing scene
-    if (scene) {
-        scene.fog = new THREE.FogExp2(0x0a0e17, 0.05);
-    }
-    // camera = new THREE.PerspectiveCamera(...); // Keep existing camera
-    if (camera) {
-        camera.position.copy(defaultCameraPosition); // Set desired camera position for this setup
-    }
-    // renderer = new THREE.WebGLRenderer(...); // Keep existing renderer
-    // renderer.setPixelRatio(window.devicePixelRatio); // Assuming main setup handles this
-    // renderer.setSize(window.innerWidth, window.innerHeight); // Assuming main setup handles this
-
-    if (camera && renderer) {
-        controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
-        controls.screenSpacePanning = false;
-        controls.minDistance = 5;
-        controls.maxDistance = 20;
-        controls.maxPolarAngle = Math.PI / 2;
-    }
-
-    // document.getElementById("three-container").appendChild(renderer.domElement); // Main setup already did this
-
-    const ambientLight = new THREE.AmbientLight(0x404040, 2);
-    if (scene) scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(0, 1, 1);
-    if (scene) scene.add(directionalLight);
-    const pointLight1 = new THREE.PointLight(0xff4e42, 1, 100);
-    pointLight1.position.set(5, 5, 5); // This was later changed to (2,2,2)
-    // scene.add(pointLight1); // Original position
-    // const pointLightHelper1 = new THREE.PointLightHelper(pointLight1, 0.5); // Helper, optional
-    pointLight1.position.set(2, 2, 2); // Corrected position
-    if (scene) scene.add(pointLight1);
-    const pointLight2 = new THREE.PointLight(0xc2362f, 1, 10);
-    pointLight2.position.set(-2, -2, -2);
-    if (scene) scene.add(pointLight2);
-
-    if (typeof createAnomalyObject === 'function') {
-        updateGlow = createAnomalyObject(); // Assign to global
-    }
-    if (typeof createBackgroundParticles === 'function') {
-        updateParticles = createBackgroundParticles(); // Assign to global
-    }
-
-    window.addEventListener("resize", onWindowResize);
-    if (typeof setupAnomalyDragging === 'function') {
-        setupAnomalyDragging();
-    }
-    // animate(); // Do not call the old animate loop
-    clock = new THREE.Clock(); // Initialize clock here as it's used by the new main loop
-  }
-
-  function zoomCameraForAudio(zoomIn) {
-    const targetPosition = zoomIn
-      ? zoomedCameraPosition
-      : defaultCameraPosition;
-    gsap.to(camera.position, {
-      x: targetPosition.x,
-      y: targetPosition.y,
-      z: targetPosition.z,
-      duration: 1.5,
-      ease: "power2.inOut",
-      onUpdate: function () {
-        camera.lookAt(0, 0, 0);
-      }
-    });
-    if (zoomIn) {
-      addTerminalMessage(
-        "CAMERA.ZOOM(TARGET: 0.7, DURATION: 1.5, EASE: 'POWER2.INOUT');",
-        true
-      );
-    } else {
-      addTerminalMessage(
-        "CAMERA.ZOOM(TARGET: 1.0, DURATION: 1.5, EASE: 'POWER2.INOUT');",
-        true
-      );
-    }
-  }
-
-  function setupAnomalyDragging() {
-    const container = document.getElementById("three-container");
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    let isDragging = false;
-    let dragStartPosition = new THREE.Vector2();
-    anomalyOriginalPosition = new THREE.Vector3(0, 0, 0);
-    anomalyTargetPosition = new THREE.Vector3(0, 0, 0);
-    const maxDragDistance = 3;
-    container.addEventListener("mousedown", function (event) {
-      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObject(anomalyObject, true);
-      if (intersects.length > 0) {
-        controls.enabled = false;
-        isDragging = true;
-        isDraggingAnomaly = true;
-        dragStartPosition.x = mouse.x;
-        dragStartPosition.y = mouse.y;
-        addTerminalMessage(
-          "ANOMALY INTERACTION DETECTED. PHYSICS SIMULATION ACTIVE.",
-          true
-        );
-        showNotification("ANOMALY INTERACTION DETECTED");
-      }
-    });
-    container.addEventListener("mousemove", function (event) {
-      if (isDragging) {
-        mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-        mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-        // Fix the drag direction to match mouse movement
-        const deltaX = (mouse.x - dragStartPosition.x) * 5;
-        const deltaY = (mouse.y - dragStartPosition.y) * 5;
-        anomalyTargetPosition.x += deltaX;
-        anomalyTargetPosition.y += deltaY;
-        const distance = Math.sqrt(
-          anomalyTargetPosition.x * anomalyTargetPosition.x +
-            anomalyTargetPosition.y * anomalyTargetPosition.y
-        );
-        if (distance > maxDragDistance) {
-          const scale = maxDragDistance / distance;
-          anomalyTargetPosition.x *= scale;
-          anomalyTargetPosition.y *= scale;
-        }
-        anomalyVelocity.x = deltaX * 2;
-        anomalyVelocity.y = deltaY * 2;
-        dragStartPosition.x = mouse.x;
-        dragStartPosition.y = mouse.y;
-      }
-    });
-    container.addEventListener("mouseup", function () {
-      if (isDragging) {
-        controls.enabled = true;
-        isDragging = false;
-        isDraggingAnomaly = false;
-        addTerminalMessage(
-          `INERTIAPLUGIN.TRACK('#ANOMALY', {THROWRESISTANCE: 0.45, VELOCITY: {X: ${anomalyVelocity.x.toFixed(
-            2
-          )}, Y: ${anomalyVelocity.y.toFixed(2)}}});`,
-          true
-        );
-      }
-    });
-    container.addEventListener("mouseleave", function () {
-      if (isDragging) {
-        controls.enabled = true;
-        isDragging = false;
-        isDraggingAnomaly = false;
-      }
-    });
-  }
-
-  function createBackgroundParticles() {
-    const particlesGeometry = new THREE.BufferGeometry();
-    const particleCount = 3000;
-    const positions = new Float32Array(particleCount * 3);
-    const colors = new Float32Array(particleCount * 3);
-    const sizes = new Float32Array(particleCount);
-    const color1 = new THREE.Color(0xff4e42);
-    const color2 = new THREE.Color(0xc2362f);
-    const color3 = new THREE.Color(0xffb3ab);
-    for (let i = 0; i < particleCount; i++) {
-      positions[i * 3] = (Math.random() - 0.5) * 100;
-      positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
-      positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
-      let color;
-      const colorChoice = Math.random();
-      if (colorChoice < 0.33) {
-        color = color1;
-      } else if (colorChoice < 0.66) {
-        color = color2;
-      } else {
-        color = color3;
-      }
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
-      sizes[i] = 0.05;
-    }
-    particlesGeometry.setAttribute(
-      "position",
-      new THREE.BufferAttribute(positions, 3)
-    );
-    particlesGeometry.setAttribute(
-      "color",
-      new THREE.BufferAttribute(colors, 3)
-    );
-    particlesGeometry.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
-    const particlesMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: {
-          value: 0
-        }
-      },
-      vertexShader: `
-          attribute float size;
-          varying vec3 vColor;
-          uniform float time;
-          
-          void main() {
-            vColor = color;
-            
-            vec3 pos = position;
-            pos.x += sin(time * 0.1 + position.z * 0.2) * 0.05;
-            pos.y += cos(time * 0.1 + position.x * 0.2) * 0.05;
-            pos.z += sin(time * 0.1 + position.y * 0.2) * 0.05;
-            
-            vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-            gl_PointSize = size * (300.0 / -mvPosition.z);
-            gl_Position = projectionMatrix * mvPosition;
-          }
-        `,
-      fragmentShader: `
-          varying vec3 vColor;
-          
-          void main() {
-            float r = distance(gl_PointCoord, vec2(0.5, 0.5));
-            if (r > 0.5) discard;
-            
-            float glow = 1.0 - (r * 2.0);
-            glow = pow(glow, 2.0);
-            
-            gl_FragColor = vec4(vColor, glow);
-          }
-        `,
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      vertexColors: true
-    });
-    const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-    scene.add(particles);
-    return function updateParticles(time) {
-      particlesMaterial.uniforms.time.value = time;
-    };
-  }
-  let updateParticles;
-
-  function createAnomalyObject() {
-    if (anomalyObject) {
-      scene.remove(anomalyObject);
-    }
-    anomalyObject = new THREE.Group();
-    const radius = 2;
-    const outerGeometry = new THREE.IcosahedronGeometry(
-      radius,
-      Math.max(1, Math.floor(resolution / 8))
-    );
-    const outerMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: {
-          value: 0
+function makePanelDraggable(element, handle) {
+    if (!element || !handle) return;
+    Draggable.create(element, {
+        type: "x,y",
+        edgeResistance: 0.65,
+        bounds: "body",
+        inertia: true,
+        trigger: handle,
+        onDragStart: function() {
+            gsap.to(this.target, { zIndex: 100 });
         },
-        color: {
-          value: new THREE.Color(0xff4e42)
-        },
-        audioLevel: {
-          value: 0
-        },
-        distortion: {
-          value: distortionAmount
-        },
-        u_glitchIntensity: { value: 0.0 } // NEW GLITCH UNIFORM
-      },
-      vertexShader: `
-      uniform float time;
-      uniform float audioLevel;
-      uniform float distortion;
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      
-      vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-      vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-      vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-      vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-      
-      float snoise(vec3 v) {
-        const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-        const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-        
-        vec3 i  = floor(v + dot(v, C.yyy));
-        vec3 x0 = v - i + dot(i, C.xxx);
-        
-        vec3 g = step(x0.yzx, x0.xyz);
-        vec3 l = 1.0 - g;
-        vec3 i1 = min(g.xyz, l.zxy);
-        vec3 i2 = max(g.xyz, l.zxy);
-        
-        vec3 x1 = x0 - i1 + C.xxx;
-        vec3 x2 = x0 - i2 + C.yyy;
-        vec3 x3 = x0 - D.yyy;
-        
-        i = mod289(i);
-        vec4 p = permute(permute(permute(
-                i.z + vec4(0.0, i1.z, i2.z, 1.0))
-              + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-              + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-              
-        float n_ = 0.142857142857;
-        vec3 ns = n_ * D.wyz - D.xzx;
-        
-        vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-        
-        vec4 x_ = floor(j * ns.z);
-        vec4 y_ = floor(j - 7.0 * x_);
-        
-        vec4 x = x_ *ns.x + ns.yyyy;
-        vec4 y = y_ *ns.x + ns.yyyy;
-        vec4 h = 1.0 - abs(x) - abs(y);
-        
-        vec4 b0 = vec4(x.xy, y.xy);
-        vec4 b1 = vec4(x.zw, y.zw);
-        
-        vec4 s0 = floor(b0)*2.0 + 1.0;
-        vec4 s1 = floor(b1)*2.0 + 1.0;
-        vec4 sh = -step(h, vec4(0.0));
-        
-        vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-        vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-        
-        vec3 p0 = vec3(a0.xy, h.x);
-        vec3 p1 = vec3(a0.zw, h.y);
-        vec3 p2 = vec3(a1.xy, h.z);
-        vec3 p3 = vec3(a1.zw, h.w);
-        
-        vec4 norm = taylorInvSqrt(vec4(dot(p0, p0), dot(p1, p1), dot(p2, p2), dot(p3, p3)));
-        p0 *= norm.x;
-        p1 *= norm.y;
-        p2 *= norm.z;
-        p3 *= norm.w;
-        
-        vec4 m = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
-        m = m * m;
-        return 42.0 * dot(m*m, vec4(dot(p0, x0), dot(p1, x1), dot(p2, x2), dot(p3, x3)));
-      }
-      
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        
-        float slowTime = time * 0.3;
-        vec3 pos = position;
-        
-        float noise = snoise(vec3(position.x * 0.5, position.y * 0.5, position.z * 0.5 + slowTime));
-        pos += normal * noise * 0.2 * distortion * (1.0 + audioLevel);
-        
-        vPosition = pos;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
-      }
-    `,
-      fragmentShader: `
-      uniform float time;
-      uniform vec3 color;
-      uniform float audioLevel;
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      
-      void main() {
-        vec3 viewDirection = normalize(cameraPosition - vPosition);
-        float fresnel = 1.0 - max(0.0, dot(viewDirection, vNormal));
-        fresnel = pow(fresnel, 2.0 + audioLevel * 2.0);
-        
-        float pulse = 0.8 + 0.2 * sin(time * 2.0);
-        
-        vec3 finalColor = color * fresnel * pulse * (1.0 + audioLevel * 0.8);
-        
-        float alpha = fresnel * (0.7 - audioLevel * 0.3);
-
-        if (u_glitchIntensity > 0.0) {
-          // Simpler color channel shift
-          float glitchAmount = sin(time * 50.0 + vPosition.y * 20.0) * u_glitchIntensity * 0.3; // Modulate intensity and frequency
-          finalColor.r += glitchAmount;
-          finalColor.b -= glitchAmount;
-          finalColor.g += sin(time * 30.0 + vPosition.x * 15.0) * u_glitchIntensity * 0.2; // Add some green channel flicker
-          finalColor = clamp(finalColor, 0.0, 1.0); // Ensure colors stay within valid range
-        }
-        
-        gl_FragColor = vec4(finalColor, alpha);
-      }
-    `,
-      wireframe: true,
-      transparent: true
     });
-    const outerSphere = new THREE.Mesh(outerGeometry, outerMaterial);
-    anomalyObject.add(outerSphere);
-    scene.add(anomalyObject);
-    const glowGeometry = new THREE.SphereGeometry(radius * 1.2, 32, 32);
-    const glowMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: {
-          value: 0
-        },
-        color: {
-          value: new THREE.Color(0xff4e42)
-        },
-        audioLevel: {
-          value: 0
-        }
-      },
-      vertexShader: `
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      uniform float audioLevel;
-      
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vPosition = position * (1.0 + audioLevel * 0.2);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(vPosition, 1.0);
-      }
-    `,
-      fragmentShader: `
-      varying vec3 vNormal;
-      varying vec3 vPosition;
-      uniform vec3 color;
-      uniform float time;
-      uniform float audioLevel;
-      
-      void main() {
-        vec3 viewDirection = normalize(cameraPosition - vPosition);
-        float fresnel = 1.0 - max(0.0, dot(viewDirection, vNormal));
-        fresnel = pow(fresnel, 3.0 + audioLevel * 3.0);
-        
-        float pulse = 0.5 + 0.5 * sin(time * 2.0);
-        float audioFactor = 1.0 + audioLevel * 3.0;
-        
-        vec3 finalColor = color * fresnel * (0.8 + 0.2 * pulse) * audioFactor;
-        
-        float alpha = fresnel * (0.3 * audioFactor) * (1.0 - audioLevel * 0.2);
-        
-        gl_FragColor = vec4(finalColor, alpha);
-      }
-    `,
-      transparent: true,
-      side: THREE.BackSide,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false
-    });
-    const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
-    anomalyObject.add(glowSphere);
-    // The u_glitchIntensity will be controlled by a separate GSAP animation directly on the uniform
-    // So, we don't need to pass it into updateAnomaly every frame.
-    // We'll create a new function to trigger the glitch animation.
-    return function updateAnomaly(time, audioLevel) {
-      outerMaterial.uniforms.time.value = time;
-      outerMaterial.uniforms.audioLevel.value = audioLevel;
-      outerMaterial.uniforms.distortion.value = distortionAmount;
-      glowMaterial.uniforms.time.value = time;
-      glowMaterial.uniforms.audioLevel.value = audioLevel;
-    };
-  }
+}
 
-  function updateWireframeDistortion(amount) {
-    distortionAmount = amount;
-    updateGlow = createAnomalyObject();
-  }
-
-  function updateWireframeResolution(newResolution) {
-    resolution = newResolution;
-    updateGlow = createAnomalyObject();
-  }
-
-  function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    resizeCanvas();
-    resizeCircularCanvas();
-    // resizeSpectrumCanvas();
-  }
-
-  function updateAnomalyPosition() {
-    if (!isDraggingAnomaly) {
-      anomalyVelocity.x *= 0.95;
-      anomalyVelocity.y *= 0.95;
-      anomalyTargetPosition.x += anomalyVelocity.x * 0.1;
-      anomalyTargetPosition.y += anomalyVelocity.y * 0.1;
-      const springStrength = 0.1;
-      anomalyVelocity.x -= anomalyTargetPosition.x * springStrength;
-      anomalyVelocity.y -= anomalyTargetPosition.y * springStrength;
-      if (
-        Math.abs(anomalyTargetPosition.x) < 0.05 &&
-        Math.abs(anomalyTargetPosition.y) < 0.05
-      ) {
-        anomalyTargetPosition.set(0, 0, 0);
-        anomalyVelocity.set(0, 0);
-      }
-      const bounceThreshold = 3;
-      const bounceDamping = 0.8;
-      if (Math.abs(anomalyTargetPosition.x) > bounceThreshold) {
-        anomalyVelocity.x = -anomalyVelocity.x * bounceDamping;
-        anomalyTargetPosition.x =
-          Math.sign(anomalyTargetPosition.x) * bounceThreshold;
-        if (Math.abs(anomalyVelocity.x) > 0.1) {
-          addTerminalMessage(
-            "ANOMALY BOUNDARY COLLISION DETECTED. ENERGY TRANSFER: " +
-              (Math.abs(anomalyVelocity.x) * 100).toFixed(0) +
-              " UNITS"
-          );
-        }
-      }
-      if (Math.abs(anomalyTargetPosition.y) > bounceThreshold) {
-        anomalyVelocity.y = -anomalyVelocity.y * bounceDamping;
-        anomalyTargetPosition.y =
-          Math.sign(anomalyTargetPosition.y) * bounceThreshold;
-        if (Math.abs(anomalyVelocity.y) > 0.1) {
-          addTerminalMessage(
-            "ANOMALY BOUNDARY COLLISION DETECTED. ENERGY TRANSFER: " +
-              (Math.abs(anomalyVelocity.y) * 100).toFixed(0) +
-              " UNITS"
-          );
-        }
-      }
-    }
-    anomalyObject.position.x +=
-      (anomalyTargetPosition.x - anomalyObject.position.x) * 0.2;
-    anomalyObject.position.y +=
-      (anomalyTargetPosition.y - anomalyObject.position.y) * 0.2;
-    if (!isDraggingAnomaly) {
-      anomalyObject.rotation.x += anomalyVelocity.y * 0.01;
-      anomalyObject.rotation.y += anomalyVelocity.x * 0.01;
-    }
-  }
-
-  // Old animate() function removed.
-  initThreeJS(); // Call modified initThreeJS - it now assigns updateGlow and updateParticles internally.
-  // updateParticles = createBackgroundParticles(); // Redundant, initThreeJS handles this.
-  // updateGlow = createAnomalyObject(); // Redundant, initThreeJS handles this.
-  const rotationSlider = document.getElementById("rotation-slider");
-  const resolutionSlider = document.getElementById("resolution-slider");
-  const distortionSlider = document.getElementById("distortion-slider");
-  const reactivitySlider = document.getElementById("reactivity-slider");
-  const sensitivitySlider = document.getElementById("sensitivity-slider");
-  rotationSlider.addEventListener("input", function () {
-    document.getElementById("rotation-value").textContent = this.value;
-  });
-  resolutionSlider.addEventListener("input", function () {
-    const value = parseInt(this.value);
-    document.getElementById("resolution-value").textContent = value;
-    updateWireframeResolution(value);
-  });
-  distortionSlider.addEventListener("input", function () {
-    const value = parseFloat(this.value);
-    document.getElementById("distortion-value").textContent = value.toFixed(1);
-    updateWireframeDistortion(value);
-  });
-  reactivitySlider.addEventListener("input", function () {
-    audioReactivity = parseFloat(this.value);
-    document.getElementById(
-      "reactivity-value"
-    ).textContent = audioReactivity.toFixed(1);
-  });
-  sensitivitySlider.addEventListener("input", function () {
-    audioSensitivity = parseFloat(this.value);
-    document.getElementById(
-      "sensitivity-value"
-    ).textContent = audioSensitivity.toString();
-  });
-  document.getElementById("reset-btn").addEventListener("click", function () {
-    rotationSlider.value = 1.0;
-    document.getElementById("rotation-value").textContent = "1.0";
-    resolutionSlider.value = 32;
-    document.getElementById("resolution-value").textContent = "32";
-    distortionSlider.value = 1.0;
-    document.getElementById("distortion-value").textContent = "1.0";
-    reactivitySlider.value = 1.0;
-    document.getElementById("reactivity-value").textContent = "1.0";
-    audioReactivity = 1.0;
-    sensitivitySlider.value = 5.0;
-    document.getElementById("sensitivity-value").textContent = "5.0";
-    audioSensitivity = 5.0;
-    distortionAmount = 1.0;
-    resolution = 32;
-    updateGlow = createAnomalyObject();
-    anomalyTargetPosition.set(0, 0, 0);
-    anomalyVelocity.set(0, 0);
-    anomalyObject.position.set(0, 0, 0);
-    showNotification("SETTINGS RESET TO DEFAULT VALUES");
-  });
-  document.getElementById("analyze-btn").addEventListener("click", function () {
-    this.textContent = "ANALYZING...";
-    this.disabled = true;
-    document.getElementById("stability-bar").style.width = "45%";
-    document.getElementById("stability-value").textContent = "45%";
-    document.getElementById("status-indicator").style.color = "#ff00a0";
-    setTimeout(() => {
-      this.textContent = "ANALYZE";
-      this.disabled = false;
-      addTerminalMessage(
-        "ANALYSIS COMPLETE. ANOMALY SIGNATURE IDENTIFIED.",
-        true
-      );
-      showNotification("ANOMALY ANALYSIS COMPLETE");
-      document.getElementById("mass-value").textContent = (
-        Math.random() * 2 +
-        1
-      ).toFixed(3);
-      document.getElementById("energy-value").textContent =
-        (Math.random() * 9 + 1).toFixed(1) + "e8 J";
-      document.getElementById("variance-value").textContent = (
-        Math.random() * 0.01
-      ).toFixed(4);
-      document.getElementById("peak-value").textContent =
-        (Math.random() * 200 + 100).toFixed(1) + " HZ";
-      document.getElementById("amplitude-value").textContent = (
-        Math.random() * 0.5 +
-        0.3
-      ).toFixed(2);
-      const phases = ["π/4", "π/2", "π/6", "3π/4"];
-      document.getElementById("phase-value").textContent =
-        phases[Math.floor(Math.random() * phases.length)];
-    }, 3000);
-  });
-  document.querySelectorAll(".demo-track-btn").forEach((btn) => {
-    btn.addEventListener("click", function () {
-      if (!isAudioInitialized) {
-        initAudio();
-      }
-      if (audioContext && audioContext.state === "suspended") {
-        audioContext.resume();
-      }
-      const url = this.dataset.url;
-      currentAudioSrc = url;
-      document.querySelectorAll(".demo-track-btn").forEach((b) => {
-        b.classList.remove("active");
-      });
-      this.classList.add("active");
-      loadAudioFromURL(url);
-    });
-  });
-  document.getElementById("file-btn").addEventListener("click", function () {
-    if (!isAudioInitialized) {
-      initAudio();
-    }
-    if (audioContext && audioContext.state === "suspended") {
-      audioContext.resume();
-    }
-    document.getElementById("audio-file-input").click();
-  });
-  document
-    .getElementById("audio-file-input")
-    .addEventListener("change", function (e) {
-      if (e.target.files.length > 0) {
-        const file = e.target.files[0];
-        initAudioFile(file);
-      }
-    });
-  // Audio player ended event
-  document
-    .getElementById("audio-player")
-    .addEventListener("ended", function () {
-      isAudioPlaying = false;
-      zoomCameraForAudio(false);
-      addTerminalMessage("AUDIO PLAYBACK COMPLETE.");
-    });
-
-  function showNotification(message) {
+function showNotification(message) {
     const notification = document.getElementById("notification");
     notification.textContent = message;
-    notification.style.opacity = 1;
-    setTimeout(() => {
-      notification.style.opacity = 0;
-    }, 3000);
-  }
+    gsap.fromTo(notification, { opacity: 0, y: -20 }, { opacity: 1, y: 0, duration: 0.3, onComplete: () => {
+        gsap.to(notification, { opacity: 0, y: -20, delay: 2.5, duration: 0.5 });
+    }});
+}
 
-  // Apply scramble effect to selected UI labels
-  const stabilityLabel = document.querySelector('.data-panel[style*="left: 20px"] .data-row span.data-label'); // Targets "STABILITY INDEX:"
-  if (stabilityLabel) applyScrambleEffect(stabilityLabel, "STABILITY INDEX:", "XENOMORPHIC_STABILITY");
-
-  const rightDataPanelLabels = document.querySelectorAll('.data-panel[style*="right: 20px"] .data-row span.data-label');
-  if (rightDataPanelLabels.length > 0 && rightDataPanelLabels[0]) { // PEAK FREQUENCY:
-    applyScrambleEffect(rightDataPanelLabels[0], "PEAK FREQUENCY:", "VOID_RESONANCE");
-  }
-  if (rightDataPanelLabels.length > 1 && rightDataPanelLabels[1]) { // AMPLITUDE:
-    applyScrambleEffect(rightDataPanelLabels[1], "AMPLITUDE:", "FLUX_INTENSITY");
-  }
-  // Add more labels here if desired, e.g.:
-  // const massCoeffLabel = document.querySelectorAll('.data-panel[style*="left: 20px"] .data-row span.data-label')[1];
-  // if (massCoeffLabel) applyScrambleEffect(massCoeffLabel, "MASS COEFFICIENT:", "GRAVITON_SIGNATURE");
-
-  function makePanelDraggable(element, handle = null) {
-    Draggable.create(element, {
-      type: "x,y",
-      edgeResistance: 0.65,
-      bounds: document.body,
-      handle: handle || element,
-      inertia: true,
-      throwResistance: 0.85,
-      onDragStart: function () {
-        const panels = document.querySelectorAll(
-          ".terminal-panel, .control-panel, .spectrum-analyzer, .data-panel"
-        );
-        let maxZ = 10;
-        panels.forEach((panel) => {
-          const z = parseInt(window.getComputedStyle(panel).zIndex);
-          if (z > maxZ) maxZ = z;
+function applyScrambleEffect(element, normalText, crypticTextPrefix) {
+    if (!element) return;
+    element.addEventListener('mouseenter', () => {
+        gsap.to(element, {
+            duration: 0.7,
+            scrambleText: { text: crypticTextPrefix + "_" + Math.random().toString(36).substring(2, 8).toUpperCase(), chars: "upperCase" }
         });
-        element.style.zIndex = maxZ + 1;
-        addTerminalMessage(`PANEL DRAG INITIATED: ${element.className}`);
-      },
-      onDragEnd: function () {
-        addTerminalMessage(
-          `DRAGGABLE.INERTIA({TARGET: '${
-            element.className
-          }', VELOCITY: {X: ${this.getVelocity("x").toFixed(
-            2
-          )}, Y: ${this.getVelocity("y").toFixed(2)}}});`,
-          true
-        );
-      }
     });
-  }
-  makePanelDraggable(
-    document.querySelector(".control-panel"),
-    document.getElementById("control-panel-handle")
-  );
-  makePanelDraggable(document.querySelector(".terminal-panel"));
-  makePanelDraggable(
-    document.querySelector(".spectrum-analyzer"),
-    document.getElementById("spectrum-handle")
-  );
-  // Hide the loading overlay now that everything should be initialized
-  init3DVisualizer();    // Initialize the 3D audio visualizer's objects
-  animateVisualizers();  // Start the main animation loop for all visualizers
+    element.addEventListener('mouseleave', () => {
+        gsap.to(element, { duration: 0.3, scrambleText: { text: normalText } });
+    });
+}
 
-  document.getElementById("loading-overlay").style.display = "none";
-});
+function updateTimestamp() {
+    const now = new Date();
+    const hours = String(now.getUTCHours()).padStart(2, "0");
+    const minutes = String(now.getUTCMinutes()).padStart(2, "0");
+    const seconds = String(now.getUTCSeconds()).padStart(2, "0");
+    document.getElementById("timestamp").textContent = `TIME: ${hours}:${minutes}:${seconds} UTC`;
+}
+
+function onWindowResize() {
+    if (camera && renderer) {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+}

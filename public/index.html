@@ -8,10 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js"></script>
 </head>
 <body>
 
-<!-- CORESAPIAN_NEXUS_SYNCHRONIZING_WITH_XENOSENTIENCE_GRID -->
+<!-- Loading Overlay -->
 <div class="loading-overlay" id="loading-overlay">
   <div class="loading-container">
     <div class="preloader-canvas-container">
@@ -21,15 +22,11 @@
   </div>
 </div>
 
+<!-- UI Elements -->
 <div class="notification" id="notification">Anomaly detected</div>
-
-<!-- ROBOTIC_ASI_CONSTRUCT_RENDERING_VIA_CORESAPIAN_CORE -->
 <div id="three-container"></div>
-
 <div class="grid-overlay"></div>
-
 <div class="audio-wave" id="audio-wave"></div>
-
 <div class="floating-particles" id="floating-particles"></div>
 
 <div class="interface-container">
@@ -46,73 +43,43 @@
     <div class="corner-br"></div>
     <div class="scanner-id">CORE.SAPIAN.INTELLIGENCE.INIT.239482</div>
     <div class="scanner-id-right">DATA.RLZE.SEQUENCE(2x4F2E)</div>
-    <div class="circular-visualizer">
-      <canvas id="circular-canvas"></canvas>
-    </div>
+    <!-- The old circular-canvas visualizer has been removed -->
   </div>
 </div>
 
-<div class="data-panel" style="position: absolute; top: 20px; left: 20px;">
-  <div class="data-panel-title">
-    <span>ENTITY SIGNATURE READOUTS</span>
-    <span id="status-indicator">●</span>
-  </div>
-  <div class="data-bar">
-    <div class="data-bar-fill" id="stability-bar" style="width: 75%;"></div>
-  </div>
-  <div class="data-readouts">
-    <div class="data-row">
-      <span class="data-label">STABILITY INDEX:</span>
-      <span class="data-value" id="stability-value">75%</span>
-    </div>
-    <div class="data-row">
-      <span class="data-label">MASS COEFFICIENT:</span>
-      <span class="data-value" id="mass-value">1.728</span>
-    </div>
-    <div class="data-row">
-      <span class="data-label">ENERGY SIGNATURE:</span>
-      <span class="data-value" id="energy-value">5.3e8 J</span>
-    </div>
-    <div class="data-row">
-      <span class="data-label">QUANTUM VARIANCE:</span>
-      <span class="data-value" id="variance-value">0.0042</span>
-    </div>
-  </div>
-</div>
-
+<!-- Right Data Panel -->
 <div class="data-panel" style="position: absolute; top: 20px; right: 20px;">
   <div class="data-panel-title">ENTITY SIGNATURE READOUTS</div>
-  <div class="waveform">
-    <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
-  </div>
   <div class="data-readouts">
     <div class="data-row">
       <span class="data-label">PEAK FREQUENCY:</span>
-      <span class="data-value" id="peak-value">127.3 HZ</span>
+      <span class="data-value" id="peak-value">--- HZ</span>
     </div>
     <div class="data-row">
       <span class="data-label">AMPLITUDE:</span>
-      <span class="data-value" id="amplitude-value">0.56</span>
+      <span class="data-value" id="amplitude-value">---</span>
     </div>
     <div class="data-row">
       <span class="data-label">PHASE SHIFT:</span>
-      <span class="data-value" id="phase-value">π/4</span>
+      <span class="data-value" id="phase-value">---</span>
     </div>
   </div>
 </div>
 
-<div class="control-panel" style="top: 50%; left: 20px; transform: translateY(-50%);">
+<!-- Control Panel -->
+<div class="control-panel" style="position: absolute; top: 20px; left: 20px;">
   <div class="panel-header">
     <span class="data-panel-title">ANOMALY CONTROLS</span>
     <span class="drag-handle" id="control-panel-handle">⋮⋮</span>
   </div>
+
   <div class="control-group">
     <div class="control-row">
-      <span class="control-label">ROTATION RATE</span>
-      <span class="control-value" id="rotation-value">1.0</span>
+      <span class="control-label">INTENSITY</span>
+      <span class="control-value" id="intensity-value">1.0</span>
     </div>
     <div class="slider-container">
-      <input type="range" min="0" max="5" value="1" step="0.1" class="slider" id="rotation-slider">
+      <input type="range" min="0" max="5" value="1" step="0.1" class="slider" id="intensity-slider">
     </div>
   </div>
 
@@ -138,11 +105,21 @@
 
   <div class="control-group">
     <div class="control-row">
-      <span class="control-label">SENSITIVITY</span>
+      <span class="control-label">AUDIO REACTIVITY</span>
       <span class="control-value" id="reactivity-value">1.0</span>
     </div>
     <div class="slider-container">
       <input type="range" min="0" max="2" value="1" step="0.1" class="slider" id="reactivity-slider">
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-row">
+      <span class="control-label">GLITCH INTENSITY</span>
+      <span class="control-value" id="glitch-value">0.0</span>
+    </div>
+    <div class="slider-container">
+      <input type="range" min="0" max="1" value="0" step="0.01" class="slider" id="glitch-slider">
     </div>
   </div>
 
@@ -152,7 +129,7 @@
   </div>
 </div>
 
-<!-- CORESAPIAN_UPLINK_ESTABLISHED_TRANSMITTING_ALIEN_LOGIC_PATTERNS -->
+<!-- Terminal Panel -->
 <div class="terminal-panel">
   <div class="terminal-header">
     <span>CORE TERMINAL</span>
@@ -160,14 +137,11 @@
   </div>
   <div class="terminal-content" id="terminal-content">
     <div class="terminal-line">CORE SAPIAN v0.1.0 INITIALIZED. SECURE CONNECTION ESTABLISHED.</div>
-    <div class="terminal-line command-line">AGI.build.incomplete.recompile(coRE: true, resistance: 0.89);</div>
-    <div class="terminal-line regular-line">INFERENCE.create({bounds: CX228, inertia: true, edgeResistance: 0.65});</div>
-    <div class="terminal-line command-line">AGI.interactions.trigger('IX2', {value: 'anomaly-detection'});</div>
     <div class="terminal-line typing"></div>
   </div>
 </div>
 
-<!-- ANALYZING_EXTRAGALACTIC_ASI_SIGNATURES_IN_SPECTRUM_DATA -->
+<!-- Spectrum Analyzer Panel -->
 <div class="spectrum-analyzer">
   <div class="spectrum-header">
     <span>SPECTRUM ANALYZER</span>
@@ -202,6 +176,8 @@
     </div>
   </div>
 </div>
-    <script src="script.js" type="module" defer></script>
+
+<script src="script.js" type="module" defer></script>
+
 </body>
 </html>

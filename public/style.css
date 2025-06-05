@@ -38,15 +38,13 @@ textarea {
   font-family: inherit;
 }
 
-
-
 #three-container {
-  position: fixed; /* Changed from absolute */
-  top: 0; /* Added */
-  left: 0; /* Added */
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  z-index: 0; /* Changed from 1 */
+  z-index: 0;
   cursor: grab;
 }
 
@@ -186,21 +184,6 @@ textarea {
   color: var(--accent-primary);
 }
 
-.circular-visualizer {
-  width: 100%; /* Occupy full width of scanner-frame */
-  height: 100%; /* Occupy full height of scanner-frame */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  pointer-events: auto; /* Allow interaction if needed, though likely not for a canvas */
-}
-
-#circular-canvas {
-  width: 100%;
-  height: 100%;
-  /* The actual drawing resolution is set in JS (circularCanvas.width/height) */
-}
-
 .scanner-line {
   position: absolute;
   width: 100%;
@@ -266,35 +249,6 @@ textarea {
   color: var(--text-primary);
 }
 
-.data-bar {
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  margin: 0.625rem 0;
-  position: relative;
-  border-radius: 3px;
-}
-
-.data-bar-fill {
-  height: 100%;
-  background: var(--accent-primary);
-  border-radius: 3px;
-  transition: width 0.5s;
-}
-
-.waveform {
-  width: 100%;
-  height: 50px;
-  margin: 0.625rem 0;
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.waveform-canvas {
-  width: 100%;
-  height: 100%;
-}
-
 .control-panel {
   width: 300px;
   background: var(--panel-bg);
@@ -343,6 +297,7 @@ textarea {
 
 .slider {
   -webkit-appearance: none;
+  appearance: none;
   width: 100%;
   height: 6px;
   background: rgba(255, 255, 255, 0.1);
@@ -468,6 +423,8 @@ textarea {
   align-items: center;
   z-index: 1000;
   transition: opacity 0.5s;
+  pointer-events: none; /* Allow interaction with elements behind it after fade */
+  opacity: 1;
 }
 
 .loading-container {
@@ -483,6 +440,15 @@ textarea {
 .preloader-canvas-container {
   width: 180px;
   height: 180px;
+  position: relative;
+}
+
+.preloader-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .loading-text {
@@ -507,6 +473,7 @@ textarea {
   opacity: 0;
   transition: opacity 0.3s;
   z-index: 100;
+  pointer-events: none;
 }
 
 .drag-handle {
@@ -516,30 +483,14 @@ textarea {
   color: var(--accent-primary);
 }
 
-.particle-trail {
+.floating-particles {
   position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  pointer-events: none;
-  opacity: 0.7;
-  transition: opacity 0.5s;
-}
-
-.circular-visualizer {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 450px;
-  height: 450px;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.circular-visualizer canvas {
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
+  pointer-events: none;
+  z-index: 4;
 }
 
 .audio-wave {
@@ -554,6 +505,7 @@ textarea {
   border: 1px solid rgba(255, 78, 66, 0.1);
   pointer-events: none;
   z-index: 3;
+  transition: transform 0.1s ease-out, border-color 0.1s ease-out;
 }
 
 .audio-wave::before {
@@ -688,12 +640,6 @@ textarea {
   color: var(--accent-primary);
 }
 
-.controls-row {
-  display: flex;
-  gap: 0.625rem;
-  margin-bottom: 0.625rem;
-}
-
 .demo-tracks {
   margin-top: 0.625rem;
   margin-bottom: 0.9375rem;
@@ -727,66 +673,4 @@ textarea {
 .demo-track-btn.active {
   background: var(--accent-primary);
   color: #000;
-}
-
-.youtube-input {
-  display: flex;
-  margin-top: 0.625rem;
-  margin-bottom: 0.625rem;
-}
-
-.youtube-url {
-  flex: 1;
-  padding: 0.5rem;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--panel-border);
-  color: var(--text-primary);
-  font-size: 0.75rem;
-  border-radius: 3px 0 0 3px;
-}
-
-.youtube-load-btn {
-  padding: 0.5rem 0.625rem;
-  background: var(--panel-highlight);
-  border: 1px solid var(--panel-border);
-  border-left: none;
-  color: var(--accent-primary);
-  font-size: 0.75rem;
-  border-radius: 0 3px 3px 0;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.youtube-load-btn:hover {
-  background: var(--panel-border);
-}
-
-.youtube-error {
-  color: var(--accent-tertiary);
-  font-size: 0.6875rem;
-  margin-top: 0.3125rem;
-  display: none;
-}
-
-.preloader-canvas-container {
-  position: relative;
-}
-
-.preloader-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-}
-
-/* Floating particles */
-.floating-particles {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 4;
 }

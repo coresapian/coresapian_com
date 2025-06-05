@@ -26,6 +26,8 @@ function animateVisualizers() {
 let scene, camera, renderer; // Main 3D scene components, will be initialized in initMain3DBackground
 
 document.addEventListener("DOMContentLoaded", function () {
+  const singularityModelPath = 'information_singularity.glb';
+  const CORESAPIAN_RED = 0xD92A2A; // Coresapian Red color for visualizer
   // setupExpandingCirclesPreloader();
   function loadAndCacheGLBModel(modelPath, onLoad, onProgress, onError) {
     const loader = new GLTFLoader();
@@ -103,8 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentAudioSrc = null;
   let currentMessageIndex = 0;
   let loadedSingularityGLTF = null;
-  const singularityModelPath = 'information_singularity.glb';
-  const CORESAPIAN_RED = 0xD92A2A; // Coresapian Red color for visualizer
+  // singularityModelPath and CORESAPIAN_RED moved to the top of DOMContentLoaded
 
   // 3D Visualizer components
   let visualizerGroup;

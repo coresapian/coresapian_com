@@ -1,26 +1,190 @@
-<!DOCTYPE html>
-<html lang="en">
-	<head>
-		<title>coresapian</title>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
-		<link rel="stylesheet" href="style.css">
-	</head>
-	<body>
-		<div id="container"></div>
-		<div id="info">
-			coresapian.com
-		</div>
+<div class="space-background"></div>
 
-		<script type="importmap">
-			{
-				"imports": {
-					"three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-					"three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-				}
-			}
-		</script>
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-container">
+    <div class="preloader-canvas-container">
+      <canvas id="preloader-canvas" class="preloader-canvas" width="180" height="180"></canvas>
+    </div>
+    <div class="loading-text">INITIALIZING CORESAPIAN DOWNLINK</div>
+  </div>
+</div>
 
-		<script type="module" src="main.js"></script>
-	</body>
-</html>
+<div class="notification" id="notification">Anomaly detected</div>
+
+<div id="three-container"></div>
+
+<div class="grid-overlay"></div>
+
+<div class="circular-visualizer">
+  <canvas id="circular-canvas"></canvas>
+</div>
+
+<div class="audio-wave" id="audio-wave"></div>
+
+<div class="floating-particles" id="floating-particles"></div>
+
+<div class="interface-container">
+  <div class="header">
+    <div class="header-item"></div>
+    <div class="header-item">CORESAPIAN <br />v0.1.0</div>
+    <div class="header-item" id="timestamp">TIME: 00:00:00</div>
+  </div>  
+
+  <div class="scanner-frame">
+    <div class="corner-tl"></div>
+    <div class="corner-tr"></div>
+    <div class="corner-bl"></div>
+    <div class="corner-br"></div>
+    <div class="scanner-id">CORE.SAPIAN.INTELLIGENCE.INIT.239482</div>
+    <div class="scanner-id-right">DATA.RLZE.SEQUENCE(2x4F2E)</div>
+  </div>
+</div>
+
+<div class="data-panel" style="position: absolute; top: 20px; left: 20px;">
+  <div class="data-panel-title">
+    <span>ANOMALY METRICS</span>
+    <span id="status-indicator">●</span>
+  </div>
+  <div class="data-bar">
+    <div class="data-bar-fill" id="stability-bar" style="width: 75%;"></div>
+  </div>
+  <div class="data-readouts">
+    <div class="data-row">
+      <span class="data-label">STABILITY INDEX:</span>
+      <span class="data-value" id="stability-value">75%</span>
+    </div>
+    <div class="data-row">
+      <span class="data-label">MASS COEFFICIENT:</span>
+      <span class="data-value" id="mass-value">1.728</span>
+    </div>
+    <div class="data-row">
+      <span class="data-label">ENERGY SIGNATURE:</span>
+      <span class="data-value" id="energy-value">5.3e8 J</span>
+    </div>
+    <div class="data-row">
+      <span class="data-label">QUANTUM VARIANCE:</span>
+      <span class="data-value" id="variance-value">0.0042</span>
+    </div>
+  </div>
+</div>
+
+<div class="data-panel" style="position: absolute; top: 20px; right: 20px;">
+  <div class="data-panel-title">ANOMALY METRICS</div>
+  <div class="waveform">
+    <canvas id="waveform-canvas" class="waveform-canvas"></canvas>
+  </div>
+  <div class="data-readouts">
+    <div class="data-row">
+      <span class="data-label">PEAK FREQUENCY:</span>
+      <span class="data-value" id="peak-value">127.3 HZ</span>
+    </div>
+    <div class="data-row">
+      <span class="data-label">AMPLITUDE:</span>
+      <span class="data-value" id="amplitude-value">0.56</span>
+    </div>
+    <div class="data-row">
+      <span class="data-label">PHASE SHIFT:</span>
+      <span class="data-value" id="phase-value">π/4</span>
+    </div>
+  </div>
+</div>
+
+<div class="control-panel" style="top: 50%; left: 20px; transform: translateY(-50%);">
+  <div class="panel-header">
+    <span class="data-panel-title">ANOMALY CONTROLS</span>
+    <span class="drag-handle" id="control-panel-handle">⋮⋮</span>
+  </div>
+  <div class="control-group">
+    <div class="control-row">
+      <span class="control-label">ROTATION RATE</span>
+      <span class="control-value" id="rotation-value">1.0</span>
+    </div>
+    <div class="slider-container">
+      <input type="range" min="0" max="5" value="1" step="0.1" class="slider" id="rotation-slider">
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-row">
+      <span class="control-label">RESOLUTION</span>
+      <span class="control-value" id="resolution-value">32</span>
+    </div>
+    <div class="slider-container">
+      <input type="range" min="12" max="64" value="32" step="4" class="slider" id="resolution-slider">
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-row">
+      <span class="control-label">DISTORTION</span>
+      <span class="control-value" id="distortion-value">1.0</span>
+    </div>
+    <div class="slider-container">
+      <input type="range" min="0" max="3" value="1" step="0.1" class="slider" id="distortion-slider">
+    </div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-row">
+      <span class="control-label">SENSITIVITY</span>
+      <span class="control-value" id="reactivity-value">1.0</span>
+    </div>
+    <div class="slider-container">
+      <input type="range" min="0" max="2" value="1" step="0.1" class="slider" id="reactivity-slider">
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="btn" id="reset-btn">RESET</button>
+    <button class="btn" id="analyze-btn">ANALYZE</button>
+  </div>
+</div>
+
+<div class="terminal-panel">
+  <div class="terminal-header">
+    <span>CORE TERMINAL</span>
+    <span id="terminal-status">200 OK</span>
+  </div>
+  <div class="terminal-content" id="terminal-content">
+    <div class="terminal-line">CORE SAPIAN v0.1.0 INITIALIZED. SECURE CONNECTION ESTABLISHED.</div>
+    <div class="terminal-line command-line">gsap.inertia.init(throwProps: true, resistance: 0.35);</div>
+    <div class="terminal-line regular-line">Draggable.create({bounds: window, inertia: true, edgeResistance: 0.65});</div>
+    <div class="terminal-line command-line">webflow.interactions.trigger('IX2', {value: 'anomaly-detection'});</div>
+    <div class="terminal-line typing"></div>
+  </div>
+</div>
+
+<div class="spectrum-analyzer">
+  <div class="spectrum-header">
+    <span>SPECTRUM ANALYZER</span>
+    <span class="drag-handle" id="spectrum-handle">⋮⋮</span>
+  </div>
+  <div class="spectrum-content">
+    <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
+  </div>
+  <div class="audio-controls">
+    <div class="demo-tracks">
+      <span class="demo-tracks-label">PREVIOUS TRANSMISSIONS:</span>
+      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Merkaba.mp3">203.443.3</button>
+      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Dhamika.mp3">203.443.2</button>
+      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Vacant.mp3">203.443.1</button>
+      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/lxstnght-back_1.mp3">203.443.0</button>
+    </div>
+
+    <input type="file" id="audio-file-input" class="audio-file-input" accept="audio/*">
+    <button class="audio-file-btn" id="file-btn">UPLOAD AUDIO RECORDING</button>
+    <div class="audio-file-label" id="file-label">NO DATA DETECTED</div>
+
+    <audio id="audio-player" class="audio-player" crossorigin="anonymous"></audio>
+
+    <div class="controls-row">
+      <div class="audio-sensitivity" style="flex: 1;">
+        <div class="audio-sensitivity-label">
+          <span>SENSITIVITY</span>
+          <span class="audio-sensitivity-value" id="sensitivity-value">5.0</span>
+        </div>
+        <input type="range" min="1" max="10" value="5" step="0.1" class="slider" id="sensitivity-slider">
+      </div>
+    </div>
+  </div>
+</div>

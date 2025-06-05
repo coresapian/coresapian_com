@@ -25,7 +25,9 @@ function animateVisualizers() {
 
 let scene, camera, renderer; // Main 3D scene components, will be initialized in initMain3DBackground
 
-gsap.registerPlugin(TextPlugin, ScrambleTextPlugin); // Ensure TextPlugin and ScrambleTextPlugin are registered
+document.addEventListener("DOMContentLoaded", () => {
+  gsap.registerPlugin(TextPlugin, ScrambleTextPlugin); // Ensure TextPlugin and ScrambleTextPlugin are registered
+});
 
 const loadingMessages = [
   "INITIALIZING CORESAPIAN DOWNLINK...",

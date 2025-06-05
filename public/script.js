@@ -1147,7 +1147,7 @@ function update3DVisualizer() {
   initAudio();
   initFloatingParticles();
   init3DVisualizer(); // Initialize the new 3D visualizer
-  animateVisualizers(); // Start the visualizer animation loop
+  animateVisualizers(); // Start the NEW UNIFIED visualizer animation loop!
 
   function updateTimestamp() {
     const now = new Date();
@@ -1283,51 +1283,58 @@ function update3DVisualizer() {
   let zoomedCameraPosition = new THREE.Vector3(0, 0, 7);
 
   function initThreeJS() {
-    scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0a0e17, 0.05);
-    camera = new THREE.PerspectiveCamera(
-      60,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      1000
-    );
-    camera.position.copy(defaultCameraPosition);
-    renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-      stencil: false,
-      depth: true
-    });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setClearColor(0x000000, 0);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.getElementById("three-container").appendChild(renderer.domElement);
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.rotateSpeed = 0.5;
-    controls.zoomSpeed = 0.7;
-    controls.panSpeed = 0.8;
-    controls.minDistance = 3;
-    controls.maxDistance = 30;
-    controls.enableZoom = false;
-    const ambientLight = new THREE.AmbientLight(0x404040, 1.5);
-    scene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(1, 1, 1);
-    scene.add(directionalLight);
-    const pointLight1 = new THREE.PointLight(0xff4e42, 1, 10);
-    pointLight1.position.set(2, 2, 2);
-    scene.add(pointLight1);
+    // scene = new THREE.Scene(); // Keep existing scene
+    if (scene) {
+        scene.fog = new THREE.FogExp2(0x0a0e17, 0.05);
+    }
+    // camera = new THREE.PerspectiveCamera(...); // Keep existing camera
+    if (camera) {
+        camera.position.copy(defaultCameraPosition); // Set desired camera position for this setup
+    }
+    // renderer = new THREE.WebGLRenderer(...); // Keep existing renderer
+    // renderer.setPixelRatio(window.devicePixelRatio); // Assuming main setup handles this
+    // renderer.setSize(window.innerWidth, window.innerHeight); // Assuming main setup handles this
+
+    if (camera && renderer) {
+        controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.screenSpacePanning = false;
+        controls.minDistance = 5;
+        controls.maxDistance = 20;
+        controls.maxPolarAngle = Math.PI / 2;
+    }
+
+    // document.getElementById("three-container").appendChild(renderer.domElement); // Main setup already did this
+
+    const ambientLight = new THREE.AmbientLight(0x404040, 2);
+    if (scene) scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.position.set(0, 1, 1);
+    if (scene) scene.add(directionalLight);
+    const pointLight1 = new THREE.PointLight(0xff4e42, 1, 100);
+    pointLight1.position.set(5, 5, 5); // This was later changed to (2,2,2)
+    // scene.add(pointLight1); // Original position
+    // const pointLightHelper1 = new THREE.PointLightHelper(pointLight1, 0.5); // Helper, optional
+    pointLight1.position.set(2, 2, 2); // Corrected position
+    if (scene) scene.add(pointLight1);
     const pointLight2 = new THREE.PointLight(0xc2362f, 1, 10);
     pointLight2.position.set(-2, -2, -2);
-    scene.add(pointLight2);
-    createAnomalyObject();
-    createBackgroundParticles();
+    if (scene) scene.add(pointLight2);
+
+    if (typeof createAnomalyObject === 'function') {
+        updateGlow = createAnomalyObject(); // Assign to global
+    }
+    if (typeof createBackgroundParticles === 'function') {
+        updateParticles = createBackgroundParticles(); // Assign to global
+    }
+
     window.addEventListener("resize", onWindowResize);
-    setupAnomalyDragging();
-    animate();
+    if (typeof setupAnomalyDragging === 'function') {
+        setupAnomalyDragging();
+    }
+    // animate(); // Do not call the old animate loop
+    clock = new THREE.Clock(); // Initialize clock here as it's used by the new main loop
   }
 
   function zoomCameraForAudio(zoomIn) {
@@ -1787,43 +1794,10 @@ function update3DVisualizer() {
     }
   }
 
-  function animate() {
-    requestAnimationFrame(animate);
-    controls.update();
-    const time = clock.getElapsedTime();
-    let audioLevel = 0;
-    if (audioAnalyser) {
-      audioAnalyser.getByteFrequencyData(frequencyData);
-      let sum = 0;
-      for (let i = 0; i < frequencyData.length; i++) {
-        sum += frequencyData[i];
-      }
-      audioLevel = ((sum / frequencyData.length / 255) * audioSensitivity) / 5;
-      drawCircularVisualizer();
-      // drawSpectrumAnalyzer();
-      // updateAudioWave();
-      calculateAudioMetrics();
-    }
-    updateAnomalyPosition();
-    if (updateGlow) {
-      updateGlow(time, audioLevel);
-    }
-    if (updateParticles) {
-      updateParticles(time);
-    }
-    const rotationSpeed = parseFloat(
-      document.getElementById("rotation-slider").value
-    );
-    if (anomalyObject) {
-      const audioRotationFactor = 1 + audioLevel * audioReactivity;
-      anomalyObject.rotation.y += 0.005 * rotationSpeed * audioRotationFactor;
-      anomalyObject.rotation.z += 0.002 * rotationSpeed * audioRotationFactor;
-    }
-    renderer.render(scene, camera);
-  }
-  initThreeJS();
-  updateParticles = createBackgroundParticles();
-  updateGlow = createAnomalyObject();
+  // Old animate() function removed.
+  initThreeJS(); // Call modified initThreeJS - it now assigns updateGlow and updateParticles internally.
+  // updateParticles = createBackgroundParticles(); // Redundant, initThreeJS handles this.
+  // updateGlow = createAnomalyObject(); // Redundant, initThreeJS handles this.
   const rotationSlider = document.getElementById("rotation-slider");
   const resolutionSlider = document.getElementById("resolution-slider");
   const distortionSlider = document.getElementById("distortion-slider");

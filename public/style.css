@@ -38,24 +38,15 @@ textarea {
   font-family: inherit;
 }
 
-.space-background {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("jakub-grygier-by-jakub-grygier-black-hole.jpg");
-  background-size: cover;
-  background-position: center;
-  z-index: 0;
-  opacity: 0.8;
-}
+
 
 #three-container {
-  position: absolute;
+  position: fixed; /* Changed from absolute */
+  top: 0; /* Added */
+  left: 0; /* Added */
   width: 100%;
   height: 100%;
-  z-index: 1;
+  z-index: 0; /* Changed from 1 */
   cursor: grab;
 }
 

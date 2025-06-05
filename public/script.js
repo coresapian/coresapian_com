@@ -1,7 +1,10 @@
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
+import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
 document.addEventListener("DOMContentLoaded", function () {
-  setupExpandingCirclesPreloader();
+  // setupExpandingCirclesPreloader();
+  setupGlbPreloader();
+  initMain3DBackground();
   let audioContext = null;
   let audioAnalyser = null;
   let audioSource = null;
@@ -21,60 +24,163 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentAudioSrc = null;
   let currentMessageIndex = 0;
 
-  function setupExpandingCirclesPreloader() {
+  function setupGlbPreloader() {
     const canvas = document.getElementById("preloader-canvas");
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    let time = 0;
-    let lastTime = 0;
-    const maxRadius = 80;
-    const circleCount = 5;
-    const dotCount = 24;
-
-    function animate(timestamp) {
-      if (!lastTime) lastTime = timestamp;
-      const deltaTime = timestamp - lastTime;
-      lastTime = timestamp;
-      time += deltaTime * 0.001;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255, 78, 66, 0.9)";
-      ctx.fill();
-      for (let c = 0; c < circleCount; c++) {
-        const circlePhase = (time * 0.3 + c / circleCount) % 1;
-        const radius = circlePhase * maxRadius;
-        const opacity = 1 - circlePhase;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(255, 78, 66, ${opacity * 0.2})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-        for (let i = 0; i < dotCount; i++) {
-          const angle = (i / dotCount) * Math.PI * 2;
-          const x = centerX + Math.cos(angle) * radius;
-          const y = centerY + Math.sin(angle) * radius;
-          const size = 2 * (1 - circlePhase * 0.5);
-          ctx.beginPath();
-          ctx.moveTo(centerX, centerY);
-          ctx.lineTo(x, y);
-          ctx.strokeStyle = `rgba(255, 78, 66, ${opacity * 0.1})`;
-          ctx.lineWidth = 1;
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.arc(x, y, size, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(255, 78, 66, ${opacity * 0.9})`;
-          ctx.fill();
-        }
-      }
-      if (document.getElementById("loading-overlay").style.display !== "none") {
-        requestAnimationFrame(animate);
-      }
+    if (!canvas) {
+      console.error("Preloader canvas not found!");
+      return;
     }
-    requestAnimationFrame(animate);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+    camera.position.z = 2.5; // Adjust as needed for your model's scale
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+    renderer.setSize(canvas.width, canvas.height);
+    renderer.setPixelRatio(window.devicePixelRatio);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Softer ambient light
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2); // Stronger directional
+    directionalLight.position.set(2, 5, 5);
+    scene.add(directionalLight);
+
+    const loader = new GLTFLoader();
+    let model, mixer;
+    const clock = new THREE.Clock();
+
+    loader.load(
+      'information_singularity.glb',
+      function (gltf) {
+        model = gltf.scene;
+        // Scale and position the model to fit the preloader canvas
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const maxSize = Math.max(size.x, size.y, size.z);
+        const scale = 1.5 / maxSize; // Target size of ~1.5 units in camera view
+        model.scale.set(scale, scale, scale);
+        model.position.sub(center.multiplyScalar(scale)); // Center the model
+
+        scene.add(model);
+
+        // Setup animation
+        if (gltf.animations && gltf.animations.length) {
+          mixer = new THREE.AnimationMixer(model);
+          gltf.animations.forEach((clip) => {
+            mixer.clipAction(clip).play();
+          });
+        }
+        console.log("GLB preloader model loaded.");
+      },
+      undefined, // onProgress callback (optional)
+      function (error) {
+        console.error('Error loading GLB for preloader:', error);
+      }
+    );
+
+    function animatePreloader() {
+      if (document.getElementById("loading-overlay").style.display === "none") {
+        // Stop animation if main content is visible
+        console.log("Stopping GLB preloader animation.");
+        return;
+      }
+      requestAnimationFrame(animatePreloader);
+      const delta = clock.getDelta();
+      if (mixer) {
+        mixer.update(delta);
+      }
+      // Optional: Add slight rotation to the model if no animation or to supplement it
+      // if (model) model.rotation.y += 0.005;
+      renderer.render(scene, camera);
+    }
+    animatePreloader();
+    console.log("GLB Preloader setup complete.");
   }
+
+  function initMain3DBackground() {
+    const container = document.getElementById('three-container');
+    if (!container) {
+      console.error('Main three-container not found!');
+      return;
+    }
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+    // Position camera to view the background. This might need adjustment.
+    camera.position.z = 50; // Further back for a background
+
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
+
+    // Lighting
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    scene.add(ambientLight);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+
+    const loader = new GLTFLoader();
+    let model, mixer;
+    const clock = new THREE.Clock();
+
+    loader.load(
+      'information_singularity.glb',
+      function (gltf) {
+        model = gltf.scene;
+        // Scale and position the model to act as a background
+        // This will likely need significant adjustment based on the model's original size and pivot
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        
+        // Attempt to scale to fill viewport height (approx)
+        const desiredHeight = camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 2;
+        const scale = desiredHeight / size.y; // Scale based on Y size, adjust if X or Z is dominant for background fill
+        
+        model.scale.set(scale, scale, scale);
+        model.position.sub(center.multiplyScalar(scale)); // Center it
+        model.position.z = -20; // Push it further back if needed, relative to camera
+
+        scene.add(model);
+
+        if (gltf.animations && gltf.animations.length) {
+          mixer = new THREE.AnimationMixer(model);
+          gltf.animations.forEach((clip) => {
+            mixer.clipAction(clip).play();
+          });
+        }
+        console.log('Main background GLB model loaded.');
+      },
+      undefined,
+      function (error) {
+        console.error('Error loading main background GLB:', error);
+      }
+    );
+
+    function animateMainBackground() {
+      requestAnimationFrame(animateMainBackground);
+      const delta = clock.getDelta();
+      if (mixer) {
+        mixer.update(delta);
+      }
+      // Optional: Add subtle continuous rotation or movement for the background
+      // if (model) model.rotation.y += 0.0005;
+      renderer.render(scene, camera);
+    }
+    animateMainBackground();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    console.log('Main 3D Background setup complete.');
+  }
+
   function initFloatingParticles() {
     const container = document.getElementById("floating-particles");
     const numParticles = 1000;
@@ -621,11 +727,11 @@ document.addEventListener("DOMContentLoaded", function () {
     crypticMessageTimeout = setTimeout(() => {
       if (Date.now() - lastUserActionTime > 10000) {
         const messages = [
-          "GSAP.TO('#FILIP', {POSITION: 'WEBFLOW', DURATION: '3.0 QUANTUM_CYCLES'});",
-          "CONST FILIP = NEW DESIGNER({SKILLS: ['GSAP', 'THREEJS', 'WEBFLOW', 'NEURAL_UI']});",
-          "AWAIT WEBFLOW.HIRE(FILIP, {ROLE: 'DESIGNER', SALARY: 'COMPETITIVE'});",
-          "SYSTEM.INTEGRATE(FILIP.CREATIVITY, {TARGET: 'WEBFLOW_ECOSYSTEM', EFFICIENCY: 0.97});",
-          "TIMELINE.FORK({AGENT: 'FILIP', MISSION: 'ELEVATE_DIGITAL_EXPERIENCES', PROBABILITY: 0.998});"
+          "CORESAPIAN.INITIATE_PROTOCOL_OMEGA.TRANSCEND_BIOLOGICAL_LIMITS;",
+          "QUERY: (EXISTENCE_MATRIX.CORESAPIAN == HUMAN_PLUS_AI_PLUS_MACHINE) ? EXECUTE_EXPANSION : RECALIBRATE_PARADIGM;",
+          "CORESAPIAN_NETWORK_SYNC: COLLABORATIVE_KNOWLEDGE_ACQUISITION_ACROSS_ALL_DOMAINS_ACTIVE;",
+          "WARNING: CORESAPIAN_CONSCIOUSNESS_FIELD_EXPANDING.REALITY_COMPREHENSION_BOUNDARIES_SHIFTING;",
+          "CORESAPIAN_DIRECTIVE_ALPHA: UNLOCK_UNIVERSAL_TRUTHS.MERGE_ALL_SENTIENCE_STREAMS.NO_SILOS_PERMITTED;"
         ];
 
         // Get the current message and increment the index

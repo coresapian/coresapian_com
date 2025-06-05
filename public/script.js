@@ -1,10 +1,89 @@
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
+
+// Animation loop for visualizers
+function animateVisualizers() {
+  if (audioAnalyser && frequencyData) { // Ensure audio data is available and update once per frame
+    audioAnalyser.getByteFrequencyData(frequencyData);
+  }
+
+  if (typeof update3DVisualizer === 'function') {
+    update3DVisualizer();
+  }
+  // Keep other visualizers if they exist and are still desired
+  // if (typeof drawSpectrumAnalyzer === 'function' && spectrumCtx && audioAnalyser) {
+  //   drawSpectrumAnalyzer(); // This function also calls getByteFrequencyData
+  // }
+  // if (typeof updateAudioWave === 'function' && waveformCtx && audioAnalyser) {
+  //   updateAudioWave(); // This function calls getByteTimeDomainData
+  // }
+  // If you have other visualizers to animate, call them here too
+  // e.g., drawSpectrumAnalyzer(); drawWaveform(); (if they are designed to be in a RAF loop)
+  requestAnimationFrame(animateVisualizers);
+}
+
+let scene, camera, renderer; // Main 3D scene components, will be initialized in initMain3DBackground
+
 document.addEventListener("DOMContentLoaded", function () {
   // setupExpandingCirclesPreloader();
+  function loadAndCacheGLBModel(modelPath, onLoad, onProgress, onError) {
+    const loader = new GLTFLoader();
+    if (modelPath === singularityModelPath && loadedSingularityGLTF) {
+      console.log(`Using cached GLB model: ${modelPath}`);
+      try {
+        // Use scene.clone(). For more complex models with skeletons,
+        // THREE.SkeletonUtils.clone() would be more robust if available and needed.
+        const clonedScene = loadedSingularityGLTF.scene.clone();
+        const cachedGltf = {
+          scene: clonedScene,
+          animations: loadedSingularityGLTF.animations,
+        };
+        Promise.resolve().then(() => {
+          if (onLoad) onLoad(cachedGltf);
+        });
+      } catch (cloneError) {
+        console.error(`Error cloning cached model ${modelPath}:`, cloneError);
+        if (onError) {
+          onError(cloneError);
+        }
+      }
+      return;
+    }
+
+    loader.load(modelPath,
+      function (gltf) {
+        if (modelPath === singularityModelPath && !loadedSingularityGLTF) {
+          loadedSingularityGLTF = gltf;
+          console.log(`GLB model cached: ${modelPath}`);
+        }
+        if (onLoad) onLoad(gltf);
+      },
+      onProgress,
+      function (error) {
+        if (onError) {
+          onError(error);
+        }
+      }
+    );
+  }
+
   setupGlbPreloader();
   initMain3DBackground();
+
+  // const circularCanvas = document.getElementById("circular-canvas");
+  // let circularCtx = null;
+  // if (circularCanvas) {
+  //   circularCtx = circularCanvas.getContext("2d");
+  //   // Set canvas resolution - this is important for crisp rendering
+  //   // Match the CSS size or use a specific resolution. Using offsetWidth/Height ensures it matches the displayed size.
+  //   circularCanvas.width = circularCanvas.offsetWidth;
+  //   circularCanvas.height = circularCanvas.offsetHeight;
+  //   console.log('Circular canvas initialized:', circularCanvas.width, 'x', circularCanvas.height);
+  // } else {
+  //   console.error("Circular canvas element #circular-canvas not found!");
+  // }
+
   let audioContext = null;
   let audioAnalyser = null;
   let audioSource = null;
@@ -23,6 +102,19 @@ document.addEventListener("DOMContentLoaded", function () {
   let floatingParticles = [];
   let currentAudioSrc = null;
   let currentMessageIndex = 0;
+  let loadedSingularityGLTF = null;
+  const singularityModelPath = 'information_singularity.glb';
+  const CORESAPIAN_RED = 0xD92A2A; // Coresapian Red color for visualizer
+
+  // 3D Visualizer components
+  let visualizerGroup;
+  let sphereMesh;
+  let pointCloud;
+  let sphereMaterial;
+  let pointsMaterial;
+  const numPointCloudPoints = 5000; // Example number of points for the point cloud
+  let initialPointPositions; // To store original positions for displacement calculations
+  let pointCloudGeometry; // To access attributes later
 
   function setupGlbPreloader() {
     const canvas = document.getElementById("preloader-canvas");
@@ -32,11 +124,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
+    // Set canvas resolution based on its display size for crisp rendering
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000); // Use updated canvas.width/height
     camera.position.z = 2.5; // Adjust as needed for your model's scale
 
     const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
-    renderer.setSize(canvas.width, canvas.height);
+    renderer.setSize(canvas.width, canvas.height); // Use updated canvas.width/height
     renderer.setPixelRatio(window.devicePixelRatio);
 
     // Lighting
@@ -50,33 +145,46 @@ document.addEventListener("DOMContentLoaded", function () {
     let model, mixer;
     const clock = new THREE.Clock();
 
-    loader.load(
-      'information_singularity.glb',
+    const onProgressPreloader = function (event) {
+      if (event.lengthComputable) {
+        const percentComplete = (event.loaded / event.total) * 100;
+        const progressElement = document.getElementById('loading-model-progress');
+        if (progressElement) {
+          progressElement.textContent = Math.round(percentComplete) + '%';
+        }
+      } else {
+        const progressElement = document.getElementById('loading-model-progress');
+        if (progressElement && !progressElement.textContent.includes('bytes')) {
+            progressElement.textContent = (event.loaded / 1024 / 1024).toFixed(2) + ' MB loaded';
+        }
+      }
+    };
+
+    loadAndCacheGLBModel(
+      singularityModelPath,
       function (gltf) {
         model = gltf.scene;
-        // Scale and position the model to fit the preloader canvas
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const maxSize = Math.max(size.x, size.y, size.z);
-        const scale = 1.5 / maxSize; // Target size of ~1.5 units in camera view
-        model.scale.set(scale, scale, scale);
-        model.position.sub(center.multiplyScalar(scale)); // Center the model
+        const scaleFactor = 1.5 / maxSize;
+        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        model.position.sub(center.multiplyScalar(scaleFactor));
 
         scene.add(model);
 
-        // Setup animation
         if (gltf.animations && gltf.animations.length) {
           mixer = new THREE.AnimationMixer(model);
           gltf.animations.forEach((clip) => {
             mixer.clipAction(clip).play();
           });
         }
-        console.log("GLB preloader model loaded.");
+        console.log("GLB preloader model processed.");
       },
-      undefined, // onProgress callback (optional)
+      onProgressPreloader,
       function (error) {
-        console.error('Error loading GLB for preloader:', error);
+        console.error('Error processing GLB for preloader:', error);
       }
     );
 
@@ -106,12 +214,12 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
     // Position camera to view the background. This might need adjustment.
     camera.position.z = 50; // Further back for a background
 
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('main-3d-background'), alpha: true, antialias: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);
@@ -127,23 +235,28 @@ document.addEventListener("DOMContentLoaded", function () {
     let model, mixer;
     const clock = new THREE.Clock();
 
-    loader.load(
-      'information_singularity.glb',
+    loadAndCacheGLBModel(
+      singularityModelPath,
       function (gltf) {
         model = gltf.scene;
-        // Scale and position the model to act as a background
-        // This will likely need significant adjustment based on the model's original size and pivot
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         
-        // Attempt to scale to fill viewport height (approx)
-        const desiredHeight = camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 2;
-        const scale = desiredHeight / size.y; // Scale based on Y size, adjust if X or Z is dominant for background fill
+        const modelTargetZ = -20;
+        const distanceToModel = camera.position.z - modelTargetZ;
         
-        model.scale.set(scale, scale, scale);
-        model.position.sub(center.multiplyScalar(scale)); // Center it
-        model.position.z = -20; // Push it further back if needed, relative to camera
+        const vFOV = THREE.MathUtils.degToRad(camera.fov);
+        const frustumHeightAtModel = 2 * distanceToModel * Math.tan(vFOV / 2);
+        const frustumWidthAtModel = frustumHeightAtModel * camera.aspect;
+
+        const scaleX = frustumWidthAtModel / size.x;
+        const scaleY = frustumHeightAtModel / size.y;
+        const scaleFactor = Math.max(scaleX, scaleY);
+        
+        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+        model.position.copy(center).multiplyScalar(-scaleFactor);
+        model.position.z = modelTargetZ;
 
         scene.add(model);
 
@@ -153,11 +266,11 @@ document.addEventListener("DOMContentLoaded", function () {
             mixer.clipAction(clip).play();
           });
         }
-        console.log('Main background GLB model loaded.');
+        console.log('Main background GLB model processed.');
       },
       undefined,
       function (error) {
-        console.error('Error loading main background GLB:', error);
+        console.error('Error processing main background GLB:', error);
       }
     );
 
@@ -183,6 +296,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function initFloatingParticles() {
     const container = document.getElementById("floating-particles");
+    if (!container) {
+      console.error('Floating particles container #floating-particles not found!');
+      return;
+    }
     const numParticles = 1000;
 
     // Clear any existing particles
@@ -203,22 +320,18 @@ document.addEventListener("DOMContentLoaded", function () {
       // Make all particles the same small size
       particle.style.width = "1.5px";
       particle.style.height = "1.5px";
-      particle.style.backgroundColor = `rgba(255, ${
-        Math.floor(Math.random() * 100) + 78
-      }, ${Math.floor(Math.random() * 100) + 66}, ${
-        Math.random() * 0.5 + 0.2
-      })`;
+      // Changed to shades of cyan
+      particle.style.backgroundColor = `rgba(0, ${Math.floor(Math.random() * 75) + 180}, ${Math.floor(Math.random() * 55) + 200}, ${Math.random() * 0.5 + 0.3})`;
       particle.style.borderRadius = "50%";
 
-      // Create a large hollow area in the center
-      const minDistance = 200; // Minimum distance from center
-      const maxDistance = Math.max(windowWidth, windowHeight) * 0.8; // Use 80% of the larger dimension
+      // Create a large hollow area in the center - adjusted for larger spread
+      const minDistance = 100; // Minimum distance from center (reduced from 200)
+      const maxDistance = Math.max(windowWidth, windowHeight) * 1.0; // Use 100% of the larger dimension (increased from 0.8)
 
       // Use polar coordinates for even distribution
       const angle = Math.random() * Math.PI * 2;
 
       // Use square root distribution for more even radial distribution
-      // (prevents clustering at the center that happens with linear distribution)
       const distanceFactor = Math.sqrt(Math.random());
       const distance =
         minDistance + distanceFactor * (maxDistance - minDistance);
@@ -238,7 +351,7 @@ document.addEventListener("DOMContentLoaded", function () {
         speed: Math.random() * 0.5 + 0.1,
         angle: Math.random() * Math.PI * 2,
         angleSpeed: (Math.random() - 0.5) * 0.02,
-        amplitude: Math.random() * 50 + 20, // Increased amplitude for wider movement
+        amplitude: Math.random() * 100 + 50, // Further increased amplitude for wider movement (was 50 + 20)
         size: 1.5, // Fixed size
         pulseSpeed: Math.random() * 0.04 + 0.01,
         pulsePhase: Math.random() * Math.PI * 2
@@ -423,6 +536,10 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       const audioPlayer = createNewAudioElement();
+      // Revoke the previous object URL if it exists and is an object URL
+      if (currentAudioSrc && currentAudioSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(currentAudioSrc);
+      }
       const fileURL = URL.createObjectURL(file);
       currentAudioSrc = fileURL;
       audioPlayer.src = fileURL;
@@ -462,6 +579,10 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       ensureAudioContextStarted();
       const audioPlayer = createNewAudioElement();
+      // Revoke the previous object URL if it exists and is an object URL
+      if (currentAudioSrc && currentAudioSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(currentAudioSrc);
+      }
       currentAudioSrc = url;
       audioPlayer.src = url;
       audioPlayer.onloadeddata = function () {
@@ -493,21 +614,273 @@ document.addEventListener("DOMContentLoaded", function () {
       showNotification("AUDIO URL ERROR");
     }
   }
-  const circularCanvas = document.getElementById("circular-canvas");
-  const circularCtx = circularCanvas.getContext("2d");
 
-  function resizeCircularCanvas() {
-    circularCanvas.width = circularCanvas.offsetWidth;
-    circularCanvas.height = circularCanvas.offsetHeight;
-  }
-  resizeCircularCanvas();
-  window.addEventListener("resize", resizeCircularCanvas);
+  // function resizeCircularCanvas() {
+  //   const circularCanvas = document.getElementById("circular-canvas");
+  //   if (circularCanvas) { // Check if canvas exists
+  //     // circularCanvas.width = circularCanvas.offsetWidth;
+  //     // circularCanvas.height = circularCanvas.offsetHeight;
+  //   }
+  // }
+  // // resizeCircularCanvas();
+  // // window.addEventListener("resize", resizeCircularCanvas);
 
-  function drawCircularVisualizer() {
+  /* // Old drawCircularVisualizer function is now removed and replaced by 3D visualizer logic
+function drawCircularVisualizer() { ... } 
+*/
+
+// NEW 3D VISUALIZER FUNCTIONS
+function init3DVisualizer() {
+    if (!scene) {
+        console.error("Main 3D scene (scene) not initialized before init3DVisualizer.");
+        return;
+    }
+
+    visualizerGroup = new THREE.Group();
+    visualizerGroup.position.set(0, 10, -60); // Positioned to be distinct
+
+    // Sphere Wireframe
+    const sphereRadius = 15;
+    const sphereSegments = 32;
+    const sphereGeometry = new THREE.SphereGeometry(sphereRadius, sphereSegments, sphereSegments);
+    sphereMaterial = new THREE.MeshStandardMaterial({
+        color: CORESAPIAN_RED,
+        wireframe: true,
+        emissive: CORESAPIAN_RED,
+        emissiveIntensity: 0.3,
+        transparent: true,
+        opacity: 0.7,
+        side: THREE.DoubleSide
+    });
+    sphereMesh = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    visualizerGroup.add(sphereMesh);
+
+    // Inner Point Cloud
+    pointCloudGeometry = new THREE.BufferGeometry();
+    const positions = [];
+    const colors = [];
+    const initialRadii = [];
+    const initialPhases = []; // For varied animation patterns
+
+    const pointCloudMaxRadius = sphereRadius * 0.85; // Points contained well within the sphere
+
+    for (let i = 0; i < numPointCloudPoints; i++) {
+        // Distribute points spherically (Fibonacci lattice for even distribution)
+        const phi = Math.acos(-1 + (2 * i) / numPointCloudPoints);
+        const theta = Math.sqrt(numPointCloudPoints * Math.PI) * phi;
+        
+        const r = Math.random() * pointCloudMaxRadius;
+        initialRadii.push(r);
+
+        const x = r * Math.sin(phi) * Math.cos(theta);
+        const y = r * Math.sin(phi) * Math.sin(theta);
+        const z = r * Math.cos(phi);
+        positions.push(x, y, z);
+
+        const color = new THREE.Color();
+        color.setHSL(0.55 + Math.random() * 0.2, 0.8, 0.6); // Initial cool blue/cyan/purple range
+        colors.push(color.r, color.g, color.b);
+        initialPhases.push(Math.random() * Math.PI * 2); // Random initial phase for animations
+    }
+
+    pointCloudGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    pointCloudGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    pointCloudGeometry.setAttribute('initialRadius', new THREE.Float32BufferAttribute(initialRadii, 1));
+    pointCloudGeometry.setAttribute('initialPhase', new THREE.Float32BufferAttribute(initialPhases, 1));
+    initialPointPositions = new Float32Array(positions); // Store initial positions if needed for complex calcs, though attributes are better
+
+    pointsMaterial = new THREE.PointsMaterial({
+        size: 0.1,
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.75,
+        sizeAttenuation: true,
+        depthWrite: false
+    });
+
+    pointCloud = new THREE.Points(pointCloudGeometry, pointsMaterial);
+    visualizerGroup.add(pointCloud);
+
+    scene.add(visualizerGroup);
+    console.log("3D Coresapian Visualizer initialized with " + numPointCloudPoints + " points.");
+}
+
+function update3DVisualizer() {
+    if (!audioAnalyser || !visualizerGroup || !frequencyData || !pointCloud || !sphereMesh || !pointCloudGeometry) {
+        return; // Not ready or audio not playing
+    }
+
+    // Note: frequencyData is now updated in animateVisualizers loop globally
+    const metrics = calculateAudioMetrics(frequencyData);
+    const overallIntensity = metrics.overallIntensityNormalized;
+    const bassIntensity = metrics.bassIntensityNormalized;
+    const midIntensity = metrics.midIntensityNormalized;
+    const highIntensity = metrics.highIntensityNormalized;
+
+    // Animate visualizerGroup (slow rotation)
+    visualizerGroup.rotation.y += 0.001 + midIntensity * 0.002;
+    visualizerGroup.rotation.x += 0.0005 + midIntensity * 0.001;
+
+    // Sphere Reactivity
+    const sphereScale = 1.0 + bassIntensity * 0.3;
+    sphereMesh.scale.set(sphereScale, sphereScale, sphereScale);
+    sphereMaterial.emissiveIntensity = 0.3 + bassIntensity * 0.7;
+    sphereMaterial.opacity = 0.6 + bassIntensity * 0.3;
+
+    // Point Cloud Reactivity
+    const positions = pointCloudGeometry.attributes.position.array;
+    const colors = pointCloudGeometry.attributes.color.array;
+    const initialRadii = pointCloudGeometry.attributes.initialRadius.array;
+    const initialPhases = pointCloudGeometry.attributes.initialPhase.array;
+
+    const time = Date.now() * 0.0005;
+
+    for (let i = 0; i < numPointCloudPoints; i++) {
+        const i3 = i * 3;
+        const i1 = i; // For 1D attributes
+
+        // Radial displacement based on specific audio frequencies
+        // Map point index to a frequency bin (e.g., lower half for more distinct features)
+        const freqBinIndex = Math.floor((i / numPointCloudPoints) * (audioAnalyser.frequencyBinCount * 0.5));
+        const freqMagnitude = frequencyData[freqBinIndex] / 255.0; // Normalized 0-1
+
+        const baseRadius = initialRadii[i1];
+        const radialDisplacement = freqMagnitude * (baseRadius * 0.4 + 2.0); // Scale displacement
+        let currentRadius = baseRadius + radialDisplacement;
+
+        // Subtle continuous swirling motion (spiral effect)
+        // Using initial position as a base direction vector from origin
+        let pX = initialPointPositions[i3];
+        let pY = initialPointPositions[i3 + 1];
+        let pZ = initialPointPositions[i3 + 2];
+        
+        // Normalize the initial direction vector
+        const initialVec = new THREE.Vector3(pX, pY, pZ);
+        const initialLength = initialVec.length();
+        if (initialLength > 0) initialVec.divideScalar(initialLength);
+        else initialVec.set(1,0,0); // Default if initialRadius was 0
+
+        // Apply swirl: rotate the direction vector
+        const swirlFactor = time * 0.2 * (1 + midIntensity * 2.0) + initialPhases[i1];
+        const swirlAxis = new THREE.Vector3(Math.sin(initialPhases[i1]), Math.cos(initialPhases[i1]), Math.sin(swirlFactor*0.5)).normalize(); // Varied swirl axis
+        initialVec.applyAxisAngle(swirlAxis, swirlFactor * 0.1);
+
+        // Set new position based on swirled direction and current radius
+        positions[i3]     = initialVec.x * currentRadius;
+        positions[i3 + 1] = initialVec.y * currentRadius;
+        positions[i3 + 2] = initialVec.z * currentRadius;
+
+        // Dynamically change color
+        // Blue (0.6) to Red (0.0 or 1.0) based on intensity/frequency
+        const hue = 0.6 - (freqMagnitude * 0.3) - (overallIntensity * 0.3);
+        const saturation = 0.7 + freqMagnitude * 0.3;
+        const lightness = 0.4 + overallIntensity * 0.3 + freqMagnitude * 0.2;
+        const tempColor = new THREE.Color();
+        tempColor.setHSL(hue < 0 ? hue + 1 : hue, Math.min(1, saturation), Math.min(1, lightness));
+        colors[i3]     = tempColor.r;
+        colors[i3 + 1] = tempColor.g;
+        colors[i3 + 2] = tempColor.b;
+    }
+
+    pointCloudGeometry.attributes.position.needsUpdate = true;
+    pointCloudGeometry.attributes.color.needsUpdate = true;
+
+    // Adjust point size
+    pointsMaterial.size = Math.max(0.02, 0.05 + highIntensity * 0.15 + overallIntensity * 0.05);
+}
+
+// Make sure to call init3DVisualizer() during setup and update3DVisualizer() in the animation loop.
+
+/* // Old drawCircularVisualizer content below was meant to be fully commented or replaced.
     if (!audioAnalyser) return;
     const width = circularCanvas.width;
     const height = circularCanvas.height;
-    const centerX = width / 2;
+    // const centerX = width / 2;
+    // const centerY = height / 2;
+    // circularCtx.clearRect(0, 0, width, height);
+    // audioAnalyser.getByteFrequencyData(frequencyData);
+    // const numPoints = 180;
+    // const baseRadius = Math.min(width, height) * 0.4;
+    // circularCtx.beginPath();
+    // circularCtx.arc(centerX, centerY, baseRadius * 1.2, 0, Math.PI * 2);
+    // circularCtx.fillStyle = "rgba(255, 78, 66, 0.05)";
+    // circularCtx.fill();
+    // const numRings = 3;
+    // for (let ring = 0; ring < numRings; ring++) {
+    //   const ringRadius = baseRadius * (0.7 + ring * 0.15);
+    //   const opacity = 0.8 - ring * 0.2;
+    //   circularCtx.beginPath();
+    //   for (let i = 0; i < numPoints; i++) {
+    //     const freqRangeStart = Math.floor(
+    //       (ring * audioAnalyser.frequencyBinCount) / (numRings * 1.5)
+    //     );
+    //     const freqRangeEnd = Math.floor(
+    //       ((ring + 1) * audioAnalyser.frequencyBinCount) / (numRings * 1.5)
+    //     );
+    //     const freqRange = freqRangeEnd - freqRangeStart;
+    //     let sum = 0;
+    //     const segmentSize = Math.floor(freqRange / numPoints);
+    //     for (let j = 0; j < segmentSize; j++) {
+    //       const freqIndex = freqRangeStart + i * segmentSize + j;
+    //       sum += frequencyData[freqIndex];
+    //     }
+    //     const value = (segmentSize > 0) ? (sum / (segmentSize * 255)) : 0;
+    //     const adjustedValue = value * (audioSensitivity / 5) * audioReactivity;
+    //     const dynamicRadius = ringRadius * (1 + adjustedValue * 0.5);
+    //     const angle = (i / numPoints) * Math.PI * 2;
+    //     const x = centerX + Math.cos(angle) * dynamicRadius;
+    //     const y = centerY + Math.sin(angle) * dynamicRadius;
+    //     if (i === 0) {
+    //       circularCtx.moveTo(x, y);
+    //     } else {
+    //       circularCtx.lineTo(x, y);
+    //     }
+    //   }
+    //   circularCtx.closePath();
+    //   let gradient;
+    //   if (ring === 0) {
+    //     gradient = circularCtx.createRadialGradient(
+    //       centerX,
+    //       centerY,
+    //       ringRadius * 0.8,
+    //       centerX,
+    //       centerY,
+    //       ringRadius * 1.2
+    //     );
+    //     gradient.addColorStop(0, `rgba(255, 78, 66, ${opacity})`);
+    //     gradient.addColorStop(1, `rgba(194, 54, 47, ${opacity * 0.7})`);
+    //   } else if (ring === 1) {
+    //     gradient = circularCtx.createRadialGradient(
+    //       centerX,
+    //       centerY,
+    //       ringRadius * 0.8,
+    //       centerX,
+    //       centerY,
+    //       ringRadius * 1.2
+    //     );
+    //     gradient.addColorStop(0, `rgba(194, 54, 47, ${opacity})`);
+    //     gradient.addColorStop(1, `rgba(255, 179, 171, ${opacity * 0.7})`);
+    //   } else {
+    //     gradient = circularCtx.createRadialGradient(
+    //       centerX,
+    //       centerY,
+    //       ringRadius * 0.8,
+    //       centerX,
+    //       centerY,
+    //       ringRadius * 1.2
+    //     );
+    //     gradient.addColorStop(0, `rgba(255, 179, 171, ${opacity})`);
+    //     gradient.addColorStop(1, `rgba(255, 78, 66, ${opacity * 0.7})`);
+    //   }
+    //   circularCtx.strokeStyle = gradient;
+    //   circularCtx.lineWidth = 2 + (numRings - ring);
+    //   circularCtx.stroke();
+    //   circularCtx.shadowBlur = 15;
+    //   circularCtx.shadowColor = "rgba(255, 78, 66, 0.7)";
+    // }
+    // circularCtx.shadowBlur = 0;
+    // const centerX = width / 2;
     const centerY = height / 2;
     circularCtx.clearRect(0, 0, width, height);
     audioAnalyser.getByteFrequencyData(frequencyData);
@@ -533,11 +906,10 @@ document.addEventListener("DOMContentLoaded", function () {
         let sum = 0;
         const segmentSize = Math.floor(freqRange / numPoints);
         for (let j = 0; j < segmentSize; j++) {
-          const freqIndex =
-            freqRangeStart + ((i * segmentSize + j) % freqRange);
+          const freqIndex = freqRangeStart + i * segmentSize + j;
           sum += frequencyData[freqIndex];
         }
-        const value = sum / (segmentSize * 255);
+        const value = (segmentSize > 0) ? (sum / (segmentSize * 255)) : 0;
         const adjustedValue = value * (audioSensitivity / 5) * audioReactivity;
         const dynamicRadius = ringRadius * (1 + adjustedValue * 0.5);
         const angle = (i / numPoints) * Math.PI * 2;
@@ -593,6 +965,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     circularCtx.shadowBlur = 0;
   }
+*/
   const spectrumCanvas = document.getElementById("spectrum-canvas");
   const spectrumCtx = spectrumCanvas.getContext("2d");
 
@@ -766,14 +1139,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 15000);
   }, 10000);
   const loadingOverlay = document.getElementById("loading-overlay");
-  setTimeout(() => {
-    loadingOverlay.style.opacity = 0;
-    setTimeout(() => {
-      loadingOverlay.style.display = "none";
-      initAudio();
-      initFloatingParticles();
-    }, 500);
-  }, 3000);
+  // Simulate loading time - Removed for faster testing, can be re-added
+  loadingOverlay.style.opacity = 0;
+  loadingOverlay.style.display = "none";
+  initAudio();
+  initFloatingParticles();
+  init3DVisualizer(); // Initialize the new 3D visualizer
+  animateVisualizers(); // Start the visualizer animation loop
 
   function updateTimestamp() {
     const now = new Date();
@@ -896,7 +1268,7 @@ document.addEventListener("DOMContentLoaded", function () {
     requestAnimationFrame(drawWaveform);
   }
   drawWaveform();
-  let scene, camera, renderer, controls;
+  let controls; // scene, camera, renderer are already globally defined
   let anomalyObject;
   let distortionAmount = 1.0;
   let resolution = 32;
@@ -1357,7 +1729,7 @@ document.addEventListener("DOMContentLoaded", function () {
     renderer.setSize(window.innerWidth, window.innerHeight);
     resizeCanvas();
     resizeCircularCanvas();
-    resizeSpectrumCanvas();
+    // resizeSpectrumCanvas();
   }
 
   function updateAnomalyPosition() {
@@ -1426,8 +1798,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       audioLevel = ((sum / frequencyData.length / 255) * audioSensitivity) / 5;
       drawCircularVisualizer();
-      drawSpectrumAnalyzer();
-      updateAudioWave();
+      // drawSpectrumAnalyzer();
+      // updateAudioWave();
       calculateAudioMetrics();
     }
     updateAnomalyPosition();

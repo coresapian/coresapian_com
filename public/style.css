@@ -186,6 +186,21 @@ textarea {
   color: var(--accent-primary);
 }
 
+.circular-visualizer {
+  width: 100%; /* Occupy full width of scanner-frame */
+  height: 100%; /* Occupy full height of scanner-frame */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: auto; /* Allow interaction if needed, though likely not for a canvas */
+}
+
+#circular-canvas {
+  width: 100%;
+  height: 100%;
+  /* The actual drawing resolution is set in JS (circularCanvas.width/height) */
+}
+
 .scanner-line {
   position: absolute;
   width: 100%;

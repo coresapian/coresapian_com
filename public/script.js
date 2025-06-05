@@ -221,7 +221,7 @@ document.addEventListener("DOMContentLoaded", function () {
     // Position camera to view the background. This might need adjustment.
     camera.position.z = 50; // Further back for a background
 
-    renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('main-3d-background'), alpha: true, antialias: true });
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); // Let Three.js create the canvas, it will be appended to 'three-container'
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     container.appendChild(renderer.domElement);

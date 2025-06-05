@@ -1,5 +1,5 @@
-import * as THREE from "https://esm.sh/three@0.175.0";
-import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js";
+import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
+import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
 document.addEventListener("DOMContentLoaded", function () {
   setupExpandingCirclesPreloader();
   let audioContext = null;
@@ -1522,4 +1522,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.querySelector(".spectrum-analyzer"),
     document.getElementById("spectrum-handle")
   );
+  // Hide the loading overlay now that everything should be initialized
+  document.getElementById("loading-overlay").style.display = "none";
 });

@@ -139,7 +139,7 @@ function setupPreloader() {
 function initMainScene() {
     const container = document.getElementById('three-container');
     scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x12100f, 0.02);
+    //scene.fog = new THREE.FogExp2(0x12100f, 0.02);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(0, 0, 10);
@@ -148,7 +148,7 @@ function initMainScene() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMapping = THREE.NoToneMapping;
     container.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -157,9 +157,9 @@ function initMainScene() {
     controls.minDistance = 3;
     controls.maxDistance = 50;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
     dirLight.position.set(50, 150, 150);
     scene.add(dirLight);
 

@@ -28,7 +28,7 @@ let crypticMessageTimeout;
 
 // Asset Cache
 let cachedSingularityModel = null;
-const singularityModelPath = 'information_singularity.glb';
+const singularityModelPath = 'strangest_star.glb';
 
 // --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {

@@ -1,11 +1,18 @@
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
+// --- NEW IMPORTS for Glow Effect ---
+import { EffectComposer } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020";
+import { RenderPass } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020";
+import { UnrealBloomPass } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/UnrealBloomPass.js?target=es2020";
+
 
 // --- Global State ---
 // Core Three.js
 let scene, camera, renderer, clock, controls;
 let isPreloaderActive = true;
+// --- NEW Global for post-processing ---
+let composer;
 
 // Preloader
 let preloaderScene, preloaderCamera, preloaderRenderer, preloaderMixer;
@@ -93,7 +100,9 @@ function animate() {
         if (anomalyMixer) anomalyMixer.update(delta);
         if (controls) controls.update();
         
-        renderer.render(scene, camera);
+        // --- RENDERER CHANGE: Use the composer to render ---
+        // renderer.render(scene, camera); // Old way
+        if (composer) composer.render(); // New way with post-processing
     }
 }
 
@@ -139,7 +148,6 @@ function setupPreloader() {
 function initMainScene() {
     const container = document.getElementById('three-container');
     scene = new THREE.Scene();
-    //scene.fog = new THREE.FogExp2(0x12100f, 0.02);
 
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
     camera.position.set(0, 0, 10);
@@ -147,15 +155,15 @@ function initMainScene() {
     renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.outputColorSpace = THREE.SRGBColorSpace; 
+    renderer.toneMapping = THREE.NoToneMapping; 
     container.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.minDistance = 3;
-    controls.maxDistance = 50;
+    controls.maxDistance = 500;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
@@ -166,9 +174,16 @@ function initMainScene() {
     if (cachedSingularityModel) {
         anomalyObject = cachedSingularityModel.scene.clone();
         const animations = cachedSingularityModel.animations;
-
-        // The model will now use its own materials from the GLB file.
-        // The custom shader and material replacement logic have been removed.
+        
+        // --- NEW: Make the model's materials emissive ---
+        anomalyObject.traverse((child) => {
+            if (child.isMesh) {
+                // Set the emissive color to the material's base color to make it glow
+                child.material.emissive = child.material.color;
+                // Set the intensity of the glow
+                child.material.emissiveIntensity = 1.5;
+            }
+        });
         
         const box = new THREE.Box3().setFromObject(anomalyObject);
         const size = box.getSize(new THREE.Vector3());
@@ -184,6 +199,21 @@ function initMainScene() {
             animations.forEach((clip) => anomalyMixer.clipAction(clip).play());
         }
     }
+    
+    // --- NEW: Setup Post-processing for Glow Effect ---
+    const renderPass = new RenderPass(scene, camera);
+
+    const bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.5, // strength
+        0.2, // radius
+        0.85 // threshold
+    );
+
+    composer = new EffectComposer(renderer);
+    composer.addPass(renderPass);
+    composer.addPass(bloomPass);
+
 
     window.addEventListener('resize', onWindowResize);
 }
@@ -578,7 +608,6 @@ function typeTerminalMessages() {
                 newLine.textContent = message;
                 terminalContent.insertBefore(newLine, typingLine);
                 typingLine.textContent = "";
-                terminalContent.scrollTop = terminalContent.scrollHeight;
                 if (messageQueue.length > 0) {
                     gsap.delayedCall(3, typeNextMessage);
                 }
@@ -647,5 +676,8 @@ function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // --- NEW: Update composer on resize ---
+        if (composer) composer.setSize(window.innerWidth, window.innerHeight);
     }
 }

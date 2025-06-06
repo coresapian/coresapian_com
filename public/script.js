@@ -160,10 +160,10 @@ function initMainScene() {
     controls.minDistance = 3;
     controls.maxDistance = 50;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
-    dirLight.position.set(5, 10, 7.5);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(50, 150, 150);
     scene.add(dirLight);
 
     if (cachedSingularityModel) {
@@ -497,7 +497,6 @@ function loadAudioFromURL(url) {
         audioPlayer.play().catch(e => showNotification("AUTOPLAY BLOCKED. CLICK TO PLAY."));
     };
     document.getElementById("file-label").textContent = url.split("/").pop();
-    addTerminalMessage(`LOADING AUDIO FROM URL: ${url.substring(0, 40)}...`);
 }
 
 function initAudioFile(file) {
@@ -656,25 +655,44 @@ function initLoadingAnimation() {
         "CORESAPIAN NEXUS ONLINE."
     ];
     let messageIndex = 0;
-    const textElement = document.getElementById("loading-message-text");
+    const messageContainer = document.getElementById("loading-message-text");
+
+    if (!messageContainer) {
+        console.error("Loading message container ('loading-message-text') not found. Skipping loading animation.");
+        startApp(); // Proceed to app if container is missing
+        return;
+    }
+
+    messageContainer.innerHTML = ""; // Clear any existing content
 
     function animateNextMessage() {
-        if (!textElement) return;
-        gsap.to(textElement, {
-            duration: 2,
-            text: { value: messages[messageIndex], delimiter: "" },
+        const currentMessageText = messages[messageIndex];
+        const messageLine = document.createElement("div");
+        // Optional: add a class for styling individual lines, e.g., messageLine.className = "loading-text-line";
+        messageContainer.appendChild(messageLine);
+        
+
+        gsap.to(messageLine, {
+            duration: currentMessageText.length * 0.05, // Type speed based on message length
+            text: { value: currentMessageText, delimiter: "" },
             ease: "none",
             onComplete: () => {
                 messageIndex++;
                 if (messageIndex < messages.length) {
-                    gsap.delayedCall(1.5, animateNextMessage);
+                    gsap.delayedCall(0.5, animateNextMessage); // Delay before typing next line
                 } else {
-                    startApp();
+                    // All messages have been typed out
+                    startApp(); 
                 }
             }
         });
     }
-    animateNextMessage();
+
+    if (messages.length > 0) {
+        animateNextMessage(); // Start animation if there are messages
+    } else {
+        startApp(); // No messages, start app immediately
+    }
 }
 
 function scheduleCrypticMessages() {

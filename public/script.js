@@ -1,7 +1,6 @@
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
-// --- NEW IMPORTS for Glow Effect ---
 import { EffectComposer } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020";
 import { RenderPass } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020";
 import { UnrealBloomPass } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/UnrealBloomPass.js?target=es2020";
@@ -11,7 +10,6 @@ import { UnrealBloomPass } from "https://esm.sh/three@0.175.0/examples/jsm/postp
 // Core Three.js
 let scene, camera, renderer, clock, controls;
 let isPreloaderActive = true;
-// --- NEW Global for post-processing ---
 let composer;
 
 // Preloader
@@ -35,7 +33,7 @@ let crypticMessageTimeout;
 
 // Asset Cache
 let cachedSingularityModel = null;
-const singularityModelPath = 'strangest_star.glb';
+const singularityModelPath = 'stranger_star.glb';
 
 // --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -47,7 +45,7 @@ function init() {
     clock = new THREE.Clock();
     initLoadingAnimation();
     setupPreloader();
-    animate(); // Start the single, unified animation loop
+    animate(); 
 }
 
 function startApp() {
@@ -74,7 +72,6 @@ function startApp() {
     initFloatingParticles();
 }
 
-// --- Unified Animation Loop ---
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
@@ -205,9 +202,9 @@ function initMainScene() {
 
     const bloomPass = new UnrealBloomPass(
         new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.5, // strength
+        0.1, // strength
         0.2, // radius
-        0.85 // threshold
+        0.95 // threshold
     );
 
     composer = new EffectComposer(renderer);

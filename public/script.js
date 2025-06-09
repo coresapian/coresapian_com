@@ -64,6 +64,9 @@ function init() {
 }
 
 function startApp() {
+    // Prevent startApp from running more than once
+    if (!isPreloaderActive) return;
+
     const loadingOverlay = document.getElementById("loading-overlay");
     if (loadingOverlay) {
         gsap.to(loadingOverlay, {
@@ -165,6 +168,10 @@ function setupPreloader() {
             preloaderMixer = new THREE.AnimationMixer(model);
             gltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
         }
+
+        // ***FIX***: The asset loader is now responsible for starting the main app.
+        // This ensures the model is cached before we try to use it.
+        startApp();
     });
 }
 
@@ -713,7 +720,8 @@ function initLoadingAnimation() {
                 if (messageIndex < messages.length) {
                     gsap.delayedCall(0.5, animateNextMessage);
                 } else {
-                    startApp(); 
+                    // ***FIX***: The startApp() call is now handled by the loader
+                    // to prevent a race condition. This 'else' block is now empty.
                 }
             }
         });

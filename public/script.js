@@ -1,23 +1,38 @@
+// --- START OF FILE script.js ---
+
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
-import { EffectComposer } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020";
-import { RenderPass } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020";
-import { UnrealBloomPass } from "https://esm.sh/three@0.175.0/examples/jsm/postprocessing/UnrealBloomPass.js?target=es2020";
+// --- NEW: Import Post-processing modules ---
+import { EffectComposer } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020';
+import { RenderPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020';
+import { UnrealBloomPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/UnrealBloomPass.js?target=es2020';
+import { GlitchPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/GlitchPass.js?target=es2020';
 
 
 // --- Global State ---
 // Core Three.js
 let scene, camera, renderer, clock, controls;
 let isPreloaderActive = true;
-let composer;
+// --- NEW: Post-processing ---
+let composer, bloomPass, glitchPass;
 
 // Preloader
 let preloaderScene, preloaderCamera, preloaderRenderer, preloaderMixer;
 
 // Main Scene Objects
 let anomalyObject, anomalyMixer;
-let floatingParticles = [];
+// --- NEW: WebGL based particles ---
+let webglParticles; 
+
+// --- NEW: Shader Uniforms for interactivity ---
+const shaderUniforms = {
+    u_time: { value: 0.0 },
+    u_audio_low: { value: 0.0 },
+    u_audio_high: { value: 0.0 },
+    u_distortion: { value: 1.0 },
+    u_intensity: { value: 1.5 },
+};
 
 // Audio
 let audioContext, audioAnalyser, audioSource;
@@ -33,7 +48,7 @@ let crypticMessageTimeout;
 
 // Asset Cache
 let cachedSingularityModel = null;
-const singularityModelPath = 'stranger_star.glb';
+const singularityModelPath = 'dyson_rings.glb';
 
 // --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -69,12 +84,14 @@ function startApp() {
     initMainScene();
     initUI();
     initAudio();
-    initFloatingParticles();
+    initWebGLParticles(); // --- NEW: Initialize WebGL particles instead of DOM
+    initPostProcessing(); // --- NEW: Initialize post-processing effects
 }
 
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
+    const elapsedTime = clock.getElapsedTime();
     
     if (isPreloaderActive) {
         if (preloaderRenderer && preloaderScene && preloaderCamera) {
@@ -88,18 +105,27 @@ function animate() {
         if (isAudioInitialized && audioAnalyser) {
             audioAnalyser.getByteFrequencyData(frequencyData);
             audioAnalyser.getByteTimeDomainData(timeDomainData);
-
-            // Update all visual elements that depend on audio
             updateAudioVisualizers();
+        }
+
+        // --- NEW: Update shader uniforms
+        shaderUniforms.u_time.value = elapsedTime;
+
+        // --- NEW: Animate WebGL particles
+        if (webglParticles) {
+            webglParticles.rotation.y = elapsedTime * 0.05;
         }
 
         // Update animations and controls
         if (anomalyMixer) anomalyMixer.update(delta);
         if (controls) controls.update();
         
-        // --- RENDERER CHANGE: Use the composer to render ---
-        // renderer.render(scene, camera); // Old way
-        if (composer) composer.render(); // New way with post-processing
+        // --- NEW: Render scene via composer for post-processing effects
+        if (composer) {
+            composer.render();
+        } else {
+            renderer.render(scene, camera);
+        }
     }
 }
 
@@ -122,7 +148,8 @@ function setupPreloader() {
     directionalLight.position.set(2, 5, 5);
     preloaderScene.add(directionalLight);
 
-    loadAndCacheGLBModel(singularityModelPath, (gltf) => {
+    const loader = new GLTFLoader();
+    loader.load(singularityModelPath, (gltf) => {
         cachedSingularityModel = gltf; // Cache the loaded model
         const model = gltf.scene;
         const box = new THREE.Box3().setFromObject(model);
@@ -153,7 +180,7 @@ function initMainScene() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace; 
-    renderer.toneMapping = THREE.NoToneMapping; 
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; // --- NEW: Use a better tone mapping for bloom
     container.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -161,6 +188,9 @@ function initMainScene() {
     controls.dampingFactor = 0.05;
     controls.minDistance = 3;
     controls.maxDistance = 500;
+    // --- NEW: Add subtle auto-rotation for a more dynamic feel
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.1;
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
@@ -172,13 +202,98 @@ function initMainScene() {
         anomalyObject = cachedSingularityModel.scene.clone();
         const animations = cachedSingularityModel.animations;
         
-        // --- NEW: Make the model's materials emissive ---
+        // --- NEW: Inject custom GLSL shaders into the model's materials ---
         anomalyObject.traverse((child) => {
             if (child.isMesh) {
-                // Set the emissive color to the material's base color to make it glow
-                child.material.emissive = child.material.color;
-                // Set the intensity of the glow
-                child.material.emissiveIntensity = 1.5;
+                child.material.emissive = child.material.color.clone(); // Glow with its base color
+                child.material.emissiveIntensity = 1.5; // Initial intensity
+
+                child.material.onBeforeCompile = (shader) => {
+                    // 1. Add our custom uniforms to the shader
+                    shader.uniforms.u_time = shaderUniforms.u_time;
+                    shader.uniforms.u_audio_low = shaderUniforms.u_audio_low;
+                    shader.uniforms.u_audio_high = shaderUniforms.u_audio_high;
+                    shader.uniforms.u_distortion = shaderUniforms.u_distortion;
+                    shader.uniforms.u_intensity = shaderUniforms.u_intensity;
+
+                    // 2. Add GLSL helper functions and vertex modifications
+                    shader.vertexShader = `
+                        uniform float u_time;
+                        uniform float u_audio_low;
+                        uniform float u_distortion;
+
+                        // Classic Perlin 3D Noise
+                        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+                        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+                        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+                        float snoise(vec3 v) { 
+                            const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+                            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+                            vec3 i = floor(v + dot(v, C.yyy));
+                            vec3 x0 = v - i + dot(i, C.xxx);
+                            vec3 g = step(x0.yzx, x0.xyz);
+                            vec3 l = 1.0 - g;
+                            vec3 i1 = min(g.xyz, l.zxy);
+                            vec3 i2 = max(g.xyz, l.zxy);
+                            vec3 x1 = x0 - i1 + C.xxx;
+                            vec3 x2 = x0 - i2 + C.yyy;
+                            vec3 x3 = x0 - D.yyy;
+                            i = mod289(i);
+                            vec4 p = permute(permute(permute(
+                                i.z + vec4(0.0, i1.z, i2.z, 1.0))
+                                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+                                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+                            float n_ = 0.142857142857;
+                            vec3 ns = n_ * D.wyz - D.xzx;
+                            vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+                            vec4 x_ = floor(j * ns.z);
+                            vec4 y_ = floor(j - 7.0 * x_);
+                            vec4 x = x_ * ns.x + ns.yyyy;
+                            vec4 y = y_ * ns.x + ns.yyyy;
+                            vec4 h = 1.0 - abs(x) - abs(y);
+                            vec4 b0 = vec4(x.xy, y.xy);
+                            vec4 b1 = vec4(x.zw, y.zw);
+                            vec4 s0 = floor(b0)*2.0 + 1.0;
+                            vec4 s1 = floor(b1)*2.0 + 1.0;
+                            vec4 sh = -step(h, vec4(0.0));
+                            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+                            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+                            vec3 p0 = vec3(a0.xy,h.x);
+                            vec3 p1 = vec3(a0.zw,h.y);
+                            vec3 p2 = vec3(a1.xy,h.z);
+                            vec3 p3 = vec3(a1.zw,h.w);
+                            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+                            p0 *= norm.x;
+                            p1 *= norm.y;
+                            p2 *= norm.z;
+                            p3 *= norm.w;
+                            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+                            m = m * m;
+                            return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+                        }
+                        
+                        ${shader.vertexShader}
+                    `.replace(
+                        `#include <begin_vertex>`,
+                        `#include <begin_vertex>
+                        float noise = snoise(position * 0.1 + u_time * 0.2);
+                        float displacement = (u_audio_low * 0.5 + noise) * u_distortion;
+                        transformed += normal * displacement;
+                        `
+                    );
+                    
+                    // 3. Add fragment modifications for emissive pulsing
+                    shader.fragmentShader = `
+                        uniform float u_audio_high;
+                        uniform float u_intensity;
+
+                        ${shader.fragmentShader}
+                    `.replace(
+                        `vec3 totalEmissiveRadiance = emissive;`,
+                        `vec3 totalEmissiveRadiance = emissive * (u_intensity + u_audio_high * 2.0);`
+                    );
+                };
             }
         });
         
@@ -197,23 +312,29 @@ function initMainScene() {
         }
     }
     
-    // --- NEW: Setup Post-processing for Glow Effect ---
-    const renderPass = new RenderPass(scene, camera);
-
-    const bloomPass = new UnrealBloomPass(
-        new THREE.Vector2(window.innerWidth, window.innerHeight),
-        0.1, // strength
-        0.2, // radius
-        0.95 // threshold
-    );
-
-    composer = new EffectComposer(renderer);
-    composer.addPass(renderPass);
-    composer.addPass(bloomPass);
-
-
     window.addEventListener('resize', onWindowResize);
 }
+
+// --- NEW: Post-processing Setup ---
+function initPostProcessing() {
+    composer = new EffectComposer(renderer);
+
+    const renderPass = new RenderPass(scene, camera);
+    composer.addPass(renderPass);
+
+    // UnrealBloomPass for the "glow" effect
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+    bloomPass.threshold = 0.05; // Lower threshold to make more things glow
+    bloomPass.strength = 1.2; // The strength of the glow
+    bloomPass.radius = 0.5;
+    composer.addPass(bloomPass);
+
+    // GlitchPass for the glitch effect
+    glitchPass = new GlitchPass();
+    glitchPass.enabled = false; // Initially disabled
+    composer.addPass(glitchPass);
+}
+
 
 // --- UI & Interaction Setup ---
 function initUI() {
@@ -232,31 +353,39 @@ function initUI() {
 
 function setupEventListeners() {
     // Sliders
-    // NOTE: These controls no longer affect the main 3D model.
     document.getElementById("intensity-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
+        shaderUniforms.u_intensity.value = value; // --- NEW: Connect to shader
         document.getElementById("intensity-value").textContent = value.toFixed(1);
     });
 
     document.getElementById("resolution-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
         document.getElementById("resolution-value").textContent = value;
+         // --- NEW: Example: Connect resolution to bloom radius
+        if (bloomPass) bloomPass.radius = value / 64;
     });
 
     document.getElementById("distortion-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
+        shaderUniforms.u_distortion.value = value; // --- NEW: Connect to shader
         document.getElementById("distortion-value").textContent = value.toFixed(1);
     });
 
     document.getElementById("reactivity-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
-        audioReactivity = value; // This still affects other visualizers
+        audioReactivity = value;
         document.getElementById("reactivity-value").textContent = value.toFixed(1);
     });
 
     document.getElementById("glitch-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
         document.getElementById("glitch-value").textContent = value.toFixed(2);
+        // --- NEW: Control the GlitchPass
+        if(glitchPass) {
+            glitchPass.enabled = value > 0;
+            glitchPass.goWild = value > 0.75;
+        }
     });
 
     document.getElementById("sensitivity-slider").addEventListener("input", (e) => {
@@ -294,13 +423,14 @@ function setupEventListeners() {
     document.addEventListener("click", () => {
         lastUserActionTime = Date.now();
         ensureAudioContextStarted();
+        controls.autoRotate = false; // --- NEW: Stop auto-rotation on user interaction
     });
     document.addEventListener("mousemove", () => { lastUserActionTime = Date.now(); });
     document.addEventListener("keydown", () => { lastUserActionTime = Date.now(); });
 }
 
 function resetControls() {
-    document.getElementById("intensity-slider").value = 1.0;
+    document.getElementById("intensity-slider").value = 1.5;
     document.getElementById("resolution-slider").value = 32;
     document.getElementById("distortion-slider").value = 1.0;
     document.getElementById("reactivity-slider").value = 1.0;
@@ -323,6 +453,13 @@ function analyzeAnomaly() {
     btn.textContent = "ANALYZING...";
     btn.disabled = true;
 
+    // --- NEW: Add a cinematic camera zoom on analysis
+    gsap.to(camera.position, {
+        z: 6,
+        duration: 3,
+        ease: 'power2.inOut'
+    });
+    
     setTimeout(() => {
         btn.textContent = "ANALYZE";
         btn.disabled = false;
@@ -332,6 +469,14 @@ function analyzeAnomaly() {
         document.getElementById("amplitude-value").textContent = (Math.random() * 0.5 + 0.3).toFixed(2);
         const phases = ["π/4", "π/2", "π/6", "3π/4"];
         document.getElementById("phase-value").textContent = phases[Math.floor(Math.random() * phases.length)];
+        
+        // --- NEW: Zoom back out after analysis
+        gsap.to(camera.position, {
+            z: 10,
+            duration: 1.5,
+            ease: 'power1.out'
+        });
+
     }, 3000);
 }
 
@@ -341,8 +486,8 @@ function initAudio() {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         audioAnalyser = audioContext.createAnalyser();
-        audioAnalyser.fftSize = 2048;
-        audioAnalyser.smoothingTimeConstant = 0.8;
+        audioAnalyser.fftSize = 512; // --- NEW: Reduced for faster response
+        audioAnalyser.smoothingTimeConstant = 0.7;
         frequencyData = new Uint8Array(audioAnalyser.frequencyBinCount);
         timeDomainData = new Uint8Array(audioAnalyser.frequencyBinCount);
         audioAnalyser.connect(audioContext.destination);
@@ -399,6 +544,30 @@ function initAudioFile(file) {
 }
 
 function updateAudioVisualizers() {
+    if (!frequencyData) return;
+    
+    // Calculate average frequencies for different bands
+    const binCount = audioAnalyser.frequencyBinCount;
+    let lowFreq = 0, midFreq = 0, highFreq = 0;
+    
+    // Bass (approx 0-250Hz)
+    const lowEnd = Math.floor(binCount * (250 / (audioContext.sampleRate / 2)));
+    for (let i = 0; i < lowEnd; i++) {
+        lowFreq += frequencyData[i];
+    }
+    lowFreq = (lowFreq / lowEnd) / 255;
+
+    // Treble (approx 2000Hz+)
+    const highStart = Math.floor(binCount * (2000 / (audioContext.sampleRate / 2)));
+    for (let i = highStart; i < binCount; i++) {
+        highFreq += frequencyData[i];
+    }
+    highFreq = highFreq / (binCount - highStart) / 255;
+    
+    // --- NEW: Smooth the audio values over time for less jerky movements
+    shaderUniforms.u_audio_low.value = THREE.MathUtils.lerp(shaderUniforms.u_audio_low.value, lowFreq * audioReactivity, 0.1);
+    shaderUniforms.u_audio_high.value = THREE.MathUtils.lerp(shaderUniforms.u_audio_high.value, highFreq * audioReactivity, 0.1);
+
     drawSpectrumAnalyzer();
     updateAudioWave();
     updateUIReadouts();
@@ -414,7 +583,7 @@ function drawSpectrumAnalyzer() {
     const height = canvas.height;
 
     ctx.clearRect(0, 0, width, height);
-    const barCount = 128;
+    const barCount = 64; // Match UI
     const barWidth = width / barCount;
     for (let i = 0; i < barCount; i++) {
         const barHeight = (frequencyData[i * 2] / 255) * height * (audioSensitivity / 5) * audioReactivity;
@@ -460,61 +629,54 @@ function updateUIReadouts() {
 
 
 // --- Helper & Utility Functions ---
-function initFloatingParticles() {
-    const container = document.getElementById("floating-particles");
-    if (!container) return;
-    const numParticles = 500;
-    container.innerHTML = "";
-    floatingParticles = [];
 
-    for (let i = 0; i < numParticles; i++) {
-        const particle = document.createElement("div");
-        particle.style.position = "absolute";
-        particle.style.width = `${Math.random() * 2 + 1}px`;
-        particle.style.height = particle.style.width;
-        particle.style.backgroundColor = `rgba(0, ${Math.floor(Math.random() * 75) + 180}, ${Math.floor(Math.random() * 55) + 200}, ${Math.random() * 0.5 + 0.2})`;
-        particle.style.borderRadius = "50%";
-        const angle = Math.random() * Math.PI * 2;
-        const distance = Math.random() * (Math.max(window.innerWidth, window.innerHeight) / 2 - 100) + 100;
-        const x = Math.cos(angle) * distance + window.innerWidth / 2;
-        const y = Math.sin(angle) * distance + window.innerHeight / 2;
-        particle.style.left = `${x}px`;
-        particle.style.top = `${y}px`;
-        container.appendChild(particle);
-        floatingParticles.push({
-            element: particle,
-            angle,
-            distance,
-            speed: Math.random() * 0.0005 + 0.0001
-        });
+// --- NEW: WebGL Particle System ---
+function initWebGLParticles() {
+    const particleCount = 5000;
+    const positions = new Float32Array(particleCount * 3);
+    const colors = new Float32Array(particleCount * 3);
+
+    for(let i = 0; i < particleCount; i++) {
+        const i3 = i * 3;
+        
+        // Position particles in a large sphere
+        const radius = 50 + Math.random() * 200;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+
+        positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+        positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+        positions[i3 + 2] = radius * Math.cos(phi);
+        
+        // Color
+        const color = new THREE.Color(`hsl(190, 100%, ${60 + Math.random() * 20}%)`);
+        colors[i3] = color.r;
+        colors[i3 + 1] = color.g;
+        colors[i3 + 2] = color.b;
     }
 
-    function animateParticles() {
-        floatingParticles.forEach(p => {
-            p.angle += p.speed;
-            const x = Math.cos(p.angle) * p.distance + window.innerWidth / 2;
-            const y = Math.sin(p.angle) * p.distance + window.innerHeight / 2;
-            p.element.style.transform = `translate(${x - p.element.offsetLeft}px, ${y - p.element.offsetTop}px)`;
-        });
-        requestAnimationFrame(animateParticles);
-    }
-    animateParticles();
-}
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-function loadAndCacheGLBModel(modelPath, onLoad) {
-    if (cachedSingularityModel) {
-        console.log(`Using cached GLB model: ${modelPath}`);
-        onLoad(cachedSingularityModel);
-        return;
-    }
-    const loader = new GLTFLoader();
-    loader.load(modelPath, (gltf) => {
-        console.log(`GLB model loaded and cached: ${modelPath}`);
-        onLoad(gltf);
-    }, undefined, (error) => {
-        console.error(`Error loading GLB model ${modelPath}:`, error);
+    const material = new THREE.PointsMaterial({
+        size: 0.5,
+        sizeAttenuation: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.8
     });
+
+    webglParticles = new THREE.Points(geometry, material);
+    scene.add(webglParticles);
+    
+    // Remove the old DOM particle container as it's no longer needed
+    const oldParticles = document.getElementById("floating-particles");
+    if(oldParticles) oldParticles.remove();
 }
+
 
 function initLoadingAnimation() {
     const messages = [
@@ -626,7 +788,7 @@ function addTerminalMessage(message, isCommand = false) {
 
 function makePanelDraggable(element, handle) {
     if (!element) return;
-    const triggerElement = handle || element; // Use handle if provided, otherwise the whole element
+    const triggerElement = handle || element;
     Draggable.create(element, {
         type: "x,y",
         edgeResistance: 0.65,
@@ -673,8 +835,10 @@ function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
-        
+
         // --- NEW: Update composer on resize ---
-        if (composer) composer.setSize(window.innerWidth, window.innerHeight);
+        if(composer) {
+            composer.setSize(window.innerWidth, window.innerHeight);
+        }
     }
 }

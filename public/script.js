@@ -25,15 +25,6 @@ let anomalyObject, anomalyMixer;
 // --- NEW: WebGL based particles ---
 let webglParticles; 
 
-// --- NEW: Shader Uniforms for interactivity ---
-const shaderUniforms = {
-    u_time: { value: 0.0 },
-    u_audio_low: { value: 0.0 },
-    u_audio_high: { value: 0.0 },
-    u_distortion: { value: 1.0 },
-    u_intensity: { value: 1.5 },
-};
-
 // Audio
 let audioContext, audioAnalyser, audioSource;
 let frequencyData, timeDomainData;
@@ -111,9 +102,6 @@ function animate() {
             updateAudioVisualizers();
         }
 
-        // --- NEW: Update shader uniforms
-        shaderUniforms.u_time.value = elapsedTime;
-
         // --- NEW: Animate WebGL particles
         if (webglParticles) {
             webglParticles.rotation.y = elapsedTime * 0.05;
@@ -169,8 +157,7 @@ function setupPreloader() {
             gltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
         }
 
-        // ***FIX***: The asset loader is now responsible for starting the main app.
-        // This ensures the model is cached before we try to use it.
+        // The asset loader is now responsible for starting the main app.
         startApp();
     });
 }
@@ -187,7 +174,7 @@ function initMainScene() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.outputColorSpace = THREE.SRGBColorSpace; 
-    renderer.toneMapping = THREE.ACESFilmicToneMapping; // --- NEW: Use a better tone mapping for bloom
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(renderer.domElement);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -195,7 +182,6 @@ function initMainScene() {
     controls.dampingFactor = 0.05;
     controls.minDistance = 3;
     controls.maxDistance = 500;
-    // --- NEW: Add subtle auto-rotation for a more dynamic feel
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.1;
 
@@ -209,100 +195,7 @@ function initMainScene() {
         anomalyObject = cachedSingularityModel.scene.clone();
         const animations = cachedSingularityModel.animations;
         
-        // --- NEW: Inject custom GLSL shaders into the model's materials ---
-        anomalyObject.traverse((child) => {
-            if (child.isMesh) {
-                child.material.emissive = child.material.color.clone(); // Glow with its base color
-                child.material.emissiveIntensity = 1.5; // Initial intensity
-
-                child.material.onBeforeCompile = (shader) => {
-                    // 1. Add our custom uniforms to the shader
-                    shader.uniforms.u_time = shaderUniforms.u_time;
-                    shader.uniforms.u_audio_low = shaderUniforms.u_audio_low;
-                    shader.uniforms.u_audio_high = shaderUniforms.u_audio_high;
-                    shader.uniforms.u_distortion = shaderUniforms.u_distortion;
-                    shader.uniforms.u_intensity = shaderUniforms.u_intensity;
-
-                    // 2. Add GLSL helper functions and vertex modifications
-                    shader.vertexShader = `
-                        uniform float u_time;
-                        uniform float u_audio_low;
-                        uniform float u_distortion;
-
-                        // Classic Perlin 3D Noise
-                        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-                        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-                        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
-                        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-                        float snoise(vec3 v) { 
-                            const vec2 C = vec2(1.0/6.0, 1.0/3.0);
-                            const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
-                            vec3 i = floor(v + dot(v, C.yyy));
-                            vec3 x0 = v - i + dot(i, C.xxx);
-                            vec3 g = step(x0.yzx, x0.xyz);
-                            vec3 l = 1.0 - g;
-                            vec3 i1 = min(g.xyz, l.zxy);
-                            vec3 i2 = max(g.xyz, l.zxy);
-                            vec3 x1 = x0 - i1 + C.xxx;
-                            vec3 x2 = x0 - i2 + C.yyy;
-                            vec3 x3 = x0 - D.yyy;
-                            i = mod289(i);
-                            vec4 p = permute(permute(permute(
-                                i.z + vec4(0.0, i1.z, i2.z, 1.0))
-                                + i.y + vec4(0.0, i1.y, i2.y, 1.0))
-                                + i.x + vec4(0.0, i1.x, i2.x, 1.0));
-                            float n_ = 0.142857142857;
-                            vec3 ns = n_ * D.wyz - D.xzx;
-                            vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
-                            vec4 x_ = floor(j * ns.z);
-                            vec4 y_ = floor(j - 7.0 * x_);
-                            vec4 x = x_ * ns.x + ns.yyyy;
-                            vec4 y = y_ * ns.x + ns.yyyy;
-                            vec4 h = 1.0 - abs(x) - abs(y);
-                            vec4 b0 = vec4(x.xy, y.xy);
-                            vec4 b1 = vec4(x.zw, y.zw);
-                            vec4 s0 = floor(b0)*2.0 + 1.0;
-                            vec4 s1 = floor(b1)*2.0 + 1.0;
-                            vec4 sh = -step(h, vec4(0.0));
-                            vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
-                            vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
-                            vec3 p0 = vec3(a0.xy,h.x);
-                            vec3 p1 = vec3(a0.zw,h.y);
-                            vec3 p2 = vec3(a1.xy,h.z);
-                            vec3 p3 = vec3(a1.zw,h.w);
-                            vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
-                            p0 *= norm.x;
-                            p1 *= norm.y;
-                            p2 *= norm.z;
-                            p3 *= norm.w;
-                            vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
-                            m = m * m;
-                            return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
-                        }
-                        
-                        ${shader.vertexShader}
-                    `.replace(
-                        `#include <begin_vertex>`,
-                        `#include <begin_vertex>
-                        float noise = snoise(position * 0.1 + u_time * 0.2);
-                        float displacement = (u_audio_low * 0.5 + noise) * u_distortion;
-                        transformed += normal * displacement;
-                        `
-                    );
-                    
-                    // 3. Add fragment modifications for emissive pulsing
-                    shader.fragmentShader = `
-                        uniform float u_audio_high;
-                        uniform float u_intensity;
-
-                        ${shader.fragmentShader}
-                    `.replace(
-                        `vec3 totalEmissiveRadiance = emissive;`,
-                        `vec3 totalEmissiveRadiance = emissive * (u_intensity + u_audio_high * 2.0);`
-                    );
-                };
-            }
-        });
+        // --- REMOVED: No more shader injection or material modification ---
         
         const box = new THREE.Box3().setFromObject(anomalyObject);
         const size = box.getSize(new THREE.Vector3());
@@ -360,25 +253,6 @@ function initUI() {
 
 function setupEventListeners() {
     // Sliders
-    document.getElementById("intensity-slider").addEventListener("input", (e) => {
-        const value = parseFloat(e.target.value);
-        shaderUniforms.u_intensity.value = value; // --- NEW: Connect to shader
-        document.getElementById("intensity-value").textContent = value.toFixed(1);
-    });
-
-    document.getElementById("resolution-slider").addEventListener("input", (e) => {
-        const value = parseFloat(e.target.value);
-        document.getElementById("resolution-value").textContent = value;
-         // --- NEW: Example: Connect resolution to bloom radius
-        if (bloomPass) bloomPass.radius = value / 64;
-    });
-
-    document.getElementById("distortion-slider").addEventListener("input", (e) => {
-        const value = parseFloat(e.target.value);
-        shaderUniforms.u_distortion.value = value; // --- NEW: Connect to shader
-        document.getElementById("distortion-value").textContent = value.toFixed(1);
-    });
-
     document.getElementById("reactivity-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
         audioReactivity = value;
@@ -388,7 +262,6 @@ function setupEventListeners() {
     document.getElementById("glitch-slider").addEventListener("input", (e) => {
         const value = parseFloat(e.target.value);
         document.getElementById("glitch-value").textContent = value.toFixed(2);
-        // --- NEW: Control the GlitchPass
         if(glitchPass) {
             glitchPass.enabled = value > 0;
             glitchPass.goWild = value > 0.75;
@@ -430,24 +303,19 @@ function setupEventListeners() {
     document.addEventListener("click", () => {
         lastUserActionTime = Date.now();
         ensureAudioContextStarted();
-        controls.autoRotate = false; // --- NEW: Stop auto-rotation on user interaction
+        controls.autoRotate = false; // Stop auto-rotation on user interaction
     });
     document.addEventListener("mousemove", () => { lastUserActionTime = Date.now(); });
     document.addEventListener("keydown", () => { lastUserActionTime = Date.now(); });
 }
 
 function resetControls() {
-    document.getElementById("intensity-slider").value = 1.5;
-    document.getElementById("resolution-slider").value = 32;
-    document.getElementById("distortion-slider").value = 1.0;
+    // --- REMOVED: Anomaly control resets ---
     document.getElementById("reactivity-slider").value = 1.0;
     document.getElementById("glitch-slider").value = 0.0;
     document.getElementById("sensitivity-slider").value = 5.0;
 
     // Trigger input events to update UI and variables
-    document.getElementById("intensity-slider").dispatchEvent(new Event('input'));
-    document.getElementById("resolution-slider").dispatchEvent(new Event('input'));
-    document.getElementById("distortion-slider").dispatchEvent(new Event('input'));
     document.getElementById("reactivity-slider").dispatchEvent(new Event('input'));
     document.getElementById("glitch-slider").dispatchEvent(new Event('input'));
     document.getElementById("sensitivity-slider").dispatchEvent(new Event('input'));
@@ -460,7 +328,6 @@ function analyzeAnomaly() {
     btn.textContent = "ANALYZING...";
     btn.disabled = true;
 
-    // --- NEW: Add a cinematic camera zoom on analysis
     gsap.to(camera.position, {
         z: 6,
         duration: 3,
@@ -477,7 +344,6 @@ function analyzeAnomaly() {
         const phases = ["π/4", "π/2", "π/6", "3π/4"];
         document.getElementById("phase-value").textContent = phases[Math.floor(Math.random() * phases.length)];
         
-        // --- NEW: Zoom back out after analysis
         gsap.to(camera.position, {
             z: 10,
             duration: 1.5,
@@ -493,7 +359,7 @@ function initAudio() {
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         audioAnalyser = audioContext.createAnalyser();
-        audioAnalyser.fftSize = 512; // --- NEW: Reduced for faster response
+        audioAnalyser.fftSize = 512;
         audioAnalyser.smoothingTimeConstant = 0.7;
         frequencyData = new Uint8Array(audioAnalyser.frequencyBinCount);
         timeDomainData = new Uint8Array(audioAnalyser.frequencyBinCount);
@@ -553,27 +419,8 @@ function initAudioFile(file) {
 function updateAudioVisualizers() {
     if (!frequencyData) return;
     
-    // Calculate average frequencies for different bands
-    const binCount = audioAnalyser.frequencyBinCount;
-    let lowFreq = 0, midFreq = 0, highFreq = 0;
-    
-    // Bass (approx 0-250Hz)
-    const lowEnd = Math.floor(binCount * (250 / (audioContext.sampleRate / 2)));
-    for (let i = 0; i < lowEnd; i++) {
-        lowFreq += frequencyData[i];
-    }
-    lowFreq = (lowFreq / lowEnd) / 255;
-
-    // Treble (approx 2000Hz+)
-    const highStart = Math.floor(binCount * (2000 / (audioContext.sampleRate / 2)));
-    for (let i = highStart; i < binCount; i++) {
-        highFreq += frequencyData[i];
-    }
-    highFreq = highFreq / (binCount - highStart) / 255;
-    
-    // --- NEW: Smooth the audio values over time for less jerky movements
-    shaderUniforms.u_audio_low.value = THREE.MathUtils.lerp(shaderUniforms.u_audio_low.value, lowFreq * audioReactivity, 0.1);
-    shaderUniforms.u_audio_high.value = THREE.MathUtils.lerp(shaderUniforms.u_audio_high.value, highFreq * audioReactivity, 0.1);
+    // --- REMOVED: No longer need to calculate smoothed values for shaders ---
+    // The raw frequencyData is used directly in the visualizers below.
 
     drawSpectrumAnalyzer();
     updateAudioWave();
@@ -636,8 +483,6 @@ function updateUIReadouts() {
 
 
 // --- Helper & Utility Functions ---
-
-// --- NEW: WebGL Particle System ---
 function initWebGLParticles() {
     const particleCount = 5000;
     const positions = new Float32Array(particleCount * 3);
@@ -646,7 +491,6 @@ function initWebGLParticles() {
     for(let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
         
-        // Position particles in a large sphere
         const radius = 50 + Math.random() * 200;
         const theta = Math.random() * Math.PI * 2;
         const phi = Math.acos(2 * Math.random() - 1);
@@ -655,7 +499,6 @@ function initWebGLParticles() {
         positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
         positions[i3 + 2] = radius * Math.cos(phi);
         
-        // Color
         const color = new THREE.Color(`hsl(190, 100%, ${60 + Math.random() * 20}%)`);
         colors[i3] = color.r;
         colors[i3 + 1] = color.g;
@@ -679,7 +522,6 @@ function initWebGLParticles() {
     webglParticles = new THREE.Points(geometry, material);
     scene.add(webglParticles);
     
-    // Remove the old DOM particle container as it's no longer needed
     const oldParticles = document.getElementById("floating-particles");
     if(oldParticles) oldParticles.remove();
 }
@@ -719,9 +561,6 @@ function initLoadingAnimation() {
                 messageIndex++;
                 if (messageIndex < messages.length) {
                     gsap.delayedCall(0.5, animateNextMessage);
-                } else {
-                    // ***FIX***: The startApp() call is now handled by the loader
-                    // to prevent a race condition. This 'else' block is now empty.
                 }
             }
         });
@@ -844,7 +683,6 @@ function onWindowResize() {
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
 
-        // --- NEW: Update composer on resize ---
         if(composer) {
             composer.setSize(window.innerWidth, window.innerHeight);
         }

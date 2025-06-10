@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CORESAPIAN PROTOCOL</title>
+    <title>coRE</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js"></script>
@@ -32,7 +32,7 @@
 <div class="interface-container">
   <div class="header">
     <div class="header-item"></div>
-    <div class="header-item">CORESAPIAN <br />v0.1.0</div>
+    <div class="header-item">coRE <br />v0.1.5</div>
     <div class="header-item" id="timestamp">TIME: 00:00:00</div>
   </div>  
 
@@ -68,38 +68,8 @@
 <!-- Control Panel -->
 <div class="control-panel" style="position: absolute; top: 20px; left: 20px;">
   <div class="panel-header">
-    <span class="data-panel-title">ANOMALY CONTROLS</span>
+    <span class="data-panel-title">SYSTEM CONTROLS</span>
     <span class="drag-handle" id="control-panel-handle">⋮⋮</span>
-  </div>
-
-  <div class="control-group">
-    <div class="control-row">
-      <span class="control-label">INTENSITY</span>
-      <span class="control-value" id="intensity-value">1.0</span>
-    </div>
-    <div class="slider-container">
-      <input type="range" min="0" max="5" value="1" step="0.1" class="slider" id="intensity-slider">
-    </div>
-  </div>
-
-  <div class="control-group">
-    <div class="control-row">
-      <span class="control-label">RESOLUTION</span>
-      <span class="control-value" id="resolution-value">32</span>
-    </div>
-    <div class="slider-container">
-      <input type="range" min="12" max="64" value="32" step="4" class="slider" id="resolution-slider">
-    </div>
-  </div>
-
-  <div class="control-group">
-    <div class="control-row">
-      <span class="control-label">DISTORTION</span>
-      <span class="control-value" id="distortion-value">1.0</span>
-    </div>
-    <div class="slider-container">
-      <input type="range" min="0" max="3" value="1" step="0.1" class="slider" id="distortion-slider">
-    </div>
   </div>
 
   <div class="control-group">
@@ -131,11 +101,11 @@
 <!-- Terminal Panel -->
 <div class="terminal-panel">
   <div class="terminal-header">
-    <span>CORE TERMINAL</span>
+    <span>coRE 0.1.5</span>
     <span id="terminal-status">200 OK</span>
   </div>
   <div class="terminal-content" id="terminal-content">
-    <div class="terminal-line">CORE SAPIAN v0.1.0 INITIALIZED. SECURE CONNECTION ESTABLISHED.</div>
+    <div class="terminal-line">coRE v0.1.5 INITIALIZED. SECURE CONNECTION ESTABLISHED.</div>
     <div class="terminal-line typing"></div>
   </div>
 </div>

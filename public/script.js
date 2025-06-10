@@ -236,19 +236,110 @@ function initPostProcessing() {
 }
 
 
+function reorganizeUIForHUD() {
+    console.log("Reorganizing UI for HUD...");
+
+    const hudTopContainer = document.querySelector('.helmet-hud .hud-top-container');
+    const hudLeftPanel = document.querySelector('.helmet-hud .hud-left-panel');
+    const hudCenterArea = document.querySelector('.helmet-hud .hud-center-area');
+    const hudRightPanel = document.querySelector('.helmet-hud .hud-right-panel');
+    const hudBottomContainer = document.querySelector('.helmet-hud .hud-bottom-container');
+
+    // Grab existing elements
+    const header = document.querySelector('.interface-container .header');
+    const controlPanel = document.querySelector('.control-panel');
+    const dataPanel = document.querySelector('.data-panel');
+    const terminalPanel = document.querySelector('.terminal-panel');
+    const spectrumAnalyzer = document.querySelector('.spectrum-analyzer');
+    const scannerFrame = document.querySelector('.interface-container .scanner-frame');
+    // const notification = document.getElementById('notification'); // Decide if/where to move
+
+    const scannerIdElement = document.querySelector('.scanner-frame .scanner-id');
+    const scannerIdRightElement = document.querySelector('.scanner-frame .scanner-id-right');
+
+    // Move elements to their new HUD locations
+    if (header && hudTopContainer) {
+        hudTopContainer.appendChild(header);
+        console.log("Moved Header to HUD Top");
+
+        if (scannerIdElement) {
+            hudTopContainer.appendChild(scannerIdElement);
+            console.log("Moved Scanner ID to HUD Top");
+        }
+        if (scannerIdRightElement) {
+            hudTopContainer.appendChild(scannerIdRightElement);
+            console.log("Moved Scanner ID Right to HUD Top");
+        }
+    }
+    if (controlPanel && hudLeftPanel) {
+        hudLeftPanel.appendChild(controlPanel);
+        console.log("Moved Control Panel to HUD Left");
+    }
+    if (dataPanel && hudRightPanel) {
+        hudRightPanel.appendChild(dataPanel);
+        console.log("Moved Data Panel to HUD Right");
+    }
+    if (terminalPanel && hudBottomContainer) {
+        hudBottomContainer.appendChild(terminalPanel);
+        console.log("Moved Terminal Panel to HUD Bottom");
+    }
+    if (spectrumAnalyzer && hudRightPanel) {
+        hudRightPanel.appendChild(spectrumAnalyzer); // Appending to right panel, will appear after dataPanel
+        console.log("Moved Spectrum Analyzer to HUD Right");
+    }
+    if (scannerFrame && hudCenterArea) {
+        // hudCenterArea.appendChild(scannerFrame); // Scanner frame might need more specific styling
+        // For now, let's comment out moving scanner frame as its styling is very central
+        console.log("Scanner Frame identified, manual placement/styling in HUD center recommended.");
+    }
+
+    // Optional: Clean up empty containers if necessary
+    const interfaceContainer = document.querySelector('.interface-container');
+    if (interfaceContainer && interfaceContainer.children.length === 0) {
+        // interfaceContainer.remove(); // Or hide it
+        console.log("Original interface-container is now empty or can be hidden.");
+    }
+
+    console.log("HUD UI reorganization attempt complete.");
+}
+
 // --- UI & Interaction Setup ---
 function initUI() {
+    setupEventListeners();
     makePanelDraggable(document.querySelector(".control-panel"), document.getElementById("control-panel-handle"));
-    makePanelDraggable(document.querySelector(".terminal-panel"));
     makePanelDraggable(document.querySelector(".spectrum-analyzer"), document.getElementById("spectrum-handle"));
 
     updateTimestamp();
     setInterval(updateTimestamp, 1000);
 
-    typeTerminalMessages();
-    setupEventListeners();
+    // Initialize draggable for data-panel if it has a handle
+    const dataPanelElement = document.querySelector('.data-panel');
+    // Check if dataPanelElement itself exists before querying its child
+    if (dataPanelElement) {
+        const dataPanelHandle = dataPanelElement.querySelector('.drag-handle'); // Assuming a similar handle
+        if (dataPanelHandle) {
+            makePanelDraggable(dataPanelElement, dataPanelHandle);
+        }
+    }
 
-    applyScrambleEffect(document.querySelector('.data-panel[style*="right: 20px"] .data-label'), "PEAK FREQUENCY:", "VOID_RESONANCE");
+    reorganizeUIForHUD(); // Added call
+    typeTerminalMessages(); // Restore terminal message typing
+
+    // Restore terminal draggability - assuming the whole panel or a specific handle
+    const terminalPanelElement = document.querySelector('.terminal-panel');
+    if (terminalPanelElement) {
+        // If terminal has a specific handle, e.g., like other panels:
+        // const terminalHandle = terminalPanelElement.querySelector('.drag-handle'); 
+        // if (terminalHandle) { makePanelDraggable(terminalPanelElement, terminalHandle); }
+        // else { makePanelDraggable(terminalPanelElement); } // Or make the whole panel draggable
+        // For now, let's assume the terminal header can be used or the whole panel if no specific handle
+        const terminalHeader = terminalPanelElement.querySelector('.terminal-header');
+        if (terminalHeader) {
+             makePanelDraggable(terminalPanelElement, terminalHeader);
+        } else {
+            makePanelDraggable(terminalPanelElement); // Fallback to whole panel if no header/handle
+        }
+    }
 }
 
 function setupEventListeners() {

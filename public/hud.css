@@ -1,0 +1,699 @@
+/* hud.css */
+:root {
+    /* Define HUD-specific variables or ensure they are inherited/available */
+    /* These can override or supplement variables from style.css if needed */
+    --panel-border-hud: rgba(22, 154, 158, 0.4); /* accent-primary-rgb with custom alpha */
+    --panel-bg-hud: rgba(10, 20, 30, 0.6); /* Slightly more transparent than main panels */
+    --text-primary-hud: #f3ede9; /* Same as main text-primary */
+    --text-secondary-hud: rgba(158, 179, 194, 0.8); /* Same as text-secondary-rgb with custom alpha */
+}
+
+body.hud-enabled {
+    overflow: hidden; /* Prevent scrollbars on the body when HUD is active */
+}
+
+.helmet-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none; /* Allow clicks to pass through the main HUD container unless an element inside has pointer-events: auto */
+    z-index: 1000; /* Ensure HUD is on top */
+    display: flex;
+    flex-direction: column;
+    padding: 15px; /* Overall padding for the HUD frame */
+    box-sizing: border-box;
+    border: 1px solid rgba(var(--accent-primary-rgb, 22, 154, 158), 0.25); /* Fainter border for the main viewport */
+    color: var(--text-primary-hud);
+    font-family: var(--font-primary, 'TheGoodMonolith', monospace);
+}
+
+.hud-top-container,
+.hud-bottom-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+    box-sizing: border-box;
+    height: 50px; /* Adjust as needed */
+    flex-shrink: 0;
+    pointer-events: auto; /* Allow interaction with elements in top/bottom bars */
+}
+.hud-bottom-container {
+    align-items: flex-end; /* If content doesn't fill height */
+}
+
+.hud-middle-container {
+    width: 100%;
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    overflow: hidden;
+    padding: 10px 0; /* Vertical padding between top/bottom and middle panels */
+    gap: 10px; /* Gap between left, center, and right panels */
+}
+
+.hud-left-panel,
+.hud-right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Spacing between panels within these regions */
+    width: 320px; /* Adjust as needed */
+    pointer-events: auto;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px;
+    background-color: var(--panel-bg-hud);
+    border: 1px solid var(--panel-border-hud);
+    border-radius: 3px;
+}
+
+/* Custom scrollbar for HUD panels */
+.hud-left-panel::-webkit-scrollbar,
+.hud-right-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.hud-left-panel::-webkit-scrollbar-track,
+.hud-right-panel::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}
+.hud-left-panel::-webkit-scrollbar-thumb,
+.hud-right-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.5);
+  border-radius: 3px;
+}
+.hud-left-panel::-webkit-scrollbar-thumb:hover,
+.hud-right-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.8);
+}
+
+.hud-center-area {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative; /* For positioning elements like scanner frame or reticle */
+    pointer-events: none; /* Pass clicks through unless specific elements like reticle are interactive */
+}
+
+.hud-reticle {
+    width: 60px;
+    height: 60px;
+    border: 1px solid rgba(var(--accent-primary-rgb, 22, 154, 158), 0.35);
+    border-radius: 50%;
+    position: absolute; /* Positioned within hud-center-area */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    opacity: 0.6;
+    pointer-events: none; /* Reticle itself is not interactive */
+}
+.hud-reticle::before, .hud-reticle::after {
+    content: '';
+    position: absolute;
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.45);
+}
+.hud-reticle::before { /* Horizontal line */
+    width: 90%; height: 1px; top: 50%; left: 5%; transform: translateY(-50%);
+}
+.hud-reticle::after { /* Vertical line */
+    height: 90%; width: 1px; left: 50%; top: 5%; transform: translateX(-50%);
+}
+.hud-reticle .tick {
+    position: absolute;
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.35);
+}
+.hud-reticle .tick-top { width: 1px; height: 8px; top: 5%; left: 50%; transform: translateX(-50%); }
+.hud-reticle .tick-bottom { width: 1px; height: 8px; bottom: 5%; left: 50%; transform: translateX(-50%); }
+.hud-reticle .tick-left { height: 1px; width: 8px; left: 5%; top: 50%; transform: translateY(-50%); }
+.hud-reticle .tick-right { height: 1px; width: 8px; right: 5%; top: 50%; transform: translateY(-50%); }
+
+
+/* --- Styling for MOVED elements within the HUD --- */
+
+.helmet-hud .data-panel,
+.helmet-hud .control-panel,
+.helmet-hud .terminal-panel,
+.helmet-hud .spectrum-analyzer,
+.helmet-hud .header { 
+    position: relative !important; 
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important; 
+    height: auto !important; 
+    margin: 0 !important; 
+    background: transparent !important; 
+    border: none !important; 
+    padding: 10px !important; 
+    box-shadow: none !important; 
+    pointer-events: auto; 
+    box-sizing: border-box;
+    display: flex; 
+    flex-direction: column;
+    gap: 8px; 
+}
+
+.hud-top-container .header {
+    width: 100% !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 !important; 
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+.hud-top-container .header .logo,
+.hud-top-container .header .timestamp,
+.hud-top-container .scanner-id,
+.hud-top-container .scanner-id-right {
+    font-size: 0.9em; 
+}
+
+.hud-top-container .scanner-id {
+    font-size: 0.7em; /* Override the 0.9em for more subtlety */
+    letter-spacing: 1px;
+    color: var(--text-secondary-hud);
+    order: -1; /* Attempt to place before logo if direct child of flex container */
+    margin-right: auto; /* Push other elements away if in a flex row */
+}
+
+.hud-top-container .scanner-id-right {
+    font-size: 0.7em; /* Override the 0.9em */
+    letter-spacing: 1px;
+    color: var(--text-secondary-hud);
+    order: 3; /* Attempt to place after timestamp if direct child of flex container */
+    margin-left: auto; /* Push other elements away */
+}
+
+.helmet-hud .panel-title {
+    font-size: 1em; 
+    color: var(--text-primary-hud);
+    padding-bottom: 5px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--panel-border-hud);
+    text-align: left;
+}
+
+.helmet-hud .control-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85em;
+}
+.helmet-hud label {
+    color: var(--text-secondary-hud);
+}
+.helmet-hud input[type="range"] {
+    flex-grow: 1;
+    margin: 0 10px;
+}
+.helmet-hud .value-display {
+    min-width: 30px;
+    text-align: right;
+    color: var(--text-primary-hud);
+}
+
+.helmet-hud button {
+    background-color: var(--button-bg, rgba(22, 154, 158, 0.3));
+    border: 1px solid var(--panel-border-hud);
+    color: var(--text-primary-hud);
+    padding: 6px 10px;
+    font-size: 0.85em;
+    border-radius: 2px;
+}
+.helmet-hud button:hover {
+    background-color: var(--button-hover-bg, rgba(22, 154, 158, 0.5));
+}
+
+.hud-bottom-container .terminal-panel {
+    height: 150px; 
+    padding: 5px !important; 
+    background-color: rgba(0,0,0,0.3) !important; 
+}
+.helmet-hud .terminal-header {
+    font-size: 0.8em;
+    padding: 3px 5px;
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.1);
+}
+.helmet-hud #terminal-content {
+    font-size: 0.8em;
+    height: calc(100% - 30px); 
+    padding: 5px;
+    overflow-y: auto;
+    color: var(--text-primary-hud);
+}
+.helmet-hud #terminal-content::-webkit-scrollbar { width: 5px; }
+.helmet-hud #terminal-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+.helmet-hud #terminal-content::-webkit-scrollbar-thumb { background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.4); }
+
+
+.helmet-hud .scanner-frame {
+    position: absolute;
+    width: 70%; 
+    height: 70%; 
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 0.15; /* Make the frame very subtle */
+    /* display: none; */ /* Option to hide it completely */
+}
+
+.helmet-hud .scanner-frame .scanner-lines,
+.helmet-hud .scanner-frame .corners > div {
+    border-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.3); /* Make lines even fainter */
+}
+
+.helmet-hud .scanner-frame .scanner-id,
+.helmet-hud .scanner-frame .scanner-id-right {
+    display: none; /* Hide original positions as they are moved */
+}
+
+.helmet-hud .data-panel .data-item {
+    font-size: 0.85em;
+    display: flex;
+    justify-content: space-between;
+}
+.helmet-hud .data-panel .data-item span:first-child {
+    color: var(--text-secondary-hud);
+}
+.helmet-hud .data-panel .data-item span:last-child {
+    color: var(--text-primary-hud);
+    font-weight: bold;
+}
+
+.helmet-hud #spectrum-canvas {
+    width: 100%;
+    height: 100px; 
+}
+
+.helmet-hud #notification {
+    position: absolute; 
+    bottom: 10px; 
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1001; 
+    pointer-events: auto;
+}
+
+/* Ensure the original interface-container is hidden or removed if empty, */
+/* or if HUD is enabled and it's just a duplicate */
+.interface-container:empty,
+body.hud-enabled .interface-container:not(.helmet-hud .interface-container) { /* Selects original if not part of HUD */
+    display: none !important; 
+}
+
+
+.helmet-hud .drag-handle {
+    /* For now, let's assume drag handles might not be needed or styled differently in HUD */
+    /* If they are still used, their styling might need adjustment */
+    cursor: default; /* Reset cursor if dragging is handled differently or not used */
+}
+
+
+/* Ensure :root variables are available or defined here if not in style.css */
+:root {
+    --accent-primary-rgb: 22, 154, 158;
+    --text-secondary-rgb: 90, 159, 250;
+    --panel-border-hud: rgba(var(--accent-primary-rgb), 0.4);
+    --panel-bg-hud: rgba(10, 20, 30, 0.6); 
+    --text-primary-hud: #f3ede9;
+    --text-secondary-hud: rgba(var(--text-secondary-rgb), 0.8);
+}
+
+body.hud-enabled {
+    overflow: hidden; /* Prevent scrollbars on the body when HUD is active */
+}
+
+.helmet-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    padding: 15px; /* Slightly reduced padding */
+    box-sizing: border-box;
+    /* Subtle overall visor effect - a soft inner glow or border */
+    /* box-shadow: inset 0 0 25px 5px rgba(var(--accent-primary-rgb), 0.15); */
+    border: 1px solid rgba(var(--accent-primary-rgb), 0.2);
+    color: var(--text-primary-hud, #f3ede9); /* Default text color for HUD */
+}
+
+.hud-top-container,
+.hud-bottom-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between; /* For elements like header items or status */
+    align-items: center;
+    padding: 0 10px; /* Padding for top/bottom bars */
+    box-sizing: border-box;
+    height: 50px; /* Define a height for top/bottom bars */
+    flex-shrink: 0; /* Prevent shrinking */
+    pointer-events: auto; /* Allow interaction with top/bottom bar elements */
+}
+
+.hud-bottom-container {
+    align-items: flex-end; /* Align items to bottom if container is taller */
+}
+
+.hud-middle-container {
+    width: 100%;
+    flex-grow: 1; /* Takes up remaining vertical space */
+    display: flex;
+    justify-content: space-between;
+    overflow: hidden; /* Prevent content from spilling out */
+    padding: 10px 0; /* Vertical padding for middle section */
+}
+
+.hud-left-panel,
+.hud-right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 300px; /* Default width, can be adjusted */
+    pointer-events: auto;
+    max-height: 100%; 
+    overflow-y: auto; /* Scroll if content overflows */
+    padding: 10px;
+    background-color: var(--panel-bg-hud, rgba(10, 20, 30, 0.5));
+    border: 1px solid var(--panel-border-hud, rgba(22, 154, 158, 0.3));
+    border-radius: 3px;
+}
+
+/* Custom scrollbar for HUD panels */
+.hud-left-panel::-webkit-scrollbar,
+.hud-right-panel::-webkit-scrollbar {
+  width: 5px;
+}
+.hud-left-panel::-webkit-scrollbar-track,
+.hud-right-panel::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px;
+}
+.hud-left-panel::-webkit-scrollbar-thumb,
+.hud-right-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.4);
+  border-radius: 3px;
+}
+.hud-left-panel::-webkit-scrollbar-thumb:hover,
+.hud-right-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.7);
+}
+
+
+.hud-center-area {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative; /* For positioning elements like scanner frame within it */
+}
+
+/* Reticle - more refined */
+.hud-reticle {
+    width: 80px;
+    height: 80px;
+    border: 1px solid rgba(var(--accent-primary-rgb, 22, 154, 158), 0.3);
+    border-radius: 50%;
+    position: relative;
+    opacity: 0.7;
+}
+.hud-reticle::before, .hud-reticle::after { /* Main crosshairs */
+    content: '';
+    position: absolute;
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.4);
+}
+.hud-reticle::before { /* Horizontal line */
+    width: 100%; height: 1px; top: 50%; left: 0; transform: translateY(-50%);
+}
+.hud-reticle::after { /* Vertical line */
+    height: 100%; width: 1px; left: 50%; top: 0; transform: translateX(-50%);
+}
+/* Smaller tick marks for reticle */
+.hud-reticle span {
+    display: block;
+    position: absolute;
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.3);
+}
+.hud-reticle .tick-top { width: 1px; height: 10px; top: 0; left: 50%; transform: translateX(-50%); }
+.hud-reticle .tick-bottom { width: 1px; height: 10px; bottom: 0; left: 50%; transform: translateX(-50%); }
+.hud-reticle .tick-left { height: 1px; width: 10px; left: 0; top: 50%; transform: translateY(-50%); }
+.hud-reticle .tick-right { height: 1px; width: 10px; right: 0; top: 50%; transform: translateY(-50%); }
+
+/* Ensure existing panel styles are reset or adapted */
+.helmet-hud .data-panel,
+.helmet-hud .control-panel,
+.helmet-hud .terminal-panel,
+.helmet-hud .spectrum-analyzer {
+    position: relative !important;
+    top: auto !important; left: auto !important; right: auto !important; bottom: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+    background: transparent !important; /* Panels get background from their containers or specific overrides */
+    border: none !important; /* Remove original borders */
+    box-shadow: none !important; /* Remove original shadows */
+    padding: 10px; /* Uniform padding for content within panels */
+    box-sizing: border-box;
+}
+
+/* Header specific adjustments */
+.helmet-hud .header {
+    width: 100%;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--text-secondary-hud, rgba(90, 159, 250, 0.8));
+}
+.helmet-hud .header .header-item {
+    font-size: 0.8rem; /* Slightly smaller for HUD */
+    color: inherit;
+}
+.helmet-hud .header .header-item:nth-child(2) { /* coRE version */
+    text-align: center;
+    flex-grow: 1;
+}
+
+
+/* Terminal Panel specific adjustments */
+.helmet-hud .terminal-panel {
+    height: 150px; /* Example fixed height for terminal in HUD */
+    background: var(--panel-bg-hud, rgba(10, 20, 30, 0.7)) !important; /* Keep terminal background for readability */
+    border: 1px solid var(--panel-border-hud, rgba(22, 154, 158, 0.3)) !important;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column; /* Ensure header and content stack */
+}
+.helmet-hud .terminal-panel .terminal-header {
+    padding: 5px 8px;
+    font-size: 0.75rem;
+    background-color: rgba(0,0,0,0.2);
+}
+.helmet-hud .terminal-panel .terminal-content {
+    flex-grow: 1;
+    padding: 8px;
+    font-size: 0.7rem;
+    line-height: 1.3;
+    overflow-y: auto; /* Scroll for terminal content */
+}
+.helmet-hud .terminal-panel .terminal-content::-webkit-scrollbar { width: 4px; }
+.helmet-hud .terminal-panel .terminal-content::-webkit-scrollbar-thumb { background-color: rgba(var(--accent-primary-rgb), 0.4); }
+
+
+/* Spectrum Analyzer specific adjustments */
+.helmet-hud .spectrum-analyzer {
+    background: var(--panel-bg-hud, rgba(10, 20, 30, 0.7)) !important;
+    border: 1px solid var(--panel-border-hud, rgba(22, 154, 158, 0.3)) !important;
+    border-radius: 3px;
+}
+.helmet-hud .spectrum-analyzer .spectrum-header {
+    padding: 5px 8px;
+    font-size: 0.75rem;
+}
+
+/* Define regions within the HUD */
+.hud-top-container,
+.hud-bottom-container,
+.hud-middle-container {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start; /* Align items to the start of the cross axis */
+}
+
+.hud-middle-container {
+    flex-grow: 1; /* Takes up remaining space */
+    align-items: stretch; /* Stretch children to fill height */
+}
+
+.hud-left-panel,
+.hud-right-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 15px; /* Space between panels in these regions */
+    width: 320px; /* Example width, adjust as needed */
+    pointer-events: auto; /* Panels themselves should be interactive */
+    max-height: calc(100vh - 100px); /* Example max height, considering top/bottom padding */
+    overflow-y: auto; /* Allow scrolling if content exceeds height */
+    padding: 10px;
+}
+
+.hud-center-area {
+    flex-grow: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* For a central reticle or other elements */
+}
+
+/* Styling for repositioned existing panels */
+/* We will move existing panel classes here and adapt them */
+
+/* Example: If we move .control-panel to the left */
+/* .hud-left-panel .control-panel {
+    position: relative !important; 
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important; 
+    margin: 0;
+} */
+
+/* Visor effects - very basic for now */
+.helmet-hud::before, .helmet-hud::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.2); /* Use RGB version of accent for opacity */
+    box-shadow: 0 0 15px rgba(var(--accent-primary-rgb, 22, 154, 158), 0.5);
+    border-radius: 50%;
+    z-index: -1; /* Behind HUD elements but in front of page content */
+}
+
+/* Simulating top/bottom curves of a visor */
+/* .helmet-hud::before {
+    top: -15%; 
+    width: 120%; 
+    height: 30%; 
+}
+
+.helmet-hud::after {
+    bottom: -15%;
+    width: 120%;
+    height: 30%;
+} */
+
+/* Reticle Example */
+.hud-reticle {
+    width: 100px;
+    height: 100px;
+    border: 1px solid rgba(var(--accent-primary-rgb, 22, 154, 158), 0.5);
+    border-radius: 50%;
+    position: relative;
+}
+
+.hud-reticle::before, .hud-reticle::after {
+    content: '';
+    position: absolute;
+    background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.5);
+}
+
+.hud-reticle::before {
+    width: 60%;
+    height: 1px;
+    top: 50%;
+    left: 20%;
+    transform: translateY(-50%);
+}
+
+.hud-reticle::after {
+    height: 60%;
+    width: 1px;
+    left: 50%;
+    top: 20%;
+    transform: translateX(-50%);
+}
+
+/* Custom scrollbar for HUD panels (optional) */
+.hud-left-panel::-webkit-scrollbar,
+.hud-right-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.hud-left-panel::-webkit-scrollbar-track,
+.hud-right-panel::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.2);
+  border-radius: 3px;
+}
+
+.hud-left-panel::-webkit-scrollbar-thumb,
+.hud-right-panel::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.5);
+  border-radius: 3px;
+}
+
+.hud-left-panel::-webkit-scrollbar-thumb:hover,
+.hud-right-panel::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--accent-primary-rgb, 22, 154, 158), 0.8);
+}
+
+
+/* Ensure existing panel styles are reset or adapted */
+.helmet-hud .data-panel,
+.helmet-hud .control-panel,
+.helmet-hud .terminal-panel,
+.helmet-hud .spectrum-analyzer {
+    position: relative !important; /* Override absolute positioning */
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    bottom: auto !important;
+    width: 100% !important; /* Make them fit their new containers */
+    margin: 0 !important; /* Reset margins */
+    background: transparent; /* Start with transparent, can add panel bg later if needed */
+    border: none; /* Remove original borders, HUD will frame them */
+    /* backdrop-filter: none; */ /* Remove original backdrop if HUD has its own */
+}
+
+/* Header specific adjustments */
+.helmet-hud .header {
+    width: 100%;
+    padding: 0;
+    margin-bottom: 10px; /* Space below header */
+    pointer-events: auto;
+}
+
+/* Terminal specific adjustments */
+.helmet-hud .terminal-panel {
+    height: 200px; /* Example fixed height for terminal in HUD */
+    background: var(--panel-bg); /* Keep terminal background for readability */
+    border: 1px solid var(--panel-border);
+}
+
+/* Spectrum Analyzer specific adjustments */
+.helmet-hud .spectrum-analyzer {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+}
+
+
+/* Define --accent-primary-rgb if not already in :root of style.css */
+:root {
+    /* Assuming --accent-primary: #169a9e; */
+    --accent-primary-rgb: 22, 154, 158;
+    /* Add other RGB versions of colors if needed for opacity */
+    --text-secondary-rgb: 90, 159, 250;
+}

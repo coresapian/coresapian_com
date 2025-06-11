@@ -46,104 +46,109 @@
   </div>
 </div>
 
-<!-- Right Data Panel -->
-<div class="data-panel" style="position: absolute; top: 20px; right: 20px;">
-  <div class="data-panel-title">ENTITY SIGNATURE</div>
-  <div class="data-readouts">
-    <div class="data-row">
-      <span class="data-label">PEAK FREQUENCY:</span>
-      <span class="data-value" id="peak-value">--- HZ</span>
-    </div>
-    <div class="data-row">
-      <span class="data-label">AMPLITUDE:</span>
-      <span class="data-value" id="amplitude-value">---</span>
-    </div>
-    <div class="data-row">
-      <span class="data-label">PHASE SHIFT:</span>
-      <span class="data-value" id="phase-value">---</span>
-    </div>
-  </div>
-</div>
+<!-- Helmet HUD Container -->
+<div class="helmet-hud">
 
-<!-- Control Panel -->
-<div class="control-panel" style="position: absolute; top: 20px; left: 20px;">
-  <div class="panel-header">
-    <span class="data-panel-title">SYSTEM CONTROLS</span>
-    <span class="drag-handle" id="control-panel-handle">⋮⋮</span>
-  </div>
-
-  <div class="control-group">
-    <div class="control-row">
-      <span class="control-label">AUDIO REACTIVITY</span>
-      <span class="control-value" id="reactivity-value">1.0</span>
-    </div>
-    <div class="slider-container">
-      <input type="range" min="0" max="2" value="1" step="0.1" class="slider" id="reactivity-slider">
-    </div>
-  </div>
-
-  <div class="control-group">
-    <div class="control-row">
-      <span class="control-label">GLITCH INTENSITY</span>
-      <span class="control-value" id="glitch-value">0.0</span>
-    </div>
-    <div class="slider-container">
-      <input type="range" min="0" max="1" value="0" step="0.01" class="slider" id="glitch-slider">
-    </div>
-  </div>
-
-  <div class="buttons">
-    <button class="btn" id="reset-btn">RESET</button>
-    <button class="btn" id="analyze-btn">ANALYZE</button>
-  </div>
-</div>
-
-<!-- Terminal Panel -->
-<div class="terminal-panel">
-  <div class="terminal-header">
-    <span>coRE 0.1.5</span>
-    <span id="terminal-status">200 OK</span>
-  </div>
-  <div class="terminal-content" id="terminal-content">
-    <div class="terminal-line">coRE v0.1.5 INITIALIZED. SECURE CONNECTION ESTABLISHED.</div>
-    <div class="terminal-line typing"></div>
-  </div>
-</div>
-
-<!-- Spectrum Analyzer Panel -->
-<div class="spectrum-analyzer">
-  <div class="spectrum-header">
-    <span>SPECTRUM ANALYZER</span>
-    <span class="drag-handle" id="spectrum-handle">⋮⋮</span>
-  </div>
-  <div class="spectrum-content">
-    <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
-  </div>
-  <div class="audio-controls">
-    <div class="demo-tracks">
-      <span class="demo-tracks-label">PREVIOUS TRANSMISSIONS:</span>
-      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Merkaba.mp3">203.443.3</button>
-      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Dhamika.mp3">203.443.2</button>
-      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Vacant.mp3">203.443.1</button>
-      <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/lxstnght-back_1.mp3">203.443.0</button>
-    </div>
-
-    <input type="file" id="audio-file-input" class="audio-file-input" accept="audio/*">
-    <button class="audio-file-btn" id="file-btn">DECRYPT TRANSMISSION</button>
-    <div class="audio-file-label" id="file-label">NO DATA DETECTED</div>
-
-    <audio id="audio-player" class="audio-player" crossorigin="anonymous"></audio>
-
-    <div class="controls-row">
-      <div class="audio-sensitivity" style="flex: 1;">
-        <div class="audio-sensitivity-label">
-          <span>SENSITIVITY</span>
-          <span class="audio-sensitivity-value" id="sensitivity-value">5.0</span>
+  <!-- Top-Left Panel: System Controls -->
+  <div class="hud-panel hud-top-left">
+    <div class="control-panel">
+      <div class="panel-header">
+        <span class="data-panel-title">SYSTEM CONTROLS</span>
+      </div>
+      <div class="control-group">
+        <div class="control-row">
+          <span class="control-label">AUDIO REACTIVITY</span>
+          <span class="control-value" id="reactivity-value">1.0</span>
         </div>
-        <input type="range" min="1" max="10" value="5" step="0.1" class="slider" id="sensitivity-slider">
+        <div class="slider-container">
+          <input type="range" min="0" max="2" value="1" step="0.1" class="slider" id="reactivity-slider">
+        </div>
+      </div>
+      <div class="control-group">
+        <div class="control-row">
+          <span class="control-label">GLITCH INTENSITY</span>
+          <span class="control-value" id="glitch-value">0.0</span>
+        </div>
+        <div class="slider-container">
+          <input type="range" min="0" max="1" value="0" step="0.01" class="slider" id="glitch-slider">
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn" id="reset-btn">RESET</button>
+        <button class="btn" id="analyze-btn">ANALYZE</button>
       </div>
     </div>
   </div>
+
+  <!-- Top-Right Panel: Entity Signature -->
+  <div class="hud-panel hud-top-right">
+    <div class="data-panel">
+      <div class="data-panel-title">ENTITY SIGNATURE</div>
+      <div class="data-readouts">
+        <div class="data-row">
+          <span class="data-label">PEAK FREQUENCY:</span>
+          <span class="data-value" id="peak-value">--- HZ</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">AMPLITUDE:</span>
+          <span class="data-value" id="amplitude-value">---</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">PHASE SHIFT:</span>
+          <span class="data-value" id="phase-value">---</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom-Left Panel: Terminal -->
+  <div class="hud-panel hud-bottom-left">
+    <div class="terminal-panel">
+      <div class="terminal-header">
+        <span>coRE 0.1.5</span>
+        <span id="terminal-status">200 OK</span>
+      </div>
+      <div class="terminal-content" id="terminal-content">
+        <div class="terminal-line">coRE v0.1.5 INITIALIZED. SECURE CONNECTION ESTABLISHED.</div>
+        <div class="terminal-line typing"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom-Right Panel: Spectrum Analyzer -->
+  <div class="hud-panel hud-bottom-right">
+    <div class="spectrum-analyzer">
+      <div class="spectrum-header">
+        <span>SPECTRUM ANALYZER</span>
+      </div>
+      <div class="spectrum-content">
+        <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
+      </div>
+      <div class="audio-controls">
+        <div class="demo-tracks">
+          <span class="demo-tracks-label">PREVIOUS TRANSMISSIONS:</span>
+          <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Merkaba.mp3">203.443.3</button>
+          <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Dhamika.mp3">203.443.2</button>
+          <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/Vacant.mp3">203.443.1</button>
+          <button class="demo-track-btn" data-url="https://assets.codepen.io/7558/lxstnght-back_1.mp3">203.443.0</button>
+        </div>
+        <input type="file" id="audio-file-input" class="audio-file-input" accept="audio/*">
+        <button class="audio-file-btn" id="file-btn">DECRYPT TRANSMISSION</button>
+        <div class="audio-file-label" id="file-label">NO DATA DETECTED</div>
+        <audio id="audio-player" class="audio-player" crossorigin="anonymous"></audio>
+        <div class="controls-row">
+          <div class="audio-sensitivity" style="flex: 1;">
+            <div class="audio-sensitivity-label">
+              <span>SENSITIVITY</span>
+              <span class="audio-sensitivity-value" id="sensitivity-value">5.0</span>
+            </div>
+            <input type="range" min="1" max="10" value="5" step="0.1" class="slider" id="sensitivity-slider">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script src="script.js" type="module" defer></script>

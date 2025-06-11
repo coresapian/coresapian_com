@@ -674,3 +674,55 @@ textarea {
   background: var(--accent-primary);
   color: #000;
 }
+
+/* --- HUD Styles --- */
+.helmet-hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    pointer-events: none; /* Allow clicks to pass through */
+    z-index: 1000;
+    /* Vignette effect to simulate a helmet view */
+    box-shadow: inset 0 0 150px 20px rgba(0,0,0,0.9);
+}
+
+/* Make panels within the HUD clickable */
+.helmet-hud .hud-panel {
+    pointer-events: auto;
+    position: absolute;
+    width: 400px; 
+    max-width: 30vw;
+}
+
+.hud-top-left {
+    top: 20px;
+    left: 20px;
+}
+
+.hud-top-right {
+    top: 20px;
+    right: 20px;
+}
+
+.hud-bottom-left {
+    bottom: 20px;
+    left: 20px;
+}
+
+.hud-bottom-right {
+    bottom: 20px;
+    right: 20px;
+}
+
+/* Override old panel styles to fit the HUD */
+.control-panel, .data-panel, .terminal-panel, .spectrum-analyzer {
+    position: static !important; /* Remove absolute positioning */
+    width: 100%; /* Fill their container */
+}
+
+/* Remove drag handle as it's no longer needed */
+.drag-handle {
+    display: none;
+}

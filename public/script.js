@@ -1,7 +1,7 @@
 // --- START OF FILE script.js ---
 
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
-import { OrbitControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/OrbitControls.js?target=es2020";
+import { PointerLockControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/PointerLockControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
 // --- NEW: Import Post-processing modules ---
 import { EffectComposer } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020';
@@ -34,12 +34,23 @@ let isAudioInitialized = false;
 
 // UI & Interaction
 let lastUserActionTime = Date.now();
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+let moveUp = false;
+let moveDown = false;
+const cameraVelocity = new THREE.Vector3();
+const cameraDirection = new THREE.Vector3(); // Re-usable vector for camera direction
+const movementSpeed = 80.0; // Increased movement speed
 let currentCrypticMessageIndex = 0;
 let crypticMessageTimeout;
 
 // Asset Cache
-let cachedSingularityModel = null;
-const singularityModelPath = 'dyson_rings.glb';
+let cachedBlackHoleModel = null;
+let cachedDysonRingsModel = null;
+const blackHoleModelPath = 'blackhole.glb';
+const dysonRingsModelPath = 'dyson_rings.glb';
 
 // --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -107,10 +118,51 @@ function animate() {
             webglParticles.rotation.y = elapsedTime * 0.05;
         }
 
-        // Update animations and controls
+        // Update animations
         if (anomalyMixer) anomalyMixer.update(delta);
-        if (controls) controls.update();
-        
+        // if (blackHoleMixer) blackHoleMixer.update(delta); // If you added animations to blackhole
+
+        // Update FPS controls movement
+        if (controls.isLocked === true) {
+            // Reset velocity
+            cameraVelocity.x = 0;
+            cameraVelocity.y = 0;
+            cameraVelocity.z = 0;
+
+            // Calculate movement direction based on input states
+            if (moveForward) {
+                cameraVelocity.z = -1.0;
+            }
+            if (moveBackward) {
+                cameraVelocity.z = 1.0;
+            }
+            if (moveLeft) {
+                cameraVelocity.x = -1.0;
+            }
+            if (moveRight) {
+                cameraVelocity.x = 1.0;
+            }
+            // Vertical movement (fly up/down)
+            if (moveUp) {
+                cameraVelocity.y = 1.0;
+            }
+            if (moveDown) {
+                cameraVelocity.y = -1.0;
+            }
+
+            // Normalize if there's combined movement (diagonal), then apply speed and delta time
+            // This ensures consistent speed in all directions.
+            if (cameraVelocity.x !== 0 || cameraVelocity.z !== 0) {
+                // Horizontal movement (strafe/forward/backward) is relative to camera's direction
+                controls.moveRight(cameraVelocity.x * movementSpeed * delta);
+                controls.moveForward(cameraVelocity.z * movementSpeed * delta);
+            }
+            
+            // Vertical movement is absolute (along world Y axis for simplicity here)
+            // For more complex flight, you might want Y relative to camera pitch.
+            controls.getObject().position.y += (cameraVelocity.y * movementSpeed * delta);
+        }
+
         // --- NEW: Render scene via composer for post-processing effects
         if (composer) {
             composer.render();
@@ -140,9 +192,18 @@ function setupPreloader() {
     preloaderScene.add(directionalLight);
 
     const loader = new GLTFLoader();
-    loader.load(singularityModelPath, (gltf) => {
-        cachedSingularityModel = gltf; // Cache the loaded model
-        const model = gltf.scene;
+
+    Promise.all([
+        loader.loadAsync(blackHoleModelPath),
+        loader.loadAsync(dysonRingsModelPath)
+    ]).then(([blackHoleGltf, dysonRingsGltf]) => {
+        cachedBlackHoleModel = blackHoleGltf;
+        cachedDysonRingsModel = dysonRingsGltf;
+
+        // Use Dyson Rings for preloader visualization
+        const preloaderDisplayModelGltf = dysonRingsGltf;
+        const model = preloaderDisplayModelGltf.scene.clone(); // Clone for preloader
+
         const box = new THREE.Box3().setFromObject(model);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
@@ -152,13 +213,16 @@ function setupPreloader() {
         model.position.sub(center.multiplyScalar(scaleFactor));
         preloaderScene.add(model);
 
-        if (gltf.animations && gltf.animations.length) {
+        if (preloaderDisplayModelGltf.animations && preloaderDisplayModelGltf.animations.length) {
             preloaderMixer = new THREE.AnimationMixer(model);
-            gltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
+            preloaderDisplayModelGltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
         }
 
-        // The asset loader is now responsible for starting the main app.
-        startApp();
+        startApp(); // Call startApp after both models are loaded and cached
+    }).catch(error => {
+        console.error("Error loading models for preloader:", error);
+        addTerminalMessage("CRITICAL ERROR: FAILED TO LOAD CORE ASSETS.");
+        // Optionally, try to start with what's available or show a persistent error
     });
 }
 
@@ -177,13 +241,22 @@ function initMainScene() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     container.appendChild(renderer.domElement);
 
-    controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 3;
-    controls.maxDistance = 500;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.1;
+    controls = new PointerLockControls(camera, renderer.domElement);
+    // Add the PointerLockControls' object (which is the camera) to the scene
+    // scene.add(controls.getObject()); // This is not strictly necessary if camera is already in scene, but good practice for some controls.
+                                    // However, PointerLockControls moves the camera directly, not a separate object.
+
+    container.addEventListener('click', () => {
+        controls.lock();
+    });
+
+    controls.addEventListener('lock', () => {
+        console.log('Pointer locked');
+    });
+
+    controls.addEventListener('unlock', () => {
+        console.log('Pointer unlocked');
+    });
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
     scene.add(ambientLight);
@@ -191,25 +264,47 @@ function initMainScene() {
     dirLight.position.set(50, 150, 150);
     scene.add(dirLight);
 
-    if (cachedSingularityModel) {
-        anomalyObject = cachedSingularityModel.scene.clone();
-        const animations = cachedSingularityModel.animations;
+    // Instantiate Black Hole (Background)
+    if (cachedBlackHoleModel) {
+        const blackHoleInstance = cachedBlackHoleModel.scene.clone();
+        // Scale the black hole to be very large and position it far back
+        blackHoleInstance.scale.set(300, 300, 300); // Adjust scale as needed
+        blackHoleInstance.position.set(0, 50, -1200); // Adjust position (e.g. slightly up, far back)
+        // Optional: Rotate it for a better view if needed
+        // blackHoleInstance.rotation.x = Math.PI / 8;
+        scene.add(blackHoleInstance);
+
+        // If black hole has its own animations that should play (optional)
+        // if (cachedBlackHoleModel.animations && cachedBlackHoleModel.animations.length) {
+        //     const blackHoleMixer = new THREE.AnimationMixer(blackHoleInstance);
+        //     cachedBlackHoleModel.animations.forEach(clip => blackHoleMixer.clipAction(clip).play());
+        //     // Remember to update blackHoleMixer in the animate() loop if you create it
+        // }
+    } else {
+        console.warn("Cached black hole model not found!");
+    }
+
+    // Instantiate Dyson Rings (Foreground/Anomaly)
+    if (cachedDysonRingsModel) {
+        anomalyObject = cachedDysonRingsModel.scene.clone();
         
-        // --- REMOVED: No more shader injection or material modification ---
-        
+        // Apply existing scaling logic for the anomaly object
         const box = new THREE.Box3().setFromObject(anomalyObject);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const maxSize = Math.max(size.x, size.y, size.z);
-        const scaleFactor = 5 / maxSize;
+        const scaleFactor = 5 / maxSize; 
         anomalyObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        anomalyObject.position.sub(center.multiplyScalar(scaleFactor));
+        anomalyObject.position.sub(center.multiplyScalar(scaleFactor)); // Center it at origin
         scene.add(anomalyObject);
 
+        const animations = cachedDysonRingsModel.animations;
         if (animations && animations.length) {
             anomalyMixer = new THREE.AnimationMixer(anomalyObject);
             animations.forEach((clip) => anomalyMixer.clipAction(clip).play());
         }
+    } else {
+        console.warn("Cached Dyson rings model not found!");
     }
     
     window.addEventListener('resize', onWindowResize);
@@ -244,7 +339,7 @@ function initUI() {
     // Draggable panels are disabled for the new static HUD layout.
 
     setupEventListeners();
-    initHudParallax(); // Add parallax effect to the HUD
+    // initHudParallax(); // Parallax effect disabled as it may conflict with FPS controls.
     typeTerminalMessages();
     applyScrambleEffect(document.querySelector('.data-panel[style*="right: 20px"] .data-label'), "PEAK FREQUENCY:", "VOID_RESONANCE");
 }
@@ -301,10 +396,41 @@ function setupEventListeners() {
     document.addEventListener("click", () => {
         lastUserActionTime = Date.now();
         ensureAudioContextStarted();
-        controls.autoRotate = false; // Stop auto-rotation on user interaction
+        // OrbitControls autoRotate no longer exists, click is now handled by PointerLockControls listener for locking.
     });
-    document.addEventListener("mousemove", () => { lastUserActionTime = Date.now(); });
-    document.addEventListener("keydown", () => { lastUserActionTime = Date.now(); });
+    document.addEventListener("mousemove", () => { 
+        lastUserActionTime = Date.now(); 
+        // Mouse movement for aiming is handled by PointerLockControls internally when locked.
+    });
+
+    // Keydown/keyup for FPS movement
+    document.addEventListener("keydown", (event) => {
+        lastUserActionTime = Date.now();
+        switch (event.code) {
+            case 'KeyW':
+            case 'ArrowUp': moveForward = true; break;
+            case 'KeyA':
+            case 'ArrowLeft': moveLeft = true; break;
+            case 'KeyS':
+            case 'ArrowDown': moveBackward = true; break;
+            case 'KeyD':
+            case 'ArrowRight': moveRight = true; break;
+            case 'Space': moveUp = true; break;
+            case 'ShiftLeft':
+            case 'KeyC': moveDown = true; break; // Using C or Left Shift for down
+        }
+    });
+    document.addEventListener("keyup", (event) => {
+        switch (event.code) {
+            case 'KeyW': moveForward = false; break;
+            case 'KeyA': moveLeft = false; break;
+            case 'KeyS': moveBackward = false; break;
+            case 'KeyD': moveRight = false; break;
+            case 'Space': moveUp = false; break;
+            case 'ShiftLeft':
+            case 'KeyC': moveDown = false; break;
+        }
+    });
 }
 
 function resetControls() {
@@ -596,8 +722,11 @@ function typeTerminalMessages() {
     const terminalContent = document.getElementById("terminal-content");
     const typingLine = terminalContent.querySelector(".typing");
     const messageQueue = [
-        "SYSTEM INITIALIZED. AUDIO ANALYSIS READY.",
-        "SCANNING FOR ANOMALIES IN FREQUENCY SPECTRUM."
+        "URGENT: Unidentified signal detected.",
+        "Source designated ANOMALY-734.",
+        "Signal is unstable. High-energy particle flux detected.",
+        "Recommendation: Isolate signal frequency using Spectrum Analyzer.",
+        "PILOT ADVISORY: Flight controls active. Use mouse to aim, WASD to maneuver, SPACE to ascend, SHIFT/C to descend. Click to engage."
     ];
     function typeNextMessage() {
         if (messageQueue.length === 0) return;

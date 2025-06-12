@@ -15,16 +15,11 @@ import { WaterRefractionShader } from 'https://esm.sh/three@0.175.0/examples/jsm
 // --- Global State ---
 // Core Three.js
 let scene, camera, renderer, clock, controls;
-let isPreloaderActive = true;
 // --- NEW: Post-processing ---
 let composer, bloomPass, glitchPass;
 // --- NEW: Refractive UI ---
 let uiRefractors = [];
 let dudvMap;
-
-
-// Preloader
-let preloaderScene, preloaderCamera, preloaderRenderer, preloaderMixer;
 
 // Main Scene Objects
 let anomalyObject, anomalyMixer;
@@ -70,37 +65,37 @@ document.addEventListener("DOMContentLoaded", () => {
 function init() {
     clock = new THREE.Clock();
     initLoadingAnimation();
-    setupPreloader();
     animate(); 
 }
 
 function startApp() {
-    // Prevent startApp from running more than once
-    if (!isPreloaderActive) return;
-
     const loadingOverlay = document.getElementById("loading-overlay");
-    if (loadingOverlay) {
-        gsap.to(loadingOverlay, {
-            duration: 1.5,
-            autoAlpha: 0,
-            ease: "power1.inOut",
-            onComplete: () => {
-                document.body.classList.add('app-loaded');
-                if (preloaderRenderer) {
-                    preloaderRenderer.dispose();
-                }
-                isPreloaderActive = false;
-                console.log("Loading complete, main app starting.");
-                scheduleCrypticMessages();
-            }
-        });
-    }
+    const interfaceContainer = document.querySelector(".interface-container");
+    const helmetHud = document.querySelector(".helmet-hud");
+
+    // Initialize all 3D and UI components
     initMainScene();
-    initRefractiveUI(); // --- NEW: Initialize the refractive UI panels
+    initRefractiveUI(); 
     initUI();
     initAudio();
-    initWebGLParticles(); // --- NEW: Initialize WebGL particles instead of DOM
-    initPostProcessing(); // --- NEW: Initialize post-processing effects
+    initWebGLParticles(); 
+    initPostProcessing(); 
+
+    // Fade out loading screen and fade in the main UI
+    gsap.to(loadingOverlay, {
+        duration: 1.5,
+        autoAlpha: 0,
+        ease: "power1.inOut",
+        onComplete: () => {
+            scheduleCrypticMessages();
+        }
+    });
+    
+    gsap.to([interfaceContainer, helmetHud], {
+        duration: 1.5,
+        autoAlpha: 1, // Fades in opacity and sets visibility to 'visible'
+        ease: "power1.inOut"
+    });
 }
 
 function animate() {
@@ -108,143 +103,85 @@ function animate() {
     const delta = clock.getDelta();
     const elapsedTime = clock.getElapsedTime();
     
-    if (isPreloaderActive) {
-        if (preloaderRenderer && preloaderScene && preloaderCamera) {
-            if (preloaderMixer) preloaderMixer.update(delta);
-            preloaderRenderer.render(preloaderScene, preloaderCamera);
-        }
-    } else {
-        if (!renderer || !scene || !camera) return;
+    // Don't render anything until the main scene is initialized
+    if (!renderer || !scene || !camera) return;
 
-        // Update audio data once per frame
-        if (isAudioInitialized && audioAnalyser) {
-            audioAnalyser.getByteFrequencyData(frequencyData);
-            audioAnalyser.getByteTimeDomainData(timeDomainData);
-            updateAudioVisualizers();
-        }
+    // Update audio data once per frame
+    if (isAudioInitialized && audioAnalyser) {
+        audioAnalyser.getByteFrequencyData(frequencyData);
+        audioAnalyser.getByteTimeDomainData(timeDomainData);
+        updateAudioVisualizers();
+    }
 
-        // --- NEW: Animate WebGL particles
-        if (webglParticles) {
-            webglParticles.rotation.y = elapsedTime * 0.05;
+    // --- NEW: Animate WebGL particles
+    if (webglParticles) {
+        webglParticles.rotation.y = elapsedTime * 0.05;
+    }
+    
+    // --- NEW: Animate Refractor shaders ---
+    uiRefractors.forEach(refractor => {
+        if(refractor.material.uniforms.time) {
+            refractor.material.uniforms.time.value = elapsedTime;
+        }
+    });
+
+    // Update animations
+    if (anomalyMixer) anomalyMixer.update(delta);
+
+    // Update FPS controls movement
+    if (controls.isLocked === true) {
+        cameraVelocity.x = 0;
+        cameraVelocity.y = 0;
+        cameraVelocity.z = 0;
+
+        if (moveForward) cameraVelocity.z = -1.0;
+        if (moveBackward) cameraVelocity.z = 1.0;
+        if (moveLeft) cameraVelocity.x = -1.0;
+        if (moveRight) cameraVelocity.x = 1.0;
+        if (moveUp) cameraVelocity.y = 1.0;
+        if (moveDown) cameraVelocity.y = -1.0;
+
+        if (cameraVelocity.x !== 0 || cameraVelocity.z !== 0) {
+            controls.moveRight(cameraVelocity.x * movementSpeed * delta);
+            controls.moveForward(cameraVelocity.z * movementSpeed * delta);
         }
         
-        // --- NEW: Animate Refractor shaders ---
-        uiRefractors.forEach(refractor => {
-            refractor.material.uniforms.time.value = elapsedTime;
-        });
+        controls.getObject().position.y += (cameraVelocity.y * movementSpeed * delta);
+    }
 
-        // Update animations
-        if (anomalyMixer) anomalyMixer.update(delta);
-        // if (blackHoleMixer) blackHoleMixer.update(delta); // If you added animations to blackhole
-
-        // Update FPS controls movement
-        if (controls.isLocked === true) {
-            // Reset velocity
-            cameraVelocity.x = 0;
-            cameraVelocity.y = 0;
-            cameraVelocity.z = 0;
-
-            // Calculate movement direction based on input states
-            if (moveForward) {
-                cameraVelocity.z = -1.0;
-            }
-            if (moveBackward) {
-                cameraVelocity.z = 1.0;
-            }
-            if (moveLeft) {
-                cameraVelocity.x = -1.0;
-            }
-            if (moveRight) {
-                cameraVelocity.x = 1.0;
-            }
-            // Vertical movement (fly up/down)
-            if (moveUp) {
-                cameraVelocity.y = 1.0;
-            }
-            if (moveDown) {
-                cameraVelocity.y = -1.0;
-            }
-
-            // Normalize if there's combined movement (diagonal), then apply speed and delta time
-            // This ensures consistent speed in all directions.
-            if (cameraVelocity.x !== 0 || cameraVelocity.z !== 0) {
-                // Horizontal movement (strafe/forward/backward) is relative to camera's direction
-                controls.moveRight(cameraVelocity.x * movementSpeed * delta);
-                controls.moveForward(cameraVelocity.z * movementSpeed * delta);
-            }
-            
-            // Vertical movement is absolute (along world Y axis for simplicity here)
-            // For more complex flight, you might want Y relative to camera pitch.
-            controls.getObject().position.y += (cameraVelocity.y * movementSpeed * delta);
-        }
-
-        // --- NEW: Render scene via composer for post-processing effects
-        if (composer) {
-            composer.render();
-        } else {
-            renderer.render(scene, camera);
-        }
+    // Render scene via composer for post-processing effects
+    if (composer) {
+        composer.render();
+    } else if (renderer) {
+        renderer.render(scene, camera);
     }
 }
 
-// --- Preloader Setup ---
-function setupPreloader() {
-    const canvas = document.getElementById("preloader-canvas");
-    if (!canvas) return;
-
-    preloaderScene = new THREE.Scene();
-    preloaderCamera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 100);
-    preloaderCamera.position.z = 2.5;
-
-    preloaderRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-    preloaderRenderer.setPixelRatio(window.devicePixelRatio);
-    preloaderRenderer.setSize(canvas.width, canvas.height);
-
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
-    preloaderScene.add(ambientLight);
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-    directionalLight.position.set(2, 5, 5);
-    preloaderScene.add(directionalLight);
-
+// --- NEW: Asset Loading ---
+function loadAssetsAndStart() {
     const loader = new GLTFLoader();
-    const textureLoader = new THREE.TextureLoader(); // --- NEW: Texture loader for dudv map
+    const textureLoader = new THREE.TextureLoader();
 
     Promise.all([
         loader.loadAsync(blackHoleModelPath),
         loader.loadAsync(dysonRingsModelPath),
-        textureLoader.loadAsync(dudvMapPath) // --- NEW: Load dudv map
+        textureLoader.loadAsync(dudvMapPath)
     ]).then(([blackHoleGltf, dysonRingsGltf, dudvTexture]) => {
+        // Cache assets
         cachedBlackHoleModel = blackHoleGltf;
         cachedDysonRingsModel = dysonRingsGltf;
-        dudvMap = dudvTexture; // --- NEW: Cache the dudv map
+        dudvMap = dudvTexture;
         dudvMap.wrapS = dudvMap.wrapT = THREE.RepeatWrapping;
 
-
-        // Use Dyson Rings for preloader visualization
-        const preloaderDisplayModelGltf = dysonRingsGltf;
-        const model = preloaderDisplayModelGltf.scene.clone(); // Clone for preloader
-
-        const box = new THREE.Box3().setFromObject(model);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const maxSize = Math.max(size.x, size.y, size.z);
-        const scaleFactor = 1.5 / maxSize;
-        model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        model.position.sub(center.multiplyScalar(scaleFactor));
-        preloaderScene.add(model);
-
-        if (preloaderDisplayModelGltf.animations && preloaderDisplayModelGltf.animations.length) {
-            preloaderMixer = new THREE.AnimationMixer(model);
-            preloaderDisplayModelGltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
-        }
-
-        startApp(); // Call startApp after all models are loaded and cached
+        // Start the main application
+        startApp();
     }).catch(error => {
-        console.error("Error loading models for preloader:", error);
-        addTerminalMessage("CRITICAL ERROR: FAILED TO LOAD CORE ASSETS.");
-        // Optionally, try to start with what's available or show a persistent error
+        console.error("Error loading core assets:", error);
+        const messageContainer = document.getElementById("loading-message-text");
+        messageContainer.textContent = "CRITICAL ERROR: FAILED TO LOAD CORE ASSETS.";
     });
 }
+
 
 // --- Main Scene Setup ---
 function initMainScene() {
@@ -262,20 +199,9 @@ function initMainScene() {
     container.appendChild(renderer.domElement);
 
     controls = new PointerLockControls(camera, renderer.domElement);
-    // Add the PointerLockControls' object (which is the camera) to the scene
-    // scene.add(controls.getObject()); // This is not strictly necessary if camera is already in scene, but good practice for some controls.
-                                    // However, PointerLockControls moves the camera directly, not a separate object.
 
     container.addEventListener('click', () => {
         controls.lock();
-    });
-
-    controls.addEventListener('lock', () => {
-        console.log('Pointer locked');
-    });
-
-    controls.addEventListener('unlock', () => {
-        console.log('Pointer unlocked');
     });
 
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -287,19 +213,9 @@ function initMainScene() {
     // Instantiate Black Hole (Background)
     if (cachedBlackHoleModel) {
         const blackHoleInstance = cachedBlackHoleModel.scene.clone();
-        // Scale the black hole to be very large and position it far back
-        blackHoleInstance.scale.set(300, 300, 300); // Adjust scale as needed
-        blackHoleInstance.position.set(0, 50, -1200); // Adjust position (e.g. slightly up, far back)
-        // Optional: Rotate it for a better view if needed
-        // blackHoleInstance.rotation.x = Math.PI / 8;
+        blackHoleInstance.scale.set(300, 300, 300);
+        blackHoleInstance.position.set(0, 50, -1200);
         scene.add(blackHoleInstance);
-
-        // If black hole has its own animations that should play (optional)
-        // if (cachedBlackHoleModel.animations && cachedBlackHoleModel.animations.length) {
-        //     const blackHoleMixer = new THREE.AnimationMixer(blackHoleInstance);
-        //     cachedBlackHoleModel.animations.forEach(clip => blackHoleMixer.clipAction(clip).play());
-        //     // Remember to update blackHoleMixer in the animate() loop if you create it
-        // }
     } else {
         console.warn("Cached black hole model not found!");
     }
@@ -308,14 +224,13 @@ function initMainScene() {
     if (cachedDysonRingsModel) {
         anomalyObject = cachedDysonRingsModel.scene.clone();
         
-        // Apply existing scaling logic for the anomaly object
         const box = new THREE.Box3().setFromObject(anomalyObject);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
         const maxSize = Math.max(size.x, size.y, size.z);
         const scaleFactor = 5 / maxSize; 
         anomalyObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
-        anomalyObject.position.sub(center.multiplyScalar(scaleFactor)); // Center it at origin
+        anomalyObject.position.sub(center.multiplyScalar(scaleFactor));
         scene.add(anomalyObject);
 
         const animations = cachedDysonRingsModel.animations;
@@ -334,33 +249,35 @@ function initMainScene() {
 function initRefractiveUI() {
     const hudGroup = new THREE.Group();
 
+    // --- NEW: Corrected panel configurations ---
     const panelConfigs = [
-        { w: 6.5, h: 4.5, x: -10.5, y: 5.5 },   // Top-left
-        { w: 6.5, h: 3, x: 10.5, y: 6.2 },    // Top-right
-        { w: 8, h: 2.8, x: -9.5, y: -6.5 },   // Bottom-left
-        { w: 6.5, h: 5, x: 10.5, y: -5.8 }     // Bottom-right
+        { w: 8, h: 4, x: -14.5, y: 6.5 },   // Top-left: System Controls
+        { w: 8, h: 2.5, x: 14.5, y: 7 },  // Top-right: Entity Signature
+        { w: 9.5, h: 3, x: -13.8, y: -6.5 }, // Bottom-left: Terminal
+        { w: 8, h: 5.5, x: 14.5, y: -5.8 }    // Bottom-right: Spectrum Analyzer
     ];
 
     panelConfigs.forEach(config => {
         const refractorGeometry = new THREE.PlaneGeometry(config.w, config.h);
         const refractor = new Refractor(refractorGeometry, {
-            color: 0x777799, // A slight blue/grey tint
+            color: 0x777799,
             textureWidth: 1024,
             textureHeight: 1024,
             shader: WaterRefractionShader
         });
 
         refractor.position.set(config.x, config.y, 0);
-        refractor.material.uniforms.tDudv.value = dudvMap;
+        if (dudvMap) {
+            refractor.material.uniforms.tDudv.value = dudvMap;
+        }
         
         hudGroup.add(refractor);
-        uiRefractors.push(refractor); // Add to array for animation
+        uiRefractors.push(refractor);
     });
 
-    // Position the entire HUD group in front of the camera
     hudGroup.position.z = -15;
-    camera.add(hudGroup); // Attach HUD to camera
-    scene.add(camera); // Ensure camera (with its children) is in the scene
+    camera.add(hudGroup);
+    scene.add(camera);
 }
 
 
@@ -371,16 +288,16 @@ function initPostProcessing() {
     const renderPass = new RenderPass(scene, camera);
     composer.addPass(renderPass);
 
-    // UnrealBloomPass for the "glow" effect
+    // --- NEW: Tuned bloom effect ---
     bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-    bloomPass.threshold = 0.05; // Lower threshold to make more things glow
-    bloomPass.strength = 1.2; // The strength of the glow
+    bloomPass.threshold = 0.15; // Increased threshold to affect fewer, brighter areas
+    bloomPass.strength = 0.9;  // Reduced strength to prevent washing out the scene
     bloomPass.radius = 0.5;
     composer.addPass(bloomPass);
 
     // GlitchPass for the glitch effect
     glitchPass = new GlitchPass();
-    glitchPass.enabled = false; // Initially disabled
+    glitchPass.enabled = false;
     composer.addPass(glitchPass);
 }
 
@@ -389,11 +306,7 @@ function initPostProcessing() {
 function initUI() {
     updateTimestamp();
     setInterval(updateTimestamp, 1000);
-
-    // Draggable panels are disabled for the new static HUD layout.
-
     setupEventListeners();
-    // initHudParallax(); // Parallax effect disabled as it may conflict with FPS controls.
     typeTerminalMessages();
     applyScrambleEffect(document.querySelector('.data-panel[style*="right: 20px"] .data-label'), "PEAK FREQUENCY:", "VOID_RESONANCE");
 }
@@ -450,11 +363,9 @@ function setupEventListeners() {
     document.addEventListener("click", () => {
         lastUserActionTime = Date.now();
         ensureAudioContextStarted();
-        // OrbitControls autoRotate no longer exists, click is now handled by PointerLockControls listener for locking.
     });
     document.addEventListener("mousemove", () => { 
         lastUserActionTime = Date.now(); 
-        // Mouse movement for aiming is handled by PointerLockControls internally when locked.
     });
 
     // Keydown/keyup for FPS movement
@@ -471,7 +382,7 @@ function setupEventListeners() {
             case 'ArrowRight': moveRight = true; break;
             case 'Space': moveUp = true; break;
             case 'ShiftLeft':
-            case 'KeyC': moveDown = true; break; // Using C or Left Shift for down
+            case 'KeyC': moveDown = true; break;
         }
     });
     document.addEventListener("keyup", (event) => {
@@ -488,12 +399,10 @@ function setupEventListeners() {
 }
 
 function resetControls() {
-    // --- REMOVED: Anomaly control resets ---
     document.getElementById("reactivity-slider").value = 1.0;
     document.getElementById("glitch-slider").value = 0.0;
     document.getElementById("sensitivity-slider").value = 5.0;
 
-    // Trigger input events to update UI and variables
     document.getElementById("reactivity-slider").dispatchEvent(new Event('input'));
     document.getElementById("glitch-slider").dispatchEvent(new Event('input'));
     document.getElementById("sensitivity-slider").dispatchEvent(new Event('input'));
@@ -596,10 +505,6 @@ function initAudioFile(file) {
 
 function updateAudioVisualizers() {
     if (!frequencyData) return;
-    
-    // --- REMOVED: No longer need to calculate smoothed values for shaders ---
-    // The raw frequencyData is used directly in the visualizers below.
-
     drawSpectrumAnalyzer();
     updateAudioWave();
     updateUIReadouts();
@@ -615,7 +520,7 @@ function drawSpectrumAnalyzer() {
     const height = canvas.height;
 
     ctx.clearRect(0, 0, width, height);
-    const barCount = 64; // Match UI
+    const barCount = 64;
     const barWidth = width / barCount;
     for (let i = 0; i < barCount; i++) {
         const barHeight = (frequencyData[i * 2] / 255) * height * (audioSensitivity / 5) * audioReactivity;
@@ -719,14 +624,19 @@ function initLoadingAnimation() {
     const messageContainer = document.getElementById("loading-message-text");
 
     if (!messageContainer) {
-        console.error("Loading message container ('loading-message-text') not found. Skipping loading animation.");
-        startApp();
+        console.error("Loading message container not found.");
+        loadAssetsAndStart(); // Attempt to start anyway
         return;
     }
 
     messageContainer.innerHTML = "";
 
     function animateNextMessage() {
+        if (messageIndex >= messages.length) {
+            // --- NEW: Start loading assets after last message ---
+            loadAssetsAndStart();
+            return;
+        }
         const currentMessageText = messages[messageIndex];
         const messageLine = document.createElement("div");
         messageContainer.appendChild(messageLine);
@@ -737,18 +647,12 @@ function initLoadingAnimation() {
             ease: "none",
             onComplete: () => {
                 messageIndex++;
-                if (messageIndex < messages.length) {
-                    gsap.delayedCall(0.5, animateNextMessage);
-                }
+                gsap.delayedCall(0.5, animateNextMessage);
             }
         });
     }
 
-    if (messages.length > 0) {
-        animateNextMessage();
-    } else {
-        startApp();
-    }
+    animateNextMessage();
 }
 
 function scheduleCrypticMessages() {
@@ -812,49 +716,6 @@ function addTerminalMessage(message, isCommand = false) {
     newLine.textContent = message;
     terminalContent.insertBefore(newLine, typingLine);
     terminalContent.scrollTop = terminalContent.scrollHeight;
-}
-
-function makePanelDraggable(element, handle) {
-    if (!element) return;
-    const triggerElement = handle || element;
-    Draggable.create(element, {
-        type: "x,y",
-        edgeResistance: 0.65,
-        bounds: "body",
-        inertia: true,
-        trigger: triggerElement,
-        onDragStart: function() {
-            gsap.to(this.target, { zIndex: 100 });
-        },
-    });
-}
-
-function initHudParallax() {
-    const hud = document.querySelector('.helmet-hud');
-    if (!hud) return;
-
-    const shiftAmount = 15; // Max pixels to shift
-
-    window.addEventListener('mousemove', (event) => {
-        const { clientX, clientY } = event;
-        const { innerWidth, innerHeight } = window;
-
-        // Calculate mouse position from -1 to 1
-        const mouseX = (clientX / innerWidth - 0.5) * 2;
-        const mouseY = (clientY / innerHeight - 0.5) * 2;
-
-        // Calculate the shift
-        const shiftX = mouseX * shiftAmount;
-        const shiftY = mouseY * shiftAmount;
-
-        // Use GSAP for smooth animation, moving the HUD opposite to the cursor
-        gsap.to(hud, {
-            x: -shiftX,
-            y: -shiftY,
-            duration: 1,
-            ease: 'power2.out'
-        });
-    });
 }
 
 function showNotification(message) {

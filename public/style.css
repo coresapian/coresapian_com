@@ -64,6 +64,14 @@ textarea {
   justify-content: space-between;
 }
 
+/* --- NEW: Hide UI elements before app starts --- */
+.interface-container, .helmet-hud {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 1.5s ease-in-out;
+}
+
+
 .grid-overlay {
   position: absolute;
   top: 0;

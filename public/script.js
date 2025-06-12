@@ -247,37 +247,56 @@ function initMainScene() {
 
 // --- NEW: Refractive UI Setup ---
 function initRefractiveUI() {
-    const hudGroup = new THREE.Group();
+    // Ensure this is called after camera is initialized
+    if (!camera) {
+        console.error("Camera not initialized before initRefractiveUI");
+        return;
+    }
 
-    // --- NEW: Corrected panel configurations ---
-    const panelConfigs = [
-        { w: 8, h: 4, x: -14.5, y: 6.5 },   // Top-left: System Controls
-        { w: 8, h: 2.5, x: 14.5, y: 7 },  // Top-right: Entity Signature
-        { w: 9.5, h: 3, x: -13.8, y: -6.5 }, // Bottom-left: Terminal
-        { w: 8, h: 5.5, x: 14.5, y: -5.8 }    // Bottom-right: Spectrum Analyzer
+    const hudGroup = new THREE.Group();
+    hudGroup.position.z = -15; // Distance from camera for HUD elements
+
+    // --- NEW: Map HTML elements to their refractor panels ---
+    const panelMappings = [
+        { selector: '.hud-top-left .control-panel', id: 'topLeftControlPanel' },
+        { selector: '.hud-top-right .data-panel', id: 'topRightDataPanel' },
+        { selector: '.hud-bottom-left .terminal-panel', id: 'bottomLeftTerminalPanel' },
+        { selector: '.hud-bottom-right .spectrum-analyzer', id: 'bottomRightSpectrumAnalyzer' }
     ];
 
-    panelConfigs.forEach(config => {
-        const refractorGeometry = new THREE.PlaneGeometry(config.w, config.h);
+    uiRefractors = []; // Clear and rebuild if called multiple times (though typically not)
+
+    panelMappings.forEach(mapping => {
+        const htmlElement = document.querySelector(mapping.selector);
+        if (!htmlElement) {
+            console.warn(`Refractive UI: HTML element not found for selector: ${mapping.selector}`);
+            return;
+        }
+
+        // Initial dummy geometry (1x1), will be scaled by updateRefractiveUIPositions
+        const refractorGeometry = new THREE.PlaneGeometry(1, 1); 
         const refractor = new Refractor(refractorGeometry, {
-            color: 0x777799,
-            textureWidth: 1024,
-            textureHeight: 1024,
+            color: 0x777799, // Base color of the refraction
+            textureWidth: 512, // Power of 2. Adjust for quality/performance.
+            textureHeight: 512,
             shader: WaterRefractionShader
         });
 
-        refractor.position.set(config.x, config.y, 0);
         if (dudvMap) {
             refractor.material.uniforms.tDudv.value = dudvMap;
+        } else {
+            console.warn("dudvMap not loaded when creating refractor for", mapping.id);
         }
         
         hudGroup.add(refractor);
-        uiRefractors.push(refractor);
+        // Store both HTML element and its refractor for easy updates
+        uiRefractors.push({ htmlElement, refractor, id: mapping.id });
     });
 
-    hudGroup.position.z = -15;
-    camera.add(hudGroup);
-    scene.add(camera);
+    camera.add(hudGroup); // Add the HUD group to the camera so it moves with it
+
+    // Initial positioning and sizing of all refractors
+    updateRefractiveUIPositions();
 }
 
 
@@ -756,5 +775,52 @@ function onWindowResize() {
         if(composer) {
             composer.setSize(window.innerWidth, window.innerHeight);
         }
+        // --- NEW: Update refractive UI positions on resize ---
+        updateRefractiveUIPositions(); 
     }
+}
+
+// --- NEW: Function to update refractor positions and sizes ---
+function updateRefractiveUIPositions() {
+    if (!camera || uiRefractors.length === 0) return;
+
+    // Assuming all refractors are in the same hudGroup parented to the camera.
+    // The Z position of the hudGroup is the distance from the camera.
+    const distanceZ = Math.abs(uiRefractors[0].refractor.parent.position.z);
+
+    // Calculate visible height and width at the HUD plane based on camera FOV
+    const vFOV = camera.fov * Math.PI / 180; // Convert FOV to radians
+    const visibleHeightAtZ = 2 * Math.tan(vFOV / 2) * distanceZ;
+    const visibleWidthAtZ = visibleHeightAtZ * camera.aspect;
+
+    uiRefractors.forEach(item => {
+        const { htmlElement, refractor } = item;
+        const rect = htmlElement.getBoundingClientRect();
+
+        // If element is not visible or has no dimensions, hide the refractor
+        if (rect.width === 0 || rect.height === 0 || htmlElement.offsetParent === null) {
+            refractor.visible = false;
+            return;
+        }
+        refractor.visible = true;
+
+        // Convert pixel dimensions of HTML element to world units for the refractor
+        const worldWidth = (rect.width / window.innerWidth) * visibleWidthAtZ;
+        const worldHeight = (rect.height / window.innerHeight) * visibleHeightAtZ;
+
+        // Update refractor scale (since its base geometry is 1x1)
+        refractor.scale.set(worldWidth, worldHeight, 1);
+
+        // Calculate world position for the refractor (center of the HTML element)
+        // 1. Pixel center of HTML element relative to viewport center:
+        const pixelCenterX = (rect.left + rect.width / 2) - (window.innerWidth / 2);
+        const pixelCenterY = -((rect.top + rect.height / 2) - (window.innerHeight / 2)); // Y is inverted (screen Y down, Three.js Y up)
+
+        // 2. Convert pixel center offset to world offset for the HUD plane:
+        const worldX = (pixelCenterX / window.innerWidth) * visibleWidthAtZ;
+        const worldY = (pixelCenterY / window.innerHeight) * visibleHeightAtZ;
+        
+        // Set refractor position relative to its parent (the hudGroup)
+        refractor.position.set(worldX, worldY, 0); // Z is 0 because it's in the hudGroup plane
+    });
 }

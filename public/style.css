@@ -720,7 +720,11 @@ textarea {
 .control-panel, .data-panel, .terminal-panel, .spectrum-analyzer {
     position: static !important; /* Remove absolute positioning */
     width: 100%; /* Fill their container */
+    /* --- NEW: Make panel backgrounds transparent --- */
+    background: transparent;
+    backdrop-filter: none;
 }
+
 
 /* Remove drag handle as it's no longer needed */
 .drag-handle {

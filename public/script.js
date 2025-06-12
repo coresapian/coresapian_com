@@ -3,11 +3,13 @@
 import * as THREE from "https://esm.sh/three@0.175.0?target=es2020";
 import { PointerLockControls } from "https://esm.sh/three@0.175.0/examples/jsm/controls/PointerLockControls.js?target=es2020";
 import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GLTFLoader.js?target=es2020";
-// --- NEW: Import Post-processing modules ---
+// --- NEW: Import Post-processing and Refraction modules ---
 import { EffectComposer } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020';
 import { RenderPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020';
 import { UnrealBloomPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/UnrealBloomPass.js?target=es2020';
 import { GlitchPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/GlitchPass.js?target=es2020';
+import { Refractor } from 'https://esm.sh/three@0.175.0/examples/jsm/objects/Refractor.js?target=es2020';
+import { WaterRefractionShader } from 'https://esm.sh/three@0.175.0/examples/jsm/shaders/WaterRefractionShader.js?target=es2020';
 
 
 // --- Global State ---
@@ -16,6 +18,10 @@ let scene, camera, renderer, clock, controls;
 let isPreloaderActive = true;
 // --- NEW: Post-processing ---
 let composer, bloomPass, glitchPass;
+// --- NEW: Refractive UI ---
+let uiRefractors = [];
+let dudvMap;
+
 
 // Preloader
 let preloaderScene, preloaderCamera, preloaderRenderer, preloaderMixer;
@@ -51,6 +57,9 @@ let cachedBlackHoleModel = null;
 let cachedDysonRingsModel = null;
 const blackHoleModelPath = 'blackhole.glb';
 const dysonRingsModelPath = 'dyson_rings.glb';
+// --- NEW: Path for distortion map ---
+const dudvMapPath = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waterdudv.jpg';
+
 
 // --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -87,6 +96,7 @@ function startApp() {
         });
     }
     initMainScene();
+    initRefractiveUI(); // --- NEW: Initialize the refractive UI panels
     initUI();
     initAudio();
     initWebGLParticles(); // --- NEW: Initialize WebGL particles instead of DOM
@@ -117,6 +127,11 @@ function animate() {
         if (webglParticles) {
             webglParticles.rotation.y = elapsedTime * 0.05;
         }
+        
+        // --- NEW: Animate Refractor shaders ---
+        uiRefractors.forEach(refractor => {
+            refractor.material.uniforms.time.value = elapsedTime;
+        });
 
         // Update animations
         if (anomalyMixer) anomalyMixer.update(delta);
@@ -192,13 +207,18 @@ function setupPreloader() {
     preloaderScene.add(directionalLight);
 
     const loader = new GLTFLoader();
+    const textureLoader = new THREE.TextureLoader(); // --- NEW: Texture loader for dudv map
 
     Promise.all([
         loader.loadAsync(blackHoleModelPath),
-        loader.loadAsync(dysonRingsModelPath)
-    ]).then(([blackHoleGltf, dysonRingsGltf]) => {
+        loader.loadAsync(dysonRingsModelPath),
+        textureLoader.loadAsync(dudvMapPath) // --- NEW: Load dudv map
+    ]).then(([blackHoleGltf, dysonRingsGltf, dudvTexture]) => {
         cachedBlackHoleModel = blackHoleGltf;
         cachedDysonRingsModel = dysonRingsGltf;
+        dudvMap = dudvTexture; // --- NEW: Cache the dudv map
+        dudvMap.wrapS = dudvMap.wrapT = THREE.RepeatWrapping;
+
 
         // Use Dyson Rings for preloader visualization
         const preloaderDisplayModelGltf = dysonRingsGltf;
@@ -218,7 +238,7 @@ function setupPreloader() {
             preloaderDisplayModelGltf.animations.forEach((clip) => preloaderMixer.clipAction(clip).play());
         }
 
-        startApp(); // Call startApp after both models are loaded and cached
+        startApp(); // Call startApp after all models are loaded and cached
     }).catch(error => {
         console.error("Error loading models for preloader:", error);
         addTerminalMessage("CRITICAL ERROR: FAILED TO LOAD CORE ASSETS.");
@@ -309,6 +329,40 @@ function initMainScene() {
     
     window.addEventListener('resize', onWindowResize);
 }
+
+// --- NEW: Refractive UI Setup ---
+function initRefractiveUI() {
+    const hudGroup = new THREE.Group();
+
+    const panelConfigs = [
+        { w: 6.5, h: 4.5, x: -10.5, y: 5.5 },   // Top-left
+        { w: 6.5, h: 3, x: 10.5, y: 6.2 },    // Top-right
+        { w: 8, h: 2.8, x: -9.5, y: -6.5 },   // Bottom-left
+        { w: 6.5, h: 5, x: 10.5, y: -5.8 }     // Bottom-right
+    ];
+
+    panelConfigs.forEach(config => {
+        const refractorGeometry = new THREE.PlaneGeometry(config.w, config.h);
+        const refractor = new Refractor(refractorGeometry, {
+            color: 0x777799, // A slight blue/grey tint
+            textureWidth: 1024,
+            textureHeight: 1024,
+            shader: WaterRefractionShader
+        });
+
+        refractor.position.set(config.x, config.y, 0);
+        refractor.material.uniforms.tDudv.value = dudvMap;
+        
+        hudGroup.add(refractor);
+        uiRefractors.push(refractor); // Add to array for animation
+    });
+
+    // Position the entire HUD group in front of the camera
+    hudGroup.position.z = -15;
+    camera.add(hudGroup); // Attach HUD to camera
+    scene.add(camera); // Ensure camera (with its children) is in the scene
+}
+
 
 // --- NEW: Post-processing Setup ---
 function initPostProcessing() {

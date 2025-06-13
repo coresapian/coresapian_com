@@ -50,8 +50,8 @@ let crypticMessageTimeout;
 // Asset Cache
 let cachedBlackHoleModel = null;
 let cachedDysonRingsModel = null;
-const blackHoleModelPath = 'blackhole.glb';
-const dysonRingsModelPath = 'dyson_rings.glb';
+const blackHoleModelPath = 'models/blackhole.glb';
+const dysonRingsModelPath = 'models/dyson_rings.glb';
 // --- NEW: Path for distortion map ---
 const dudvMapPath = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waterdudv.jpg';
 

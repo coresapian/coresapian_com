@@ -120,7 +120,7 @@ function animate() {
     
     // --- NEW: Animate Refractor shaders ---
     uiRefractors.forEach(refractor => {
-        if(refractor.material.uniforms.time) {
+        if (refractor && refractor.material && refractor.material.uniforms && refractor.material.uniforms.time) {
             refractor.material.uniforms.time.value = elapsedTime;
         }
     });

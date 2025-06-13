@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from 'https://esm.sh/three@0.175.0?target=es2020';
 
 export const MAX_PULSES = 3; // Max concurrent pulses
 

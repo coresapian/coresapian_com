@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>coRE</title>
     <link rel="stylesheet" href="style.css">
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js" defer></script>
 </head>
 <body>
 
@@ -24,7 +24,6 @@
 <div id="three-container"></div>
 <div class="grid-overlay"></div>
 <div class="audio-wave" id="audio-wave"></div>
-<div class="floating-particles" id="floating-particles"></div>
 
 <div class="interface-container">
   <div class="header">
@@ -134,7 +133,7 @@
         <div class="audio-file-label" id="file-label">NO DATA DETECTED</div>
         <audio id="audio-player" class="audio-player" crossorigin="anonymous"></audio>
         <div class="controls-row">
-          <div class="audio-sensitivity" style="flex: 1;">
+          <div class="audio-sensitivity flex-grow">
             <div class="audio-sensitivity-label">
               <span>SENSITIVITY</span>
               <span class="audio-sensitivity-value" id="sensitivity-value">5.0</span>
@@ -148,7 +147,8 @@
 
 </div>
 
-<script src="script.js" type="module" defer></script>
+<script type="module" src="/js/constants.js" defer></script>
+<script type="module" src="/script.js" defer></script>
 
 </body>
 </html>

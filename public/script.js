@@ -6,11 +6,42 @@ import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GL
 // --- NEW: Import Post-processing and Refraction modules ---
 import { EffectComposer } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020';
 import { RenderPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020';
-import { UnrealBloomPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/UnrealBloomPass.js?target=es2020';
-import { GlitchPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/GlitchPass.js?target=es2020';
-import { Refractor } from 'https://esm.sh/three@0.175.0/examples/jsm/objects/Refractor.js?target=es2020';
+import { UnrealBloomPass } from 'https://esm.sh/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'https://esm.sh/three/examples/jsm/postprocessing/OutputPass.js';
+import { Refractor } from 'https://esm.sh/three/examples/jsm/objects/Refractor.js';
+import { MAX_PULSES, COLOR_PALETTES, NODE_SHADER, CONNECTION_SHADER } from './js/constants.js';
 import { WaterRefractionShader } from 'https://esm.sh/three@0.175.0/examples/jsm/shaders/WaterRefractionShader.js?target=es2020';
 
+
+// --- Configuration Object ---
+const CONFIG = {
+    NEURAL_NETWORK: {
+        FORMATION_COUNT: 4,
+        DENSITY_FACTOR: 1.0,
+        BASE_NODE_SIZE: 15.0,
+        PULSE_SPEED: 15.0,
+        QUANTUM_CORTEX: { layers: 5, nodesPerLayer: 300, layerSeparation: 3, noiseAmount: 0.3 },
+        HYPERDIMENSIONAL_MESH: { gridSize: 12, noiseAmount: 0.2 },
+        NEURAL_VORTEX: { numArms: 5, nodesPerArm: 200, armTwist: 0.8, vortexHeight: 10 },
+        SYNAPTIC_CLOUD: { numNodes: 2000, cloudRadius: 15, noiseAmount: 0.1 }
+    },
+    MOVEMENT: {
+        THRUST_FORCE: 150.0,
+        DAMPING_FACTOR: 0.97,
+        MAX_SPEED: 120.0,
+        STOP_THRESHOLD: 0.01
+    },
+    BLOOM: {
+        THRESHOLD: 0.15,
+        STRENGTH: 0.9,
+        RADIUS: 0.5
+    },
+    ASSETS: {
+        BLACK_HOLE_MODEL: 'models/blackhole.glb',
+        DYSON_RINGS_MODEL: 'models/dyson_rings.glb',
+        DUDV_MAP: 'textures/waterdudv.jpg' // --- CHANGED: Local path
+    }
+};
 
 // --- Global State ---
 // Core Three.js
@@ -43,18 +74,22 @@ let moveUp = false;
 let moveDown = false;
 const cameraVelocity = new THREE.Vector3();
 const cameraDirection = new THREE.Vector3(); // Re-usable vector for camera direction
-const movementSpeed = 80.0; // Increased movement speed
 let currentCrypticMessageIndex = 0;
 let crypticMessageTimeout;
 
 // Asset Cache
 let cachedBlackHoleModel = null;
 let cachedDysonRingsModel = null;
-const blackHoleModelPath = 'models/blackhole.glb';
-const dysonRingsModelPath = 'models/dyson_rings.glb';
-// --- NEW: Path for distortion map ---
-const dudvMapPath = 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/waterdudv.jpg';
 
+// Neural Network Visualizer variables
+let neuralNetworkGroup, nodeMaterial, connectionMaterial;
+let nodeGeometry, connectionGeometry;
+let nodes, connections;
+const pulseUniforms = {
+    uPulsePositions: { value: Array(MAX_PULSES).fill(new THREE.Vector3()) },
+    uPulseTimes: { value: Array(MAX_PULSES).fill(-1) },
+    uPulseColors: { value: Array(MAX_PULSES).fill(new THREE.Color(0xffffff)) },
+};
 
 // --- Main Initialization Flow ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -65,7 +100,7 @@ document.addEventListener("DOMContentLoaded", () => {
 function init() {
     clock = new THREE.Clock();
     initLoadingAnimation();
-    animate(); 
+    loadAssetsAndStart();
 }
 
 function startApp() {
@@ -80,6 +115,7 @@ function startApp() {
     initAudio();
     initWebGLParticles(); 
     initPostProcessing(); 
+    initNeuralNetworkVisualizer();
 
     // Fade out loading screen and fade in the main UI
     gsap.to(loadingOverlay, {
@@ -130,23 +166,47 @@ function animate() {
 
     // Update FPS controls movement
     if (controls.isLocked === true) {
-        cameraVelocity.x = 0;
-        cameraVelocity.y = 0;
-        cameraVelocity.z = 0;
+        // --- IMPROVED: Zero-G Movement Physics ---
+        const actualThrust = CONFIG.MOVEMENT.THRUST_FORCE * delta;
 
-        if (moveForward) cameraVelocity.z = -1.0;
-        if (moveBackward) cameraVelocity.z = 1.0;
-        if (moveLeft) cameraVelocity.x = -1.0;
-        if (moveRight) cameraVelocity.x = 1.0;
-        if (moveUp) cameraVelocity.y = 1.0;
-        if (moveDown) cameraVelocity.y = -1.0;
+        if (moveForward) cameraVelocity.z -= actualThrust;
+        if (moveBackward) cameraVelocity.z += actualThrust;
+        if (moveLeft) cameraVelocity.x -= actualThrust;
+        if (moveRight) cameraVelocity.x += actualThrust;
+        if (moveUp) cameraVelocity.y += actualThrust;
+        if (moveDown) cameraVelocity.y -= actualThrust;
 
-        if (cameraVelocity.x !== 0 || cameraVelocity.z !== 0) {
-            controls.moveRight(cameraVelocity.x * movementSpeed * delta);
-            controls.moveForward(cameraVelocity.z * movementSpeed * delta);
+        // Apply frame-rate independent damping
+        const damping = Math.pow(CONFIG.MOVEMENT.DAMPING_FACTOR, delta * 60);
+        cameraVelocity.multiplyScalar(damping);
+
+        // Clamp to max speed
+        if (cameraVelocity.lengthSq() > CONFIG.MOVEMENT.MAX_SPEED * CONFIG.MOVEMENT.MAX_SPEED) {
+            cameraVelocity.normalize().multiplyScalar(CONFIG.MOVEMENT.MAX_SPEED);
         }
-        
-        controls.getObject().position.y += (cameraVelocity.y * movementSpeed * delta);
+
+        // Apply movement
+        controls.moveRight(cameraVelocity.x * delta);
+        controls.moveForward(cameraVelocity.z * delta);
+        controls.getObject().position.y += (cameraVelocity.y * delta);
+
+        // Stop movement if velocity is negligible and no keys are pressed
+        if (cameraVelocity.lengthSq() < CONFIG.MOVEMENT.STOP_THRESHOLD) {
+            if (!moveForward && !moveBackward && !moveLeft && !moveRight && !moveUp && !moveDown) {
+                cameraVelocity.set(0, 0, 0);
+            }
+        }
+    }
+
+    // Update shader uniforms
+    if (refractor) {
+        refractor.material.uniforms.time.value = elapsedTime;
+    }
+    if (nodeMaterial) {
+        nodeMaterial.uniforms.uTime.value = elapsedTime;
+    }
+    if (connectionMaterial) {
+        connectionMaterial.uniforms.uTime.value = elapsedTime;
     }
 
     // Render scene via composer for post-processing effects
@@ -163,9 +223,9 @@ function loadAssetsAndStart() {
     const textureLoader = new THREE.TextureLoader();
 
     Promise.all([
-        loader.loadAsync(blackHoleModelPath),
-        loader.loadAsync(dysonRingsModelPath),
-        textureLoader.loadAsync(dudvMapPath)
+        loader.loadAsync(CONFIG.ASSETS.BLACK_HOLE_MODEL),
+        loader.loadAsync(CONFIG.ASSETS.DYSON_RINGS_MODEL),
+        textureLoader.loadAsync(CONFIG.ASSETS.DUDV_MAP)
     ]).then(([blackHoleGltf, dysonRingsGltf, dudvTexture]) => {
         // Cache assets
         cachedBlackHoleModel = blackHoleGltf;
@@ -181,7 +241,6 @@ function loadAssetsAndStart() {
         messageContainer.textContent = "CRITICAL ERROR: FAILED TO LOAD CORE ASSETS.";
     });
 }
-
 
 // --- Main Scene Setup ---
 function initMainScene() {
@@ -300,6 +359,248 @@ function initRefractiveUI() {
 }
 
 
+// --- Neural Network Visualizer Logic ---
+
+function initNeuralNetworkVisualizer() {
+    neuralNetworkGroup = new THREE.Group();
+    scene.add(neuralNetworkGroup);
+
+    nodeMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTime: { value: 0 },
+            uBaseNodeSize: { value: CONFIG.NEURAL_NETWORK.BASE_NODE_SIZE },
+            ...pulseUniforms,
+            uPulseSpeed: { value: CONFIG.NEURAL_NETWORK.PULSE_SPEED },
+            uActivePalette: { value: 1 },
+        },
+        vertexShader: NODE_SHADER.vertexShader,
+        fragmentShader: NODE_SHADER.fragmentShader,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        transparent: true,
+    });
+
+    connectionMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+            uTime: { value: 0 },
+            ...pulseUniforms,
+            uPulseSpeed: { value: CONFIG.NEURAL_NETWORK.PULSE_SPEED },
+        },
+        vertexShader: CONNECTION_SHADER.vertexShader,
+        fragmentShader: CONNECTION_SHADER.fragmentShader,
+        blending: THREE.AdditiveBlending,
+        depthTest: false,
+        transparent: true,
+    });
+
+    generateAndDisplayNetwork(0);
+
+    renderer.domElement.addEventListener('click', (event) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        const mouse = new THREE.Vector2(
+            ((event.clientX - rect.left) / rect.width) * 2 - 1,
+            -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        triggerPulse(mouse);
+    });
+}
+
+function generateAndDisplayNetwork(formationIndex) {
+    let generatedNodes, generatedConnections;
+    const density = CONFIG.NEURAL_NETWORK.DENSITY_FACTOR;
+    const palette = COLOR_PALETTES[1]; // Hardcoded to Inferno for now
+
+    switch (formationIndex) {
+        case 0: [generatedNodes, generatedConnections] = generateQuantumCortex(density, palette); break;
+        case 1: [generatedNodes, generatedConnections] = generateHyperdimensionalMesh(density, palette); break;
+        case 2: [generatedNodes, generatedConnections] = generateNeuralVortex(density, palette); break;
+        case 3: [generatedNodes, generatedConnections] = generateSynapticCloud(density, palette); break;
+        default: [generatedNodes, generatedConnections] = generateQuantumCortex(density, palette);
+    }
+    updateNetworkGeometry(generatedNodes, generatedConnections);
+}
+
+function updateNetworkGeometry(nodes, connections) {
+    if (neuralNetworkGroup) {
+        while (neuralNetworkGroup.children.length) {
+            neuralNetworkGroup.remove(neuralNetworkGroup.children[0]);
+        }
+    }
+
+    // Node Geometry
+    const nodePositions = new Float32Array(nodes.length * 3);
+    const nodeColors = new Float32Array(nodes.length * 3);
+    const nodeSizes = new Float32Array(nodes.length);
+    const nodeTypes = new Float32Array(nodes.length);
+    nodes.forEach((node, i) => {
+        node.position.toArray(nodePositions, i * 3);
+        node.color.toArray(nodeColors, i * 3);
+        nodeSizes[i] = node.size;
+        nodeTypes[i] = node.type;
+    });
+    nodeGeometry = new THREE.BufferGeometry();
+    nodeGeometry.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
+    nodeGeometry.setAttribute('nodeColor', new THREE.BufferAttribute(nodeColors, 3));
+    nodeGeometry.setAttribute('nodeSize', new THREE.BufferAttribute(nodeSizes, 1));
+    nodeGeometry.setAttribute('nodeType', new THREE.BufferAttribute(nodeTypes, 1));
+    const nodePoints = new THREE.Points(nodeGeometry, nodeMaterial);
+    neuralNetworkGroup.add(nodePoints);
+
+    // Connection Geometry
+    const connectionPositions = new Float32Array(connections.length * 2 * 3);
+    const connectionColors = new Float32Array(connections.length * 2 * 3);
+    const connectionStrengths = new Float32Array(connections.length * 2);
+    connections.forEach((conn, i) => {
+        nodes[conn.source].position.toArray(connectionPositions, i * 6);
+        nodes[conn.target].position.toArray(connectionPositions, i * 6 + 3);
+        conn.color.toArray(connectionColors, i * 6);
+        conn.color.toArray(connectionColors, i * 6 + 3);
+        connectionStrengths[i * 2] = conn.strength;
+        connectionStrengths[i * 2 + 1] = conn.strength;
+    });
+    connectionGeometry = new THREE.BufferGeometry();
+    connectionGeometry.setAttribute('position', new THREE.BufferAttribute(connectionPositions, 3));
+    connectionGeometry.setAttribute('connectionColor', new THREE.BufferAttribute(connectionColors, 3));
+    connectionGeometry.setAttribute('connectionStrength', new THREE.BufferAttribute(connectionStrengths, 1));
+    const connectionLines = new THREE.LineSegments(connectionGeometry, connectionMaterial);
+    neuralNetworkGroup.add(connectionLines);
+}
+
+function generateQuantumCortex(density, palette) {
+    const { layers, nodesPerLayer, layerSeparation, noiseAmount } = CONFIG.NEURAL_NETWORK.QUANTUM_CORTEX;
+    const nodes = [];
+    const connections = [];
+    let nodeIndex = 0;
+    const layerNodes = [];
+
+    for (let i = 0; i < layers; i++) {
+        const currentLayer = [];
+        const count = Math.floor(nodesPerLayer * density);
+        for (let j = 0; j < count; j++) {
+            const angle = (j / count) * Math.PI * 2;
+            const radius = 5 + i * 1.5;
+            const x = Math.cos(angle) * radius + (Math.random() - 0.5) * noiseAmount;
+            const z = Math.sin(angle) * radius + (Math.random() - 0.5) * noiseAmount;
+            const y = i * layerSeparation - (layers * layerSeparation) / 2 + (Math.random() - 0.5) * noiseAmount;
+            nodes.push({ position: new THREE.Vector3(x, y, z), color: palette[j % palette.length], size: 1.0, type: 0 });
+            currentLayer.push(nodeIndex++);
+        }
+        layerNodes.push(currentLayer);
+    }
+
+    for (let i = 0; i < layers - 1; i++) {
+        for (const sourceNode of layerNodes[i]) {
+            const connectionsToMake = Math.floor(Math.random() * 3 + 1);
+            for (let k = 0; k < connectionsToMake; k++) {
+                const targetNode = layerNodes[i + 1][Math.floor(Math.random() * layerNodes[i + 1].length)];
+                connections.push({ source: sourceNode, target: targetNode, strength: Math.random(), color: palette[sourceNode % palette.length] });
+            }
+        }
+    }
+    return [nodes, connections];
+}
+
+function generateHyperdimensionalMesh(density, palette) {
+    const { gridSize, noiseAmount } = CONFIG.NEURAL_NETWORK.HYPERDIMENSIONAL_MESH;
+    const nodes = [];
+    const connections = [];
+    const nodeMap = new Map();
+    let nodeIndex = 0;
+    const size = Math.floor(gridSize * density);
+
+    for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+            for (let k = 0; k < size; k++) {
+                const x = (i - size / 2) * 2 + (Math.random() - 0.5) * noiseAmount;
+                const y = (j - size / 2) * 2 + (Math.random() - 0.5) * noiseAmount;
+                const z = (k - size / 2) * 2 + (Math.random() - 0.5) * noiseAmount;
+                nodes.push({ position: new THREE.Vector3(x, y, z), color: palette[(i + j + k) % palette.length], size: 1.0, type: 0 });
+                nodeMap.set(`${i},${j},${k}`, nodeIndex++);
+            }
+        }
+    }
+
+    for (let i = 0; i < size; i++) {
+        for (let j = 0; j < size; j++) {
+            for (let k = 0; k < size; k++) {
+                const source = nodeMap.get(`${i},${j},${k}`);
+                if (i < size - 1) connections.push({ source, target: nodeMap.get(`${i + 1},${j},${k}`), strength: Math.random(), color: nodes[source].color });
+                if (j < size - 1) connections.push({ source, target: nodeMap.get(`${i},${j + 1},${k}`), strength: Math.random(), color: nodes[source].color });
+                if (k < size - 1) connections.push({ source, target: nodeMap.get(`${i},${j},${k + 1}`), strength: Math.random(), color: nodes[source].color });
+            }
+        }
+    }
+    return [nodes, connections];
+}
+
+function generateNeuralVortex(density, palette) {
+    const { numArms, nodesPerArm, armTwist, vortexHeight } = CONFIG.NEURAL_NETWORK.NEURAL_VORTEX;
+    const nodes = [];
+    const connections = [];
+    let nodeIndex = 0;
+
+    for (let i = 0; i < numArms; i++) {
+        const armAngle = (i / numArms) * Math.PI * 2;
+        for (let j = 0; j < nodesPerArm * density; j++) {
+            const radius = 1 + j * 0.2;
+            const y = (j / (nodesPerArm * density)) * vortexHeight - vortexHeight / 2;
+            const angle = armAngle + y * armTwist;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            nodes.push({ position: new THREE.Vector3(x, y, z), color: palette[i % palette.length], size: 1.0, type: 0 });
+            if (j > 0) {
+                connections.push({ source: nodeIndex - 1, target: nodeIndex, strength: 1 - j / (nodesPerArm * density), color: nodes[nodeIndex].color });
+            }
+            nodeIndex++;
+        }
+    }
+    return [nodes, connections];
+}
+
+function generateSynapticCloud(density, palette) {
+    const { numNodes, cloudRadius } = CONFIG.NEURAL_NETWORK.SYNAPTIC_CLOUD;
+    const nodes = [];
+    const connections = [];
+    const count = Math.floor(numNodes * density);
+
+    for (let i = 0; i < count; i++) {
+        const pos = new THREE.Vector3().setFromSphericalCoords(cloudRadius * Math.cbrt(Math.random()), Math.acos(2 * Math.random() - 1), Math.random() * 2 * Math.PI);
+        nodes.push({ position: pos, color: palette[i % palette.length], size: 1.0, type: 1 });
+    }
+
+    for (let i = 0; i < count; i++) {
+        for (let j = i + 1; j < count; j++) {
+            if (nodes[i].position.distanceTo(nodes[j].position) < cloudRadius * 0.2) {
+                if (Math.random() > 0.8) {
+                    connections.push({ source: i, target: j, strength: Math.random(), color: nodes[i].color });
+                }
+            }
+        }
+    }
+    return [nodes, connections];
+}
+
+function triggerPulse(mouseCoords) {
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(mouseCoords, camera);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const intersectionPoint = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, intersectionPoint);
+
+    if (intersectionPoint) {
+        const pulseIndex = (pulseUniforms.uPulseTimes.value.indexOf(-1) + MAX_PULSES) % MAX_PULSES;
+        pulseUniforms.uPulsePositions.value[pulseIndex].copy(intersectionPoint);
+        pulseUniforms.uPulseTimes.value[pulseIndex] = clock.getElapsedTime();
+        pulseUniforms.uPulseColors.value[pulseIndex].copy(COLOR_PALETTES[1][Math.floor(Math.random() * 5)]);
+        nodeMaterial.uniforms.uPulsePositions.value = pulseUniforms.uPulsePositions.value;
+        nodeMaterial.uniforms.uPulseTimes.value = pulseUniforms.uPulseTimes.value;
+        nodeMaterial.uniforms.uPulseColors.value = pulseUniforms.uPulseColors.value;
+        connectionMaterial.uniforms.uPulsePositions.value = pulseUniforms.uPulsePositions.value;
+        connectionMaterial.uniforms.uPulseTimes.value = pulseUniforms.uPulseTimes.value;
+        connectionMaterial.uniforms.uPulseColors.value = pulseUniforms.uPulseColors.value;
+    }
+}
+
 // --- NEW: Post-processing Setup ---
 function initPostProcessing() {
     composer = new EffectComposer(renderer);
@@ -308,10 +609,9 @@ function initPostProcessing() {
     composer.addPass(renderPass);
 
     // --- NEW: Tuned bloom effect ---
-    bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
-    bloomPass.threshold = 0.15; // Increased threshold to affect fewer, brighter areas
-    bloomPass.strength = 0.9;  // Reduced strength to prevent washing out the scene
-    bloomPass.radius = 0.5;
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), CONFIG.BLOOM.STRENGTH, CONFIG.BLOOM.RADIUS, 0.85); // Last param is resolution factor, can be left
+    bloomPass.threshold = CONFIG.BLOOM.THRESHOLD;
+    composer.addPass(bloomPass);
     composer.addPass(bloomPass);
 
     // GlitchPass for the glitch effect

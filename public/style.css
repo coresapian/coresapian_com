@@ -114,30 +114,13 @@ textarea {
   pointer-events: none;
 }
 
-.scanner-frame::before,
-.scanner-frame::after {
-  content: "";
+.corner {
   position: absolute;
   width: 20px;
   height: 20px;
-  border-color: var(--accent-primary);
-  border-style: solid;
 }
 
-.scanner-frame::before {
-  top: -1px;
-  left: -1px;
-  border-width: 2px 0 0 2px;
-}
-
-.scanner-frame::after {
-  bottom: -1px;
-  right: -1px;
-  border-width: 0 2px 2px 0;
-}
-
-.scanner-frame .corner-tl {
-  position: absolute;
+.corner-tl {
   top: -1px;
   left: -1px;
   width: 20px;

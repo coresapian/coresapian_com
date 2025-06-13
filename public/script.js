@@ -7,6 +7,7 @@ import { GLTFLoader } from "https://esm.sh/three@0.175.0/examples/jsm/loaders/GL
 import { EffectComposer } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/EffectComposer.js?target=es2020';
 import { RenderPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/RenderPass.js?target=es2020';
 import { UnrealBloomPass } from 'https://esm.sh/three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { GlitchPass } from 'https://esm.sh/three@0.175.0/examples/jsm/postprocessing/GlitchPass.js?target=es2020';
 import { OutputPass } from 'https://esm.sh/three/examples/jsm/postprocessing/OutputPass.js';
 import { Refractor } from 'https://esm.sh/three/examples/jsm/objects/Refractor.js';
 import { MAX_PULSES, COLOR_PALETTES, NODE_SHADER, CONNECTION_SHADER } from './js/constants.js';

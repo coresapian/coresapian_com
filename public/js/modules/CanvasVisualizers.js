@@ -4,7 +4,7 @@
 
 import { CONSTANTS, Utils, eventBus } from './Utils.js';
 
-export class CanvasVisualizers {
+export default class CanvasVisualizers {
   constructor() {
     // Canvas elements and contexts
     this.circularCanvas = null;

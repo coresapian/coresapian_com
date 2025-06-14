@@ -72,6 +72,9 @@ export class ThreeJSScene {
     this.render = this.render.bind(this);
     this.onWindowResize = this.onWindowResize.bind(this);
     this.updateAudioReactivity = this.updateAudioReactivity.bind(this);
+    
+    // Add event listener for beforeunload to clean up
+    window.addEventListener('beforeunload', () => this.destroy());
   }
 
   /**
@@ -147,6 +150,14 @@ export class ThreeJSScene {
     this.renderer.toneMappingExposure = 1.0;
     
     this.container.appendChild(this.renderer.domElement);
+    
+    // Add event listener for WebGL context loss
+    this.renderer.domElement.addEventListener('webglcontextlost', (event) => {
+      event.preventDefault();
+      console.error('WebGL context lost');
+      this.cleanup();
+      eventBus.emit('webglcontextlost');
+    }, false);
   }
 
   /**
@@ -737,6 +748,11 @@ export class ThreeJSScene {
       Utils.handleError(error, 'ThreeJSScene.destroy');
     }
   }
+  
+  cleanup() {
+    this.destroy();
+  }
+
 }
 
 // Export singleton instance

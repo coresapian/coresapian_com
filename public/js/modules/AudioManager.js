@@ -58,6 +58,11 @@ export class AudioManager {
     } catch (error) {
       Utils.handleError(error, 'AudioManager.initAudio');
       eventBus.emit('audio:error', { error: error.message });
+      
+      // Retry initialization after delay
+      setTimeout(() => {
+        this.initAudio();
+      }, 5000);
     }
   }
 

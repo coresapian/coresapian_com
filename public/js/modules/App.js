@@ -4,11 +4,11 @@
 
 import { CONSTANTS, Utils, eventBus } from './Utils.js';
 import { DependencyManager } from './DependencyManager.js';
-import { audioManager } from './AudioManager.js';
-import { uiManager } from './UIManager.js';
-import { visualEffects } from './VisualEffects.js';
-import { canvasVisualizers } from './CanvasVisualizers.js';
-import { threeJSScene } from './ThreeJSScene.js';
+import ThreeJSScene from './ThreeJSScene.js';
+import AudioManager from './AudioManager.js';
+import UIManager from './UIManager.js';
+import VisualEffects from './VisualEffects.js';
+import CanvasVisualizers from './CanvasVisualizers.js';
 
 export class App {
   constructor() {
@@ -678,6 +678,16 @@ export class App {
 
 // Create and export singleton instance
 export const app = new App();
+
+// Initialize all required modules
+const threeJSScene = new ThreeJSScene();
+const audioManager = new AudioManager();
+const uiManager = new UIManager();
+const visualEffects = new VisualEffects();
+const canvasVisualizers = new CanvasVisualizers();
+
+// Link components as needed
+threeJSScene.setDependencies({ audioManager, uiManager });
 
 // Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {

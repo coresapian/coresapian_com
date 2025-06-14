@@ -1,0 +1,414 @@
+/**
+ * Liquid Glass UI Effect - Apple-style glassmorphism for audio visualizer panels
+ * Based on Apple's 2025 design language with liquid glass effects
+ */
+
+:root {
+  /* Liquid Glass Variables */
+  --lg-bg-color: rgba(255, 255, 255, 0.15);
+  --lg-bg-color-hover: rgba(255, 255, 255, 0.25);
+  --lg-highlight: rgba(255, 255, 255, 0.6);
+  --lg-text: #ffffff;
+  --lg-text-secondary: rgba(255, 255, 255, 0.8);
+  --lg-hover-glow: rgba(25, 218, 192, 0.776);
+  --lg-accent: #00ffff;
+  --lg-accent-secondary: #0099ff;
+  --lg-shadow: rgba(0, 0, 0, 0.3);
+  --lg-border: rgba(255, 255, 255, 0.2);
+}
+
+/* ========== GLASS CONTAINER BASE ========== */
+.glass-container {
+  position: relative;
+  display: flex;
+  font-weight: 500;
+  color: var(--lg-text);
+  background: transparent;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--lg-border),
+    inset 0 1px 0 var(--lg-highlight);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-container:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    0 0 0 1px var(--lg-hover-glow),
+    inset 0 1px 0 var(--lg-highlight),
+    0 0 20px var(--lg-hover-glow);
+}
+
+/* ========== GLASS CONTAINER VARIANTS ========== */
+.glass-container--rounded {
+  border-radius: 2rem;
+  margin: 0.5rem;
+}
+
+.glass-container--small {
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  min-width: 120px;
+}
+
+.glass-container--medium {
+  padding: 1rem 1.5rem;
+  border-radius: 1.5rem;
+  min-width: 200px;
+}
+
+.glass-container--large {
+  padding: 1.5rem 2rem;
+  border-radius: 2rem;
+  min-width: 300px;
+}
+
+.glass-container--panel {
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  margin: 0.75rem;
+}
+
+.glass-container--draggable {
+  cursor: grab;
+}
+
+.glass-container--draggable:active {
+  cursor: grabbing;
+  transform: scale(0.98);
+}
+
+/* ========== GLASS LAYERS ========== */
+.glass-filter {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  backdrop-filter: blur(0px);
+  filter: url(#lg-dist);
+  isolation: isolate;
+}
+
+.glass-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: var(--lg-bg-color);
+  border-radius: inherit;
+}
+
+.glass-container:hover .glass-overlay {
+  background: var(--lg-bg-color-hover);
+}
+
+.glass-specular {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  overflow: hidden;
+  box-shadow: 
+    inset 1px 1px 0 var(--lg-highlight),
+    inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+.glass-content {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+  height: 100%;
+}
+
+.glass-content--column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.glass-content--center {
+  justify-content: center;
+  text-align: center;
+}
+
+.glass-content--space-between {
+  justify-content: space-between;
+}
+
+/* ========== GLASS BUTTONS ========== */
+.glass-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 1rem;
+  background: transparent;
+  color: var(--lg-text);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  overflow: hidden;
+}
+
+.glass-button::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--lg-bg-color);
+  border-radius: inherit;
+  transition: all 0.3s ease;
+  z-index: -1;
+}
+
+.glass-button:hover::before {
+  background: var(--lg-bg-color-hover);
+  box-shadow: 
+    inset 0 1px 0 var(--lg-highlight),
+    0 0 15px var(--lg-hover-glow);
+}
+
+.glass-button:active {
+  transform: scale(0.95);
+}
+
+.glass-button--primary {
+  color: var(--lg-accent);
+}
+
+.glass-button--primary::before {
+  background: rgba(0, 255, 255, 0.1);
+}
+
+.glass-button--primary:hover::before {
+  background: rgba(0, 255, 255, 0.2);
+}
+
+/* ========== GLASS INPUTS ========== */
+.glass-input {
+  background: var(--lg-bg-color);
+  border: 1px solid var(--lg-border);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: var(--lg-text);
+  font-size: 0.9rem;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.glass-input::placeholder {
+  color: var(--lg-text-secondary);
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--lg-accent);
+  box-shadow: 
+    0 0 0 2px rgba(0, 255, 255, 0.2),
+    inset 0 1px 0 var(--lg-highlight);
+  background: var(--lg-bg-color-hover);
+}
+
+/* ========== GLASS SLIDERS ========== */
+.glass-slider {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  background: var(--lg-bg-color);
+  border-radius: 3px;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.glass-slider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, var(--lg-accent), var(--lg-accent-secondary));
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+
+.glass-slider-thumb {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  background: var(--lg-text);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.glass-slider-thumb:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  box-shadow: 
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 10px var(--lg-hover-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* ========== GLASS PANELS ========== */
+.glass-panel {
+  position: relative;
+  background: transparent;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 0 0 1px var(--lg-border),
+    inset 0 1px 0 var(--lg-highlight);
+}
+
+.glass-panel-header {
+  padding: 1rem 1.5rem 0.5rem;
+  border-bottom: 1px solid var(--lg-border);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.glass-panel-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--lg-text);
+}
+
+.glass-panel-body {
+  padding: 1.5rem;
+}
+
+/* ========== GLASS NOTIFICATIONS ========== */
+.glass-notification {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  max-width: 350px;
+  padding: 1rem 1.5rem;
+  background: var(--lg-bg-color);
+  border: 1px solid var(--lg-border);
+  border-radius: 1rem;
+  color: var(--lg-text);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 var(--lg-highlight);
+  transform: translateX(400px);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.glass-notification.show {
+  transform: translateX(0);
+}
+
+.glass-notification--success {
+  border-color: rgba(0, 255, 0, 0.3);
+  background: rgba(0, 255, 0, 0.1);
+}
+
+.glass-notification--error {
+  border-color: rgba(255, 0, 0, 0.3);
+  background: rgba(255, 0, 0, 0.1);
+}
+
+.glass-notification--warning {
+  border-color: rgba(255, 255, 0, 0.3);
+  background: rgba(255, 255, 0, 0.1);
+}
+
+/* ========== GLASS ICONS ========== */
+.glass-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: var(--lg-bg-color);
+  color: var(--lg-text);
+  transition: all 0.3s ease;
+}
+
+.glass-icon:hover {
+  background: var(--lg-bg-color-hover);
+  transform: scale(1.05);
+}
+
+.glass-icon svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+}
+
+/* ========== RESPONSIVE DESIGN ========== */
+@media (max-width: 768px) {
+  .glass-container--large {
+    min-width: 250px;
+    padding: 1rem 1.5rem;
+  }
+  
+  .glass-container--medium {
+    min-width: 180px;
+    padding: 0.75rem 1rem;
+  }
+  
+  .glass-notification {
+    top: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: none;
+  }
+}
+
+/* ========== ANIMATIONS ========== */
+@keyframes glass-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.glass-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: glass-shimmer 2s infinite;
+}
+
+/* ========== SVG FILTER DEFINITION ========== */
+.glass-svg-filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}

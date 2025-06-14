@@ -1,24 +1,53 @@
 @import url("https://fonts.cdnfonts.com/css/thegoodmonolith");
 
 :root {
-  --bg-color: #12100f;
-  --grid-color: rgba(255, 240, 230, 0.05);
-  --text-primary: #f3ede9;
-  --text-secondary: #5a9ffa;
-  --text-highlight: #30e6ec;
-  --accent-primary: #169a9e;
-  --accent-secondary: #30e6ec;
-  --accent-tertiary: #61f5fa;
-  --panel-bg: rgba(30, 26, 24, 0.7);
-  --panel-border: rgba(66, 85, 255, 0.3);
-  --panel-highlight: rgba(94, 66, 255, 0.1);
-  --scanner-line: rgba(255, 78, 66, 0.7);
+  --dark-purple: #1a0633;
+  --cyan: #00ffff;
+  --light-cyan: #a0ffff; /* A lighter cyan for variation */
+  --text-color: #ffffff;
+
+  /* Derived variables based on the new palette */
+  --bg-color: var(--dark-purple);
+  --grid-color: rgba(0, 255, 255, 0.05); /* Subtle cyan grid */
+  --text-primary: var(--text-color);
+  --text-secondary: var(--light-cyan); /* Using light-cyan for secondary text */
+  --text-highlight: var(--cyan);
+  --accent-primary: var(--cyan);
+  --accent-secondary: var(--light-cyan); /* Light cyan for secondary accent */
+  --accent-tertiary: var(--light-cyan); /* Light cyan for tertiary accent */
+  --panel-bg: rgba(26, 6, 51, 0.7); /* Semi-transparent dark purple */
+  --panel-border: rgba(0, 255, 255, 0.3); /* Semi-transparent cyan */
+  --panel-highlight: rgba(0, 255, 255, 0.1); /* More transparent cyan */
+  --scanner-line: rgba(0, 255, 255, 0.7); /* Semi-transparent cyan */
+
+  /* Liquid Glass Integration Variables */
+  --lg-bg-color: rgba(26, 6, 51, 0.2);
+  --lg-bg-color-hover: rgba(26, 6, 51, 0.35);
+  --lg-highlight: rgba(0, 255, 255, 0.6);
+  --lg-text: var(--text-color);
+  --lg-text-secondary: var(--light-cyan);
+  --lg-hover-glow: rgba(0, 255, 255, 0.4);
+  --lg-accent: var(--cyan);
+  --lg-accent-secondary: var(--light-cyan);
+  --lg-shadow: rgba(0, 0, 0, 0.4);
+  --lg-border: rgba(0, 255, 255, 0.25);
 }
 
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+#pixel-loader-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: var(--bg-color);
+  z-index: 9999; /* Ensure it's on top */
+  display: block; /* Initially visible */
 }
 
 body {
@@ -29,6 +58,11 @@ body {
   height: 100vh;
   text-transform: uppercase;
   font-size: 1rem;
+  /* Enhanced background for liquid glass compatibility */
+  background-image: 
+    radial-gradient(circle at 20% 50%, rgba(0, 255, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(0, 255, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 40% 80%, rgba(0, 255, 255, 0.02) 0%, transparent 50%);
 }
 
 button,
@@ -38,17 +72,30 @@ textarea {
   font-family: inherit;
 }
 
-#three-container {
+.space-background {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
+  background-image: url("https://assets.codepen.io/7558/space-bg-002.jpg");
+  background-size: cover;
+  background-position: center;
   z-index: 0;
+  opacity: 0.8;
+}
+
+#three-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  cursor: -webkit-grab;
   cursor: grab;
 }
 
 #three-container:active {
+  cursor: -webkit-grabbing;
   cursor: grabbing;
 }
 
@@ -63,14 +110,6 @@ textarea {
   flex-direction: column;
   justify-content: space-between;
 }
-
-/* --- NEW: Hide UI elements before app starts --- */
-.interface-container, .helmet-hud {
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 1.5s ease-in-out;
-}
-
 
 .grid-overlay {
   position: absolute;
@@ -114,13 +153,30 @@ textarea {
   pointer-events: none;
 }
 
-.corner {
+.scanner-frame::before,
+.scanner-frame::after {
+  content: "";
   position: absolute;
   width: 20px;
   height: 20px;
+  border-color: var(--accent-primary);
+  border-style: solid;
 }
 
-.corner-tl {
+.scanner-frame::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+}
+
+.scanner-frame::after {
+  bottom: -1px;
+  right: -1px;
+  border-width: 0 2px 2px 0;
+}
+
+.scanner-frame .corner-tl {
+  position: absolute;
   top: -1px;
   left: -1px;
   width: 20px;
@@ -182,7 +238,18 @@ textarea {
   background: var(--scanner-line);
   top: 0;
   box-shadow: 0 0 10px var(--accent-primary);
-  animation: scan 4s linear infinite;
+  -webkit-animation: scan 4s linear infinite;
+          animation: scan 4s linear infinite;
+}
+
+@-webkit-keyframes scan {
+  0% {
+    top: 0;
+  }
+
+  100% {
+    top: 100%;
+  }
 }
 
 @keyframes scan {
@@ -208,7 +275,8 @@ textarea {
   border: 1px solid var(--panel-border);
   border-radius: 5px;
   padding: 0.9375rem;
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
   pointer-events: auto;
 }
 
@@ -240,6 +308,35 @@ textarea {
   color: var(--text-primary);
 }
 
+.data-bar {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0.625rem 0;
+  position: relative;
+  border-radius: 3px;
+}
+
+.data-bar-fill {
+  height: 100%;
+  background: var(--accent-primary);
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+.waveform {
+  width: 100%;
+  height: 50px;
+  margin: 0.625rem 0;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.waveform-canvas {
+  width: 100%;
+  height: 100%;
+}
+
 .control-panel {
   width: 300px;
   background: var(--panel-bg);
@@ -249,7 +346,8 @@ textarea {
   position: absolute;
   top: 20px;
   left: 20px;
-  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
   pointer-events: auto;
   z-index: 10;
 }
@@ -388,7 +486,19 @@ textarea {
 .typing::after {
   content: "|";
   position: absolute;
-  animation: blink 1s infinite;
+  -webkit-animation: blink 1s infinite;
+          animation: blink 1s infinite;
+}
+
+@-webkit-keyframes blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0;
+  }
 }
 
 @keyframes blink {
@@ -414,8 +524,6 @@ textarea {
   align-items: center;
   z-index: 1000;
   transition: opacity 0.5s;
-  pointer-events: none; /* Allow interaction with elements behind it after fade */
-  opacity: 1;
 }
 
 .loading-container {
@@ -431,15 +539,6 @@ textarea {
 .preloader-canvas-container {
   width: 180px;
   height: 180px;
-  position: relative;
-}
-
-.preloader-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
 }
 
 .loading-text {
@@ -464,7 +563,6 @@ textarea {
   opacity: 0;
   transition: opacity 0.3s;
   z-index: 100;
-  pointer-events: none;
 }
 
 .drag-handle {
@@ -474,14 +572,30 @@ textarea {
   color: var(--accent-primary);
 }
 
-.floating-particles {
+.particle-trail {
   position: absolute;
-  top: 0;
-  left: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.7;
+  transition: opacity 0.5s;
+}
+
+.circular-visualizer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 450px;
+  height: 450px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.circular-visualizer canvas {
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: 4;
 }
 
 .audio-wave {
@@ -496,7 +610,6 @@ textarea {
   border: 1px solid rgba(255, 78, 66, 0.1);
   pointer-events: none;
   z-index: 3;
-  transition: transform 0.1s ease-out, border-color 0.1s ease-out;
 }
 
 .audio-wave::before {
@@ -509,7 +622,28 @@ textarea {
   height: 100%;
   border-radius: 50%;
   border: 1px solid rgba(255, 78, 66, 0.05);
-  animation: pulse 4s infinite;
+  -webkit-animation: pulse 4s infinite;
+          animation: pulse 4s infinite;
+}
+
+@-webkit-keyframes pulse {
+  0% {
+    width: 100%;
+    height: 100%;
+    opacity: 0.5;
+  }
+
+  50% {
+    width: 120%;
+    height: 120%;
+    opacity: 0;
+  }
+
+  100% {
+    width: 100%;
+    height: 100%;
+    opacity: 0.5;
+  }
 }
 
 @keyframes pulse {
@@ -631,6 +765,12 @@ textarea {
   color: var(--accent-primary);
 }
 
+.controls-row {
+  display: flex;
+  gap: 0.625rem;
+  margin-bottom: 0.625rem;
+}
+
 .demo-tracks {
   margin-top: 0.625rem;
   margin-bottom: 0.9375rem;
@@ -666,58 +806,64 @@ textarea {
   color: #000;
 }
 
-/* --- HUD Styles --- */
-.helmet-hud {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none; /* Allow clicks to pass through */
-    z-index: 1000;
-    /* Vignette effect to simulate a helmet view */
-    box-shadow: inset 0 0 150px 20px rgba(0,0,0,0.9);
+.youtube-input {
+  display: flex;
+  margin-top: 0.625rem;
+  margin-bottom: 0.625rem;
 }
 
-/* Make panels within the HUD clickable */
-.helmet-hud .hud-panel {
-    pointer-events: auto;
-    position: absolute;
-    width: 400px; 
-    max-width: 30vw;
+.youtube-url {
+  flex: 1;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--panel-border);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  border-radius: 3px 0 0 3px;
 }
 
-.hud-top-left {
-    top: 20px;
-    left: 20px;
+.youtube-load-btn {
+  padding: 0.5rem 0.625rem;
+  background: var(--panel-highlight);
+  border: 1px solid var(--panel-border);
+  border-left: none;
+  color: var(--accent-primary);
+  font-size: 0.75rem;
+  border-radius: 0 3px 3px 0;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.hud-top-right {
-    top: 20px;
-    right: 20px;
+.youtube-load-btn:hover {
+  background: var(--panel-border);
 }
 
-.hud-bottom-left {
-    bottom: 20px;
-    left: 20px;
+.youtube-error {
+  color: var(--accent-tertiary);
+  font-size: 0.6875rem;
+  margin-top: 0.3125rem;
+  display: none;
 }
 
-.hud-bottom-right {
-    bottom: 20px;
-    right: 20px;
+.preloader-canvas-container {
+  position: relative;
 }
 
-/* Override old panel styles to fit the HUD */
-.control-panel, .data-panel, .terminal-panel, .spectrum-analyzer {
-    position: static !important; /* Remove absolute positioning */
-    width: 100%; /* Fill their container */
-    /* --- NEW: Make panel backgrounds transparent --- */
-    background: transparent;
-    backdrop-filter: none;
+.preloader-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
 
-
-/* Remove drag handle as it's no longer needed */
-.drag-handle {
-    display: none;
+/* Floating particles */
+.floating-particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 4;
 }

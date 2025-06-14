@@ -1,3 +1,5 @@
+import { eventBus } from './modules/Utils.js';
+
 // Loading UI Controller
 class LoadingUI {
   constructor() {

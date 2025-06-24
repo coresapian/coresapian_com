@@ -2,7 +2,7 @@
  * VisualEffects - Manages visual effects including pixel loader, particles, and glow effects
  */
 
-import * as THREE from 'three';
+import * as THREE from '../libraries/three.min.js';
 import { CONSTANTS, Utils, eventBus } from './Utils.js';
 
 // Utility function for random range

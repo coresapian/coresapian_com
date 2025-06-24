@@ -109,56 +109,53 @@ class LoadingShader {
     this.renderer = null;
     this.mesh = null;
     this.clock = new THREE.Clock();
-    this.uniforms = {
-      iTime: { value: 0 },
-      iResolution: { value: new THREE.Vector3() },
-      iMouse: { value: new THREE.Vector2() }
-    };
     this.animationId = null;
+    this.isInitialized = false;
   }
 
   init() {
-    if (!this.container) return;
+    if (!this.container || this.isInitialized) return;
     
-    // Create scene
-    this.scene = new THREE.Scene();
-    
-    // Create camera
-    this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    
-    // Create renderer
-    this.renderer = new THREE.WebGLRenderer({ 
-      antialias: true, 
-      alpha: true,
-      powerPreference: "high-performance"
-    });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.container.appendChild(this.renderer.domElement);
-    
-    // Handle window resize
-    window.addEventListener('resize', () => this.onWindowResize());
-    this.onWindowResize();
-    
-    // Create shader material
-    const geometry = new THREE.PlaneGeometry(2, 2);
-    const material = new THREE.ShaderMaterial({
-      uniforms: this.uniforms,
-      vertexShader: `
+    try {
+      // Create scene
+      this.scene = new THREE.Scene();
+      
+      // Create camera (orthographic for fullscreen quad)
+      this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+      
+      // Create renderer
+      this.renderer = new THREE.WebGLRenderer({ 
+        antialias: true, 
+        alpha: true,
+        powerPreference: "high-performance"
+      });
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      this.container.appendChild(this.renderer.domElement);
+      
+      // Handle window resize
+      this.onWindowResize = this.onWindowResize.bind(this);
+      window.addEventListener('resize', this.onWindowResize);
+      this.onWindowResize();
+      
+      // Vertex shader (simple pass-through)
+      const vertexShader = `
         varying vec2 vUv;
         void main() {
           vUv = uv;
-          gl_Position = vec4(position, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
-      `,
-      fragmentShader: `
+      `;
+      
+      // Fragment shader with the provided GLSL code
+      const fragmentShader = `
         uniform float iTime;
-        uniform vec3 iResolution;
-        uniform vec2 iMouse;
+        uniform vec2 iResolution;
         varying vec2 vUv;
         
-        void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-          vec2 r = iResolution.xy;
-          vec2 uv = (2.0 * fragCoord - r) / r.y;
+        void main() {
+          // Convert UV to -1 to 1 range and correct for aspect ratio
+          vec2 uv = vUv * 2.0 - 1.0;
+          uv.x *= iResolution.x / iResolution.y;
           
           float i = 0.0, e = 0.0, R = 0.0, s = 0.0;
           vec3 q, p, d = vec3(uv, 1.0);
@@ -186,29 +183,45 @@ class LoadingShader {
           vec3 color = vec3(tanh(o));
           // Add a subtle blue tint
           color = mix(color, vec3(0.2, 0.5, 0.8), 0.15);
-          fragColor = vec4(color, 1.0);
+          gl_FragColor = vec4(color, 1.0);
         }
-        
-        void main() {
-          mainImage(gl_FragColor, vUv * iResolution.xy);
-        }
-      `
-    });
-    
-    this.mesh = new THREE.Mesh(geometry, material);
-    this.scene.add(this.mesh);
-    
-    // Start animation
-    this.animate();
+      `;
+      
+      // Create shader material
+      const material = new THREE.ShaderMaterial({
+        uniforms: {
+          iTime: { value: 0 },
+          iResolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+        },
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+      });
+      
+      // Create fullscreen quad
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      this.mesh = new THREE.Mesh(geometry, material);
+      this.scene.add(this.mesh);
+      
+      // Start animation
+      this.isInitialized = true;
+      this.animate();
+      
+    } catch (error) {
+      console.error('Error initializing loading shader:', error);
+      this.destroy();
+    }
   }
   
   animate() {
-    if (!this.renderer) return;
+    if (!this.isInitialized) return;
     
     this.animationId = requestAnimationFrame(() => this.animate());
     
-    if (this.uniforms && this.uniforms.iTime) {
-      this.uniforms.iTime.value = this.clock.getElapsedTime();
+    if (this.mesh?.material?.uniforms?.iTime) {
+      this.mesh.material.uniforms.iTime.value = this.clock.getElapsedTime();
     }
     
     if (this.renderer && this.scene && this.camera) {
@@ -217,34 +230,213 @@ class LoadingShader {
   }
   
   onWindowResize() {
-    if (!this.container || !this.renderer) return;
+    if (!this.isInitialized || !this.renderer || !this.mesh) return;
     
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     
     this.renderer.setSize(width, height);
     
-    if (this.uniforms && this.uniforms.iResolution) {
-      this.uniforms.iResolution.value.set(width, height, 1);
+    if (this.mesh.material?.uniforms?.iResolution) {
+      this.mesh.material.uniforms.iResolution.value.set(width, height);
+    }
+    
+    // Update camera aspect ratio
+    if (this.camera) {
+      const aspect = width / height;
+      this.camera.left = -aspect;
+      this.camera.right = aspect;
+      this.camera.top = 1;
+      this.camera.bottom = -1;
+      this.camera.updateProjectionMatrix();
     }
   }
   
   destroy() {
+    this.isInitialized = false;
+    
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
     
-    if (this.container && this.renderer) {
+    if (this.container && this.renderer?.domElement) {
       this.container.removeChild(this.renderer.domElement);
     }
     
     window.removeEventListener('resize', this.onWindowResize);
     
-    this.scene = null;
-    this.camera = null;
+    // Cleanup Three.js objects
+    if (this.scene) {
+      if (this.mesh?.geometry) {
+        this.mesh.geometry.dispose();
+      }
+      if (this.mesh?.material) {
+        this.mesh.material.dispose();
+      }
+      this.scene = null;
+    }
+    
     this.renderer = null;
     this.mesh = null;
+    this.camera = null;
+  }
+}
+
+// Floating particles
+class FloatingParticles {
+  constructor(containerId = 'floating-particles') {
+    this.container = document.getElementById(containerId);
+    this.particles = [];
+    this.particleAnimationId = null;
+  }
+
+  init() {
+    try {
+      if (!this.container) {
+        console.warn('Floating particles container not found');
+        return;
+      }
+
+      this.createFloatingParticles();
+      this.animateFloatingParticles();
+      
+    } catch (error) {
+      console.error('Error initializing floating particles:', error);
+    }
+  }
+
+  createFloatingParticles() {
+    const particleCount = 50;
+    this.particles = [];
+
+    for (let i = 0; i < particleCount; i++) {
+      const particle = {
+        x: Math.random() * window.innerWidth,
+        y: Math.random() * window.innerHeight,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        size: Math.random() * 3 + 1,
+        opacity: Math.random() * 0.5 + 0.2,
+        hue: Math.random() * 60 + 180, // Blue-cyan range
+        element: null
+      };
+
+      // Create DOM element for particle
+      const element = document.createElement('div');
+      element.className = 'floating-particle';
+      element.style.cssText = `
+        position: absolute;
+        width: ${particle.size}px;
+        height: ${particle.size}px;
+        background: hsl(${particle.hue}, 70%, 60%);
+        border-radius: 50%;
+        opacity: ${particle.opacity};
+        pointer-events: none;
+        transform: translate(${particle.x}px, ${particle.y}px);
+        box-shadow: 0 0 ${particle.size * 2}px hsl(${particle.hue}, 70%, 60%);
+      `;
+
+      particle.element = element;
+      this.container.appendChild(element);
+      this.particles.push(particle);
+    }
+  }
+
+  animateFloatingParticles() {
+    this.particles.forEach(particle => {
+      // Update position
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+
+      // Wrap around screen edges
+      if (particle.x < 0) particle.x = window.innerWidth;
+      if (particle.x > window.innerWidth) particle.x = 0;
+      if (particle.y < 0) particle.y = window.innerHeight;
+      if (particle.y > window.innerHeight) particle.y = 0;
+
+      // Apply audio reactivity if available
+      if (this.audioData) {
+        const audioIntensity = this.audioData.average / 255;
+        particle.opacity = Math.min(0.8, particle.opacity + audioIntensity * 0.1);
+        particle.size = Math.max(1, particle.size + audioIntensity * 2);
+      }
+
+      // Update DOM element
+      if (particle.element) {
+        particle.element.style.transform = `translate(${particle.x}px, ${particle.y}px)`;
+        particle.element.style.opacity = particle.opacity;
+        particle.element.style.width = particle.element.style.height = `${particle.size}px`;
+      }
+    });
+
+    this.particleAnimationId = requestAnimationFrame(() => this.animateFloatingParticles());
+  }
+}
+
+// Audio reactive properties
+class AudioReactive {
+  constructor() {
+    this.audioData = null;
+    this.glowIntensity = 0;
+  }
+
+  updateAudioReactiveEffects(audioData) {
+    try {
+      this.audioData = audioData;
+      
+      if (!audioData || !audioData.frequencyData) return;
+
+      // Update glow intensity based on audio
+      this.glowIntensity = audioData.average / 255;
+
+      // Update audio wave visualization
+      this.updateAudioWave(audioData);
+
+      // Update particle effects
+      this.updateParticleEffects(audioData);
+      
+    } catch (error) {
+      console.error('Error updating audio reactive effects:', error);
+    }
+  }
+
+  updateAudioWave(audioData) {
+    if (!this.audioWaveContainer || !audioData.frequencyData) return;
+
+    const intensity = audioData.average / 255;
+    const height = Math.max(20, intensity * 150);
+    
+    this.audioWaveContainer.style.height = `${height}px`;
+    this.audioWaveContainer.style.background = `
+      linear-gradient(to top, 
+        rgba(0, 255, 255, ${intensity * 0.3}), 
+        rgba(0, 150, 255, ${intensity * 0.1}),
+        transparent
+      )
+    `;
+  }
+
+  updateParticleEffects(audioData) {
+    if (!this.particles.length) return;
+
+    const bassIntensity = audioData.bass / 255;
+    const trebleIntensity = audioData.treble / 255;
+
+    this.particles.forEach((particle, index) => {
+      // Vary effects based on frequency ranges
+      if (index % 3 === 0) {
+        // Bass-reactive particles
+        particle.vx += (bassIntensity - 0.5) * 0.1;
+        particle.vy += (bassIntensity - 0.5) * 0.1;
+      } else if (index % 3 === 1) {
+        // Treble-reactive particles
+        particle.size = Math.max(1, 2 + trebleIntensity * 3);
+      } else {
+        // Mid-range reactive particles
+        particle.opacity = Math.min(0.8, 0.3 + audioData.average / 255 * 0.5);
+      }
+    });
   }
 }
 
@@ -256,6 +448,8 @@ export class VisualEffects {
     this.floatingParticlesContainer = null;
     this.audioWaveContainer = null;
     this.loadingShader = null;
+    this.floatingParticles = new FloatingParticles();
+    this.audioReactive = new AudioReactive();
     
     // Enhanced pixel loader properties
     this.pixels = [];
@@ -269,14 +463,6 @@ export class VisualEffects {
     this.pixelHeight = 0;
     this.pixelResizeObserver = null;
     this.pixelLoaderActive = false;
-    
-    // Floating particles
-    this.particles = [];
-    this.particleAnimationId = null;
-    
-    // Audio reactive properties
-    this.audioData = null;
-    this.glowIntensity = 0;
     
     // Bind methods
     this.init = this.init.bind(this);
@@ -299,7 +485,7 @@ export class VisualEffects {
       this.loadingShader.init();
       
       await this.initPixelLoader();
-      this.initFloatingParticles();
+      this.floatingParticles.init();
       this.initAudioWave();
       this.setupEventListeners();
       
@@ -533,85 +719,11 @@ export class VisualEffects {
         return;
       }
 
-      this.createFloatingParticles();
-      this.animateFloatingParticles();
+      this.floatingParticles.init();
       
     } catch (error) {
       console.error('Error initializing floating particles:', error);
     }
-  }
-
-  /**
-   * Create floating particles
-   */
-  createFloatingParticles() {
-    const particleCount = 50;
-    this.particles = [];
-
-    for (let i = 0; i < particleCount; i++) {
-      const particle = {
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 0.5,
-        vy: (Math.random() - 0.5) * 0.5,
-        size: Math.random() * 3 + 1,
-        opacity: Math.random() * 0.5 + 0.2,
-        hue: Math.random() * 60 + 180, // Blue-cyan range
-        element: null
-      };
-
-      // Create DOM element for particle
-      const element = document.createElement('div');
-      element.className = 'floating-particle';
-      element.style.cssText = `
-        position: absolute;
-        width: ${particle.size}px;
-        height: ${particle.size}px;
-        background: hsl(${particle.hue}, 70%, 60%);
-        border-radius: 50%;
-        opacity: ${particle.opacity};
-        pointer-events: none;
-        transform: translate(${particle.x}px, ${particle.y}px);
-        box-shadow: 0 0 ${particle.size * 2}px hsl(${particle.hue}, 70%, 60%);
-      `;
-
-      particle.element = element;
-      this.floatingParticlesContainer.appendChild(element);
-      this.particles.push(particle);
-    }
-  }
-
-  /**
-   * Animate floating particles
-   */
-  animateFloatingParticles() {
-    this.particles.forEach(particle => {
-      // Update position
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-
-      // Wrap around screen edges
-      if (particle.x < 0) particle.x = window.innerWidth;
-      if (particle.x > window.innerWidth) particle.x = 0;
-      if (particle.y < 0) particle.y = window.innerHeight;
-      if (particle.y > window.innerHeight) particle.y = 0;
-
-      // Apply audio reactivity if available
-      if (this.audioData) {
-        const audioIntensity = this.audioData.average / 255;
-        particle.opacity = Math.min(0.8, particle.opacity + audioIntensity * 0.1);
-        particle.size = Math.max(1, particle.size + audioIntensity * 2);
-      }
-
-      // Update DOM element
-      if (particle.element) {
-        particle.element.style.transform = `translate(${particle.x}px, ${particle.y}px)`;
-        particle.element.style.opacity = particle.opacity;
-        particle.element.style.width = particle.element.style.height = `${particle.size}px`;
-      }
-    });
-
-    this.particleAnimationId = requestAnimationFrame(() => this.animateFloatingParticles());
   }
 
   /**
@@ -648,80 +760,13 @@ export class VisualEffects {
   setupEventListeners() {
     // Listen for audio data updates
     eventBus.on('audio:dataUpdated', (data) => {
-      this.updateAudioReactiveEffects(data);
+      this.audioReactive.updateAudioReactiveEffects(data);
     });
 
     // Window resize handling
     window.addEventListener('resize', Utils.debounce(() => {
       this.handleResize();
     }, 100));
-  }
-
-  /**
-   * Update audio reactive effects
-   */
-  updateAudioReactiveEffects(audioData) {
-    try {
-      this.audioData = audioData;
-      
-      if (!audioData || !audioData.frequencyData) return;
-
-      // Update glow intensity based on audio
-      this.glowIntensity = audioData.average / 255;
-
-      // Update audio wave visualization
-      this.updateAudioWave(audioData);
-
-      // Update particle effects
-      this.updateParticleEffects(audioData);
-      
-    } catch (error) {
-      console.error('Error updating audio reactive effects:', error);
-    }
-  }
-
-  /**
-   * Update audio wave visualization
-   */
-  updateAudioWave(audioData) {
-    if (!this.audioWaveContainer || !audioData.frequencyData) return;
-
-    const intensity = audioData.average / 255;
-    const height = Math.max(20, intensity * 150);
-    
-    this.audioWaveContainer.style.height = `${height}px`;
-    this.audioWaveContainer.style.background = `
-      linear-gradient(to top, 
-        rgba(0, 255, 255, ${intensity * 0.3}), 
-        rgba(0, 150, 255, ${intensity * 0.1}),
-        transparent
-      )
-    `;
-  }
-
-  /**
-   * Update particle effects based on audio
-   */
-  updateParticleEffects(audioData) {
-    if (!this.particles.length) return;
-
-    const bassIntensity = audioData.bass / 255;
-    const trebleIntensity = audioData.treble / 255;
-
-    this.particles.forEach((particle, index) => {
-      // Vary effects based on frequency ranges
-      if (index % 3 === 0) {
-        // Bass-reactive particles
-        particle.vx += (bassIntensity - 0.5) * 0.1;
-        particle.vy += (bassIntensity - 0.5) * 0.1;
-      } else if (index % 3 === 1) {
-        // Treble-reactive particles
-        particle.size = Math.max(1, 2 + trebleIntensity * 3);
-      } else {
-        // Mid-range reactive particles
-        particle.opacity = Math.min(0.8, 0.3 + audioData.average / 255 * 0.5);
-      }
-    });
   }
 
   /**
@@ -732,7 +777,7 @@ export class VisualEffects {
       // Recreate floating particles for new screen size
       if (this.floatingParticlesContainer) {
         this.floatingParticlesContainer.innerHTML = '';
-        this.createFloatingParticles();
+        this.floatingParticles.init();
       }
       
     } catch (error) {
@@ -753,12 +798,12 @@ export class VisualEffects {
         ticker: this.pixelTicker
       },
       particles: {
-        count: this.particles.length,
-        active: this.particleAnimationId !== null
+        count: this.floatingParticles.particles.length,
+        active: this.floatingParticles.particleAnimationId !== null
       },
       audioReactive: {
-        glowIntensity: this.glowIntensity,
-        hasAudioData: !!this.audioData
+        glowIntensity: this.audioReactive.glowIntensity,
+        hasAudioData: !!this.audioReactive.audioData
       }
     };
   }
@@ -768,9 +813,9 @@ export class VisualEffects {
    */
   updateSettings(newSettings) {
     try {
-      if (newSettings.particleCount && newSettings.particleCount !== this.particles.length) {
+      if (newSettings.particleCount && newSettings.particleCount !== this.floatingParticles.particles.length) {
         this.floatingParticlesContainer.innerHTML = '';
-        this.createFloatingParticles();
+        this.floatingParticles.init();
       }
 
       if (newSettings.pixelAnimation !== undefined) {
@@ -798,9 +843,9 @@ export class VisualEffects {
         this.pixelAnimationId = null;
       }
 
-      if (this.particleAnimationId) {
-        cancelAnimationFrame(this.particleAnimationId);
-        this.particleAnimationId = null;
+      if (this.floatingParticles.particleAnimationId) {
+        cancelAnimationFrame(this.floatingParticles.particleAnimationId);
+        this.floatingParticles.particleAnimationId = null;
       }
 
       // Cleanup loading shader
@@ -826,9 +871,8 @@ export class VisualEffects {
       }
 
       // Reset state
-      this.particles = [];
       this.pixels = [];
-      this.audioData = null;
+      this.audioReactive.audioData = null;
       this.isInitialized = false;
 
       console.log('🧹 Visual Effects destroyed');

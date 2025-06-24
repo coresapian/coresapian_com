@@ -6,7 +6,7 @@ import { CONSTANTS, Utils, eventBus } from './Utils.js';
 import { DependencyManager } from './DependencyManager.js';
 import { ThreeJSScene } from './ThreeJSScene.js';
 import { AudioManager } from './AudioManager.js';
-import UIManager from './UIManager.js';
+import { UIManager } from './UIManager.js';
 import VisualEffects from './VisualEffects.js';
 import CanvasVisualizers from './CanvasVisualizers.js';
 

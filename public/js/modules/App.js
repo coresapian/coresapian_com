@@ -7,7 +7,8 @@ import { DependencyManager } from './DependencyManager.js';
 import { ThreeJSScene } from './ThreeJSScene.js';
 import { AudioManager } from './AudioManager.js';
 import { UIManager } from './UIManager.js';
-import VisualEffects from './VisualEffects.js';
+// FIX 1: Changed import from lowercase 'visualEffects' to the class 'VisualEffects'
+import { VisualEffects } from './VisualEffects.js';
 import CanvasVisualizers from './CanvasVisualizers.js';
 
 export class App {
@@ -18,7 +19,7 @@ export class App {
     this.lastUpdateTime = 0;
     this.initializationAttempts = 0;
     this.maxInitializationAttempts = 3;
-    
+
     // Performance monitoring
     this.performanceMetrics = {
       fps: 0,
@@ -27,16 +28,30 @@ export class App {
       errors: 0,
       warnings: 0
     };
-    
+
     // Error recovery state
     this.errorRecovery = {
       audioFailures: 0,
       threeJSFailures: 0,
       lastErrorTime: 0
     };
-    
+
     // Initialize dependency manager
     this.dependencyManager = new DependencyManager();
+
+    // FIX 2: Instantiate and encapsulate modules within the App class
+    // This prevents ReferenceErrors since methods will use `this.module`
+    this.threeJSScene = new ThreeJSScene();
+    this.audioManager = new AudioManager();
+    this.uiManager = new UIManager();
+    this.visualEffects = new VisualEffects();
+    this.canvasVisualizers = new CanvasVisualizers();
+
+    // Link dependencies between modules
+    this.threeJSScene.setDependencies({
+      audioManager: this.audioManager,
+      uiManager: this.uiManager
+    });
   }
 
   /**
@@ -70,54 +85,54 @@ export class App {
     try {
       this.initializationAttempts++;
       console.log(`🚀 CoreSapian Neural Interface - Initializing (Attempt ${this.initializationAttempts})...`);
-      
+
       // Show loading screen
       this.showLoadingScreen();
-      
+
       // Check device capabilities first
       const capabilities = Utils.getDeviceCapabilities();
       console.log('📱 Device Capabilities:', capabilities);
-      
+
       if (!capabilities.webgl) {
         console.warn('⚠️ WebGL not supported - 3D features will be limited');
       }
-      
+
       if (!capabilities.webAudio) {
         console.warn('⚠️ Web Audio API not supported - Audio features will be limited');
       }
 
       // Setup global error handling
       this.setupErrorHandling();
-      
+
       // Setup dependency monitoring
       this.setupDependencyMonitoring();
-      
+
       // Setup inter-module communication
       this.setupModuleCommunication();
-      
+
       // Initialize modules using dependency manager
       await this.initializeModulesWithDependencies();
-      
+
       // Start main update loop
       this.startUpdateLoop();
-      
+
       // Setup cleanup on page unload
       this.setupCleanup();
-      
+
       this.isInitialized = true;
       console.log('✅ CoreSapian Neural Interface - Initialized successfully');
-      
+
       eventBus.emit('app:initialized', {
         capabilities,
         modules: Array.from(this.modules.keys()),
         attempts: this.initializationAttempts
       });
-      
+
       // Hide loading screen after a short delay to ensure everything is rendered
       setTimeout(() => {
         this.hideLoadingScreen();
       }, 1000);
-      
+
     } catch (error) {
       await this.handleInitializationError(error);
     }
@@ -182,10 +197,10 @@ export class App {
     // UI to Audio communication with error recovery
     eventBus.on('ui:loadAudioFile', async (data) => {
       try {
-        if (!audioManager.isInitialized) {
+        if (!this.audioManager.isInitialized) {
           await this.initializeAudioWithRetry();
         }
-        await audioManager.initAudioFile(data.file);
+        await this.audioManager.initAudioFile(data.file);
       } catch (error) {
         this.handleAudioError(error, 'UI->Audio File Load');
       }
@@ -193,10 +208,10 @@ export class App {
 
     eventBus.on('ui:loadAudioURL', async (data) => {
       try {
-        if (!audioManager.isInitialized) {
+        if (!this.audioManager.isInitialized) {
           await this.initializeAudioWithRetry();
         }
-        await audioManager.loadAudioFromURL(data.url);
+        await this.audioManager.loadAudioFromURL(data.url);
       } catch (error) {
         this.handleAudioError(error, 'UI->Audio URL Load');
       }
@@ -205,8 +220,8 @@ export class App {
     // Audio to Visual Effects communication
     eventBus.on('audio:dataUpdated', (data) => {
       try {
-        if (visualEffects && visualEffects.isInitialized) {
-          visualEffects.updateAudioReactiveEffects(data);
+        if (this.visualEffects && this.visualEffects.isInitialized) {
+          this.visualEffects.updateAudioReactiveEffects(data);
         }
       } catch (error) {
         this.handleVisualError(error, 'Audio->Visual Effects');
@@ -234,7 +249,7 @@ export class App {
   async initializeModulesWithDependencies() {
     // Use existing dependency manager instance
     const dependencyManager = this.dependencyManager;
-    
+
     const moduleInitializers = {
       utils: () => Promise.resolve(), // Utils is already loaded
       audioManager: () => this.initializeAudioManager(),
@@ -253,10 +268,10 @@ export class App {
     while (!dependencyManager.isComplete() && attempts < maxAttempts) {
       attempts++;
       console.log(`🔄 Dependency resolution attempt ${attempts}/${maxAttempts}`);
-      
+
       const readyModules = dependencyManager.getReadyModules();
       console.log('📋 Ready modules:', readyModules);
-      
+
       if (readyModules.length === 0) {
         console.log('⏳ No modules ready, waiting...');
         await Utils.delay(100); // Wait a bit before checking again
@@ -281,7 +296,7 @@ export class App {
       });
 
       await Promise.allSettled(initPromises);
-      
+
       // Check if we're complete after this round
       if (dependencyManager.isComplete()) {
         console.log('🎉 All modules initialized successfully!');
@@ -295,11 +310,11 @@ export class App {
     if (status.failed > 0) {
       console.warn(`⚠️ ${status.failed} modules failed to initialize`);
     }
-    
+
     if (attempts >= maxAttempts && !dependencyManager.isComplete()) {
       console.warn('⚠️ Module initialization reached maximum attempts');
     }
-    
+
     console.log('✅ Module initialization process completed');
   }
 
@@ -308,7 +323,7 @@ export class App {
    */
   async initializeAudioManager() {
     try {
-      await audioManager.initAudio();
+      await this.audioManager.initAudio();
     } catch (error) {
       console.warn('Audio initialization failed, continuing without audio:', error);
       // Don't throw - audio is optional
@@ -316,26 +331,26 @@ export class App {
   }
 
   async initializeUIManager() {
-    await uiManager.init();
+    await this.uiManager.init();
   }
 
   async initializeVisualEffects() {
-    await visualEffects.init();
+    await this.visualEffects.init();
   }
 
   async initializeCanvasVisualizers() {
-    await canvasVisualizers.init();
+    await this.canvasVisualizers.init();
   }
 
   async initializeThreeJSScene() {
     try {
-      await threeJSScene.init('three-container');
+      await this.threeJSScene.init('three-container');
     } catch (error) {
       this.errorRecovery.threeJSFailures++;
       if (this.errorRecovery.threeJSFailures < 3) {
         console.warn('Three.js initialization failed, retrying...', error);
         await Utils.delay(1000);
-        await threeJSScene.init('three-container');
+        await this.threeJSScene.init('three-container');
       } else {
         throw error;
       }
@@ -351,12 +366,12 @@ export class App {
     }
 
     try {
-      await audioManager.initAudio();
+      await this.audioManager.initAudio();
       this.errorRecovery.audioFailures = 0; // Reset on success
     } catch (error) {
       this.errorRecovery.audioFailures++;
       console.warn(`Audio initialization attempt ${this.errorRecovery.audioFailures} failed:`, error);
-      
+
       if (this.errorRecovery.audioFailures < 3) {
         await Utils.delay(1000);
         return this.initializeAudioWithRetry();
@@ -378,9 +393,9 @@ export class App {
       return this.init();
     } else {
       console.error('❌ Maximum initialization attempts reached. App startup failed.');
-      eventBus.emit('app:initializationFailed', { 
-        error: error.message, 
-        attempts: this.initializationAttempts 
+      eventBus.emit('app:initializationFailed', {
+        error: error.message,
+        attempts: this.initializationAttempts
       });
       throw error;
     }
@@ -392,19 +407,19 @@ export class App {
   handleGlobalError(error, context, event) {
     this.performanceMetrics.errors++;
     this.errorRecovery.lastErrorTime = Date.now();
-    
+
     Utils.handleError(error, context);
-    
+
     // Try to recover from certain errors
     if (context.includes('Audio') || error.message.includes('audio')) {
       this.handleAudioError(error, context);
     } else if (context.includes('Three') || error.message.includes('WebGL')) {
       this.handleThreeJSError(error, context);
     }
-    
-    eventBus.emit('app:error', { 
-      error: error.message, 
-      context, 
+
+    eventBus.emit('app:error', {
+      error: error.message,
+      context,
       timestamp: Date.now(),
       recoverable: this.isRecoverableError(error)
     });
@@ -415,7 +430,7 @@ export class App {
    */
   handleAudioError(error, context) {
     console.warn(`🎵 Audio error in ${context}:`, error);
-    
+
     if (error.name === 'NotAllowedError') {
       eventBus.emit('ui:showNotification', {
         message: 'Audio access denied. Please allow audio permissions.',
@@ -434,7 +449,7 @@ export class App {
    */
   handleThreeJSError(error, context) {
     console.warn(`🎮 Three.js error in ${context}:`, error);
-    
+
     if (error.message.includes('WebGL')) {
       eventBus.emit('ui:showNotification', {
         message: 'WebGL not available. 3D features disabled.',
@@ -461,8 +476,8 @@ export class App {
       'TimeoutError',
       'AbortError'
     ];
-    
-    return recoverableErrors.some(type => 
+
+    return recoverableErrors.some(type =>
       error.name === type || error.message.includes(type)
     );
   }
@@ -475,27 +490,27 @@ export class App {
       try {
         const deltaTime = currentTime - this.lastUpdateTime;
         this.lastUpdateTime = currentTime;
-        
+
         // Update audio analysis if available
-        if (audioManager.isInitialized && audioManager.isPlaying) {
-          audioManager.updateAudioWave();
-          audioManager.calculateAudioMetrics();
+        if (this.audioManager.isInitialized && this.audioManager.isPlaying) {
+          this.audioManager.updateAudioWave();
+          this.audioManager.calculateAudioMetrics();
         }
-        
+
         // Performance monitoring
         if (currentTime % 1000 < 16) { // Roughly every second
           this.updatePerformanceMetrics();
         }
-        
+
         this.animationId = requestAnimationFrame(update);
-        
+
       } catch (error) {
         this.handleGlobalError(error, 'App.update');
         // Continue the loop even if there's an error
         this.animationId = requestAnimationFrame(update);
       }
     };
-    
+
     this.animationId = requestAnimationFrame(update);
   }
 
@@ -510,7 +525,7 @@ export class App {
           performance.memory.usedJSHeapSize / 1024 / 1024
         );
       }
-      
+
       // Calculate FPS
       const now = performance.now();
       if (this.lastFPSUpdate) {
@@ -518,9 +533,9 @@ export class App {
         this.performanceMetrics.fps = Math.round(1000 / delta);
       }
       this.lastFPSUpdate = now;
-      
+
       eventBus.emit('app:performanceUpdate', this.performanceMetrics);
-      
+
     } catch (error) {
       // Performance monitoring shouldn't break the app
       console.warn('Performance monitoring error:', error);
@@ -538,7 +553,7 @@ export class App {
 
     window.addEventListener('beforeunload', cleanup);
     window.addEventListener('pagehide', cleanup);
-    
+
     // Also cleanup on visibility change (mobile)
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
@@ -558,9 +573,7 @@ export class App {
         cancelAnimationFrame(this.animationId);
         this.animationId = null;
       }
-      
       eventBus.emit('app:paused');
-      
     } catch (error) {
       console.warn('Error pausing app:', error);
     }
@@ -574,9 +587,7 @@ export class App {
       if (!this.animationId && this.isInitialized) {
         this.startUpdateLoop();
       }
-      
       eventBus.emit('app:resumed');
-      
     } catch (error) {
       console.warn('Error resuming app:', error);
     }
@@ -592,11 +603,11 @@ export class App {
       performance: this.performanceMetrics,
       errorRecovery: this.errorRecovery,
       dependencies: this.dependencyManager.getStatus(),
-      audio: audioManager?.getState?.() || { available: false },
-      ui: uiManager?.getState?.() || { available: false },
-      threeJS: threeJSScene?.getState?.() || { available: false },
-      visualEffects: visualEffects?.getState?.() || { available: false },
-      canvasVisualizers: canvasVisualizers?.getState?.() || { available: false }
+      audio: this.audioManager?.getState?.() || { available: false },
+      ui: this.uiManager?.getState?.() || { available: false },
+      threeJS: this.threeJSScene?.getState?.() || { available: false },
+      visualEffects: this.visualEffects?.getState?.() || { available: false },
+      canvasVisualizers: this.canvasVisualizers?.getState?.() || { available: false }
     };
   }
 
@@ -611,26 +622,26 @@ export class App {
       }
 
       // Distribute settings to relevant modules
-      if (newSettings.audio && audioManager.isInitialized) {
+      if (newSettings.audio && this.audioManager.isInitialized) {
         if (newSettings.audio.reactivity !== undefined) {
-          audioManager.setReactivity(newSettings.audio.reactivity);
+          this.audioManager.setReactivity(newSettings.audio.reactivity);
         }
         if (newSettings.audio.sensitivity !== undefined) {
-          audioManager.setSensitivity(newSettings.audio.sensitivity);
+          this.audioManager.setSensitivity(newSettings.audio.sensitivity);
         }
       }
-      
+
       if (newSettings.visual) {
-        if (newSettings.visual.threeJS && threeJSScene.isInitialized) {
-          threeJSScene.updateSettings(newSettings.visual.threeJS);
+        if (newSettings.visual.threeJS && this.threeJSScene.isInitialized) {
+          this.threeJSScene.updateSettings(newSettings.visual.threeJS);
         }
-        if (newSettings.visual.canvas && canvasVisualizers.isInitialized) {
-          canvasVisualizers.updateSettings(newSettings.visual.canvas);
+        if (newSettings.visual.canvas && this.canvasVisualizers.isInitialized) {
+          this.canvasVisualizers.updateSettings(newSettings.visual.canvas);
         }
       }
-      
+
       eventBus.emit('app:settingsUpdated', newSettings);
-      
+
     } catch (error) {
       this.handleGlobalError(error, 'App.updateSettings');
     }
@@ -646,13 +657,13 @@ export class App {
 
     // Validate audio settings
     if (settings.audio) {
-      if (settings.audio.reactivity !== undefined && 
-          (typeof settings.audio.reactivity !== 'number' || 
+      if (settings.audio.reactivity !== undefined &&
+          (typeof settings.audio.reactivity !== 'number' ||
            settings.audio.reactivity < 0 || settings.audio.reactivity > 2)) {
         return false;
       }
-      if (settings.audio.sensitivity !== undefined && 
-          (typeof settings.audio.sensitivity !== 'number' || 
+      if (settings.audio.sensitivity !== undefined &&
+          (typeof settings.audio.sensitivity !== 'number' ||
            settings.audio.sensitivity < 1 || settings.audio.sensitivity > 10)) {
         return false;
       }
@@ -671,16 +682,16 @@ export class App {
         cancelAnimationFrame(this.animationId);
         this.animationId = null;
       }
-      
+
       // Destroy modules in reverse dependency order
       const modules = [
-        audioManager,
-        threeJSScene,
-        canvasVisualizers,
-        visualEffects,
-        uiManager
+        this.audioManager,
+        this.threeJSScene,
+        this.canvasVisualizers,
+        this.visualEffects,
+        this.uiManager
       ];
-      
+
       modules.forEach(module => {
         try {
           if (module && typeof module.destroy === 'function') {
@@ -690,18 +701,18 @@ export class App {
           console.warn('Error destroying module:', error);
         }
       });
-      
+
       // Clear module registry
       this.modules.clear();
-      
+
       // Reset dependency manager
       this.dependencyManager.reset();
-      
+
       this.isInitialized = false;
-      
+
       eventBus.emit('app:destroyed');
       console.log('🧹 CoreSapian cleanup complete');
-      
+
     } catch (error) {
       console.error('Error during app destruction:', error);
     }
@@ -711,15 +722,8 @@ export class App {
 // Create and export singleton instance
 export const app = new App();
 
-// Initialize all required modules
-const threeJSScene = new ThreeJSScene();
-const audioManager = new AudioManager();
-const uiManager = new UIManager();
-const visualEffects = new VisualEffects();
-const canvasVisualizers = new CanvasVisualizers();
-
-// Link components as needed
-threeJSScene.setDependencies({ audioManager, uiManager });
+// FIX 3: Removed the global const declarations. The App instance now manages them.
+// The constructor of `App` already handles instantiation and dependency linking.
 
 // Auto-initialize when DOM is ready
 if (document.readyState === 'loading') {

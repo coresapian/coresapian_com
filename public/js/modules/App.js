@@ -40,12 +40,39 @@ export class App {
   }
 
   /**
+   * Show loading screen
+   */
+  showLoadingScreen() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      loadingOverlay.style.display = 'flex';
+    }
+  }
+
+  /**
+   * Hide loading screen
+   */
+  hideLoadingScreen() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+      // Add fade out animation
+      loadingOverlay.style.opacity = '0';
+      setTimeout(() => {
+        loadingOverlay.style.display = 'none';
+      }, 500); // Match this with CSS transition duration
+    }
+  }
+
+  /**
    * Initialize the application with dependency management
    */
   async init() {
     try {
       this.initializationAttempts++;
       console.log(`🚀 CoreSapian Neural Interface - Initializing (Attempt ${this.initializationAttempts})...`);
+      
+      // Show loading screen
+      this.showLoadingScreen();
       
       // Check device capabilities first
       const capabilities = Utils.getDeviceCapabilities();
@@ -85,6 +112,11 @@ export class App {
         modules: Array.from(this.modules.keys()),
         attempts: this.initializationAttempts
       });
+      
+      // Hide loading screen after a short delay to ensure everything is rendered
+      setTimeout(() => {
+        this.hideLoadingScreen();
+      }, 1000);
       
     } catch (error) {
       await this.handleInitializationError(error);

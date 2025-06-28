@@ -11,7 +11,8 @@
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  /* UPDATED: Added a subtle radial gradient for atmosphere */
+  background: radial-gradient(circle, #3a3a3a 0%, #242424 70%);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -53,6 +54,21 @@
     justify-content: center;
     box-sizing: border-box;
     padding: 1rem;
+    position: relative; /* Needed for dust motes */
+  }
+
+  /* NEW: Ambient Dust Motes Effect */
+  body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: url('data:image/svg+xml,<svg width="10" height="10" viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg"><circle fill="rgba(255,255,255,0.1)" cx="5" cy="5" r="1"/></svg>');
+    animation: float 25s linear infinite;
+    z-index: -1;
+    opacity: 0.5;
   }
 
   .sprite-wrapper {
@@ -79,6 +95,7 @@
     display: flex;
     flex-direction: column;
     gap: 3rem;
+    align-items: center;
 
     /* sprite columns */
     --sprite-c: 5;
@@ -173,6 +190,7 @@
           border: 0;
           background-color: transparent;
           cursor: pointer;
+          transition: transform 0.2s ease, filter 0.2s ease; /* NEW: transition for hover */
         }
 
         &::scroll-button(*):disabled{
@@ -180,7 +198,8 @@
           opacity: 0.5;
         }
         &::scroll-button(*):not(:disabled):is(:hover, :active) {
-          filter: drop-shadow(2px 4px 6px black);
+          filter: drop-shadow(2px 4px 6px black) brightness(1.2); /* NEW: brightness on hover */
+          transform: scale(1.1); /* NEW: scale on hover */
         }
 
         &::scroll-button(*):not(:disabled):active {
@@ -211,6 +230,8 @@
           place-self: center;
           overflow: hidden;
           border: 1px solid #000;
+          /* NEW: Inset shadow for depth */
+          box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
 
           background: linear-gradient(90deg, #f1e2b2 0%) no-repeat left center;
           --_progress: calc(calc(100 / var(--slides)) * 1%);
@@ -272,11 +293,20 @@
             }
 
             > div {
-              text-align: justify;
+              /* UPDATED: Changed from justify to left */
+              text-align: left;
               hyphens: auto;
-              line-height: normal;
+              /* UPDATED: Increased line-height for readability */
+              line-height: 1.6;
               display: block;
               word-wrap: break-word;
+            }
+            
+            /* NEW: Style for the "Truth X" titles */
+            p[style*="font-weight: bold"] {
+                padding-bottom: 0.5em;
+                border-bottom: 2px solid rgba(0,0,0,0.1);
+                margin-bottom: 1em;
             }
           }
 
@@ -383,8 +413,23 @@
   }
 }
 
+/* NEW: Animation for the dust motes */
+@keyframes float {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(-100px, -100px);
+  }
+}
+
+
 @media (prefers-reduced-motion) {
   * {
+    animation: none;
+  }
+  /* NEW: Also disable the dust motes animation */
+  body::before {
     animation: none;
   }
 }

@@ -1,4 +1,3 @@
-
 gsap.registerPlugin(ScrambleTextPlugin)
 
 gsap.to(".container > h1", {

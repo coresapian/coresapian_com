@@ -190,7 +190,7 @@
           border: 0;
           background-color: transparent;
           cursor: pointer;
-          transition: transform 0.2s ease, filter 0.2s ease; /* NEW: transition for hover */
+          transition: transform 0.2s ease, filter 0.2s ease; /* transition for hover */
         }
 
         &::scroll-button(*):disabled{
@@ -198,8 +198,8 @@
           opacity: 0.5;
         }
         &::scroll-button(*):not(:disabled):is(:hover, :active) {
-          filter: drop-shadow(2px 4px 6px black) brightness(1.2); /* NEW: brightness on hover */
-          transform: scale(1.1); /* NEW: scale on hover */
+          filter: drop-shadow(2px 4px 6px black) brightness(1.2); /* brightness on hover */
+          transform: scale(1.1); /* scale on hover */
         }
 
         &::scroll-button(*):not(:disabled):active {
@@ -230,7 +230,6 @@
           place-self: center;
           overflow: hidden;
           border: 1px solid #000;
-          /* NEW: Inset shadow for depth */
           box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
 
           background: linear-gradient(90deg, #f1e2b2 0%) no-repeat left center;
@@ -293,16 +292,13 @@
             }
 
             > div {
-              /* UPDATED: Changed from justify to left */
               text-align: left;
               hyphens: auto;
-              /* UPDATED: Increased line-height for readability */
               line-height: 1.6;
               display: block;
               word-wrap: break-word;
             }
             
-            /* NEW: Style for the "Truth X" titles */
             p[style*="font-weight: bold"] {
                 padding-bottom: 0.5em;
                 border-bottom: 2px solid rgba(0,0,0,0.1);
@@ -330,14 +326,20 @@
     }
   }
   
-  /* NEW: Style for the pixel art images */
-  .truth-image {
-    max-width: 90%;
-    max-height: 90%;
-    object-fit: contain;
-    image-rendering: pixelated;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: crisp-edges;
+  
+  .truth-number {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: #d2d4e1;
+    text-shadow: 0 0 5px rgba(210, 212, 225, 0.4), 0 0 10px rgba(210, 212, 225, 0.2);
+  }
+
+  .truth-number > pre {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.5rem; /* Adjust size as needed */
+    line-height: 1.1;
+    margin: 0;
   }
 }
 

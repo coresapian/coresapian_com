@@ -1,87 +1,99 @@
-// Wait for the DOM to be fully loaded before running any scripts
 document.addEventListener("DOMContentLoaded", (event) => {
-  // Register the necessary GSAP plugins
-  gsap.registerPlugin(ScrambleTextPlugin);
+  // Register the necessary GSAP plugin
+  gsap.registerPlugin(SplitText);
   
-  // Animate the main title on page load
-  gsap.to(".container > h1", {
-    duration: 1,
-    scrambleText: {
-        text: "coRE truths",
-        chars: "lowerCase",
-        revealDelay: 0.5,
-    },
-    ease: "power1.inOut"
+  // --- ANIMATION FOR THE MAIN TITLE ON PAGE LOAD ---
+  // Make sure the container h1 is visible before splitting
+  gsap.set(".container > h1", { autoAlpha: 1 }); 
+  const mainTitle = document.querySelector(".container > h1");
+  const mainTitleSplit = new SplitText(mainTitle, { type: "chars" });
+  
+  gsap.from(mainTitleSplit.chars, {
+    duration: 0.6,
+    opacity: 0,
+    scale: 0,
+    y: 20,
+    rotationX: -90,
+    transformOrigin: "0% 50% -50",
+    ease: "back.out",
+    stagger: 0.05
   });
 
-  // Use Intersection Observer to detect when a page is in view
+  // --- INTERSECTION OBSERVER TO ANIMATE ITEMS ON SCROLL ---
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
-      // When an item becomes visible in the viewport...
       if (entry.isIntersecting) {
-        // Find all the elements to animate within that visible item
-        const h1 = entry.target.querySelector("h1");
-        const h3 = entry.target.querySelectorAll("h3");
-        const p = entry.target.querySelector("p");
-        const asciiArt = entry.target.querySelector(".truth-number pre");
+        // Find all animatable elements within the visible slide
+        const truthNumber = entry.target.querySelector(".truth-number h1");
+        const truthText = entry.target.querySelector(".truth-text");
+        const introHeading = entry.target.querySelector(".intro-heading");
+        const introSubheadings = entry.target.querySelectorAll(".intro-subheading");
 
-        // Use a GSAP timeline for better control and synchronization
+        // Create a GSAP timeline for better control
         const tl = gsap.timeline();
-        
-        // Animate the ASCII art if it exists
-        if (asciiArt) {
-          tl.from(asciiArt, {
-              duration: 1.2,
-              scrambleText: {
-                  text: "************************************************************", // Scramble from this text
-                  chars: "!@#$%^&*", // Use these characters for scrambling
-                  revealDelay: 0.5
-              },
-              ease: "power2.out"
-          }, 0); // Start animation at 0 seconds in the timeline
+
+        // Animate the big number if it exists
+        if (truthNumber) {
+          tl.from(truthNumber, {
+            duration: 0.8,
+            opacity: 0,
+            scale: 0.7,
+            ease: "back.out(1.4)"
+          }, 0.1);
         }
         
-        // Animate the main paragraph text if it exists
-        if (p) {
-          tl.from(p, {
-              duration: 1.5,
-              scrambleText: {
-                  text: "********************************************************************************************************************************",
-                  chars: "lowerCase" // Use lowercase letters for a "decoding" effect
-              },
-              ease: "power1.inOut"
-          }, 0.4); // Stagger the start of this animation
+        // Animate the main paragraph with a human-like typewriter effect
+        if (truthText) {
+          const pSplit = new SplitText(truthText, { type: "chars" });
+          tl.from(pSplit.chars, {
+            duration: 0.8,
+            opacity: 0,
+            ease: "power1.in",
+            // This creates the typing effect
+            stagger: {
+              each: 0.03, // Base speed
+              from: "start"
+            }
+          }, 0.3); // Start slightly after the number appears
         }
 
-        // Animate the introductory H1 if it exists
-        if (h1) {
-          tl.from(h1, {
-              duration: 1,
-              scrambleText: { text: "***************", chars: "lowerCase"},
-              ease: "power1.inOut"
-          }, 0);
+        // Animate the introduction heading
+        if (introHeading) {
+          const h1Split = new SplitText(introHeading, { type: "chars" });
+          tl.from(h1Split.chars, {
+              duration: 0.6,
+              opacity: 0,
+              scale: 0.5,
+              ease: "back.out",
+              stagger: 0.05
+          });
         }
         
-        // Animate the introductory H3s if they exist
-        if (h3.length > 0) {
-          tl.from(h3, {
-              duration: 1.2,
-              scrambleText: { text: "***********************************", chars: "lowerCase"},
-              ease: "power1.inOut",
-              stagger: 0.3 // Animate each H3 one after another
-          }, 0.2);
+        // Animate introduction subheadings
+        if (introSubheadings.length > 0) {
+          introSubheadings.forEach((subheading) => {
+            const h3Split = new SplitText(subheading, { type: "chars" });
+            tl.from(h3Split.chars, {
+              duration: 0.8,
+              opacity: 0,
+              ease: "power1.in",
+              stagger: {
+                each: 0.03,
+                from: "start"
+              }
+            }, "-=0.2"); // Overlap animations slightly
+          });
         }
         
-        // Animation should only play once per element.
-        // Stop observing this item so the animation doesn't re-trigger.
+        // Stop observing this element so the animation only plays once.
         observer.unobserve(entry.target);
       }
     });
   }, {
-    threshold: 0.6 // Trigger when 60% of the item is visible
+    threshold: 0.5 // Trigger when 50% of the slide is visible
   });
 
-  // Tell the observer to watch each of the carousel items
+  // Tell the observer to watch each carousel item
   document.querySelectorAll('.carousel-item').forEach((item) => {
     observer.observe(item);
   });

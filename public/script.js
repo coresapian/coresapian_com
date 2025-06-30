@@ -1,14 +1,15 @@
 document.addEventListener("DOMContentLoaded", (event) => {
   gsap.registerPlugin(SplitText);
 
-  // --- IMPROVED TORCH EFFECT ---
+  // --- ENHANCED TORCH EFFECT LOGIC ---
   const torch = document.getElementById('torch-overlay');
 
-  // Check for touch-only devices to disable the effect
+  // Disable the effect for touch-only devices for a better UX
   if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
     document.body.classList.add('touch-device');
   } else {
       const torchProps = { x: 0, y: 0 };
+      // Use GSAP's quickSetter for optimized performance
       const quickSetX = gsap.quickSetter(torch, "style", "--torch-x");
       const quickSetY = gsap.quickSetter(torch, "style", "--torch-y");
 
@@ -26,7 +27,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           });
       });
 
-      // Torch "breathing" effect (gently changing size)
+      // Lifelike "breathing" effect for the torch size
       gsap.to(torch, {
           '--torch-size': '200px',
           duration: 4,
@@ -35,7 +36,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           yoyo: true
       });
 
-      // Torch "flickering" effect
+      // Lifelike "flickering" effect using a pseudo-element
       gsap.to(torch, {
           '--torch-flicker-opacity': 0.1,
           duration: 0.1,
@@ -53,10 +54,11 @@ document.addEventListener("DOMContentLoaded", (event) => {
       transformOrigin: "0% 50% -50", ease: "back.out", stagger: 0.05
   });
 
-  // --- ON-SCROLL PAGE ANIMATIONS ---
+  // --- ON-SCROLL PAGE ANIMATIONS (Intersection Observer) ---
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry) => {
       if (entry.isIntersecting) {
+        // Query for all elements to animate in the visible slide
         const truthNumberHeading = entry.target.querySelector(".truth-number h3");
         const truthText = entry.target.querySelector(".truth-text");
         const introHeading = entry.target.querySelector(".intro-heading");
@@ -64,15 +66,15 @@ document.addEventListener("DOMContentLoaded", (event) => {
 
         const tl = gsap.timeline();
 
-        // UPDATED: Animate "Truth X" heading with typing effect
+        // Animate the "Truth X" heading if it exists
         if (truthNumberHeading) {
           const h3Split = new SplitText(truthNumberHeading, { type: "words,chars" });
           tl.from(h3Split.chars, {
-              duration: 0.6, opacity: 0, scale: 0, ease: "back.out",
-              stagger: 0.08
+              duration: 0.6, opacity: 0, scale: 0, ease: "back.out", stagger: 0.08
           }, 0.1);
         }
         
+        // Animate the main paragraph text if it exists
         if (truthText) {
           const pSplit = new SplitText(truthText, { type: "chars" });
           tl.from(pSplit.chars, {
@@ -81,6 +83,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           }, 0.3);
         }
 
+        // Animate the intro page H1 heading
         if (introHeading) {
           const h1Split = new SplitText(introHeading, { type: "chars" });
           tl.from(h1Split.chars, {
@@ -88,6 +91,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
           });
         }
         
+        // Animate the intro page H3 subheadings
         if (introSubheadings.length > 0) {
           introSubheadings.forEach((subheading) => {
             const h3Split = new SplitText(subheading, { type: "chars" });
@@ -98,11 +102,12 @@ document.addEventListener("DOMContentLoaded", (event) => {
           });
         }
         
+        // The animation should only play once. Stop observing this element.
         observer.unobserve(entry.target);
       }
     });
   }, {
-    threshold: 0.5
+    threshold: 0.5 // Trigger when 50% of the slide is visible
   });
 
   document.querySelectorAll('.carousel-item').forEach(item => observer.observe(item));

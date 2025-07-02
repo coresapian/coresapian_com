@@ -68,7 +68,26 @@
         &::scroll-marker { content: ''; position: relative; left: -1px; width: 100%; height: 100%; display: block; box-sizing: border-box; box-shadow: 2px 0 0 #000; }
         &:last-of-type::scroll-marker { box-shadow: none; }
         .page-container { display: flex; gap: 3rem; height: 100%; animation: stay-centered linear both; animation-timeline: view(x); timeline-scope: --parallax-item; }
-        .left-page, .right-page { flex: 1; font-size: small; overflow: hidden; display: grid; grid-template-rows: 1fr auto; > div { text-align: left; hyphens: auto; line-height: 1.6; display: block; word-wrap: break-word; } }
+        .left-page, .right-page {
+          flex: 1;
+          font-size: small;
+          overflow: hidden;
+          display: grid;
+          grid-template-rows: 1fr auto;
+          > div {
+            text-align: left;
+            hyphens: auto;
+            line-height: 1.6;
+            display: block;
+            word-wrap: break-word; /* Fallback for overflow-wrap */
+            overflow-wrap: break-word; /* Ensures long words break and wrap */
+
+            /* Fix for text in grid containers: allows content to shrink and wrap */
+            > * {
+              min-width: 0;
+            }
+          }
+        }
         .left-page:after, .right-page:after { bottom: 15px; color: hsl(45.71deg 69.23% 30%); }
         .left-page { padding: 20px 0 20px 20px; &:after { content: counter(curpage); } }
         .right-page { padding: 20px 20px 20px 0; counter-increment: curpage; &:after { content: counter(curpage); place-self: self-end; } }

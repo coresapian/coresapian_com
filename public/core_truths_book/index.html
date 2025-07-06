@@ -139,35 +139,58 @@
         <script src="./script.js"></script>
     </div>
 
-    <script>
+        <script>
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded and parsed.');
+
             const loadingScreen = document.getElementById('loading-screen');
             const mainContent = document.getElementById('main-content');
             const minimumDisplayTime = 5000; // 5 seconds
 
+            if (!loadingScreen) {
+                console.error('Error: loading-screen element not found!');
+                return;
+            }
+            if (!mainContent) {
+                console.error('Error: main-content element not found!');
+                return;
+            }
+
+            console.log('Loading screen and main content elements found.');
             let startTime = Date.now();
 
             function showMainContent() {
+                console.log('showMainContent function called.');
                 const elapsedTime = Date.now() - startTime;
                 const remainingTime = minimumDisplayTime - elapsedTime;
+                console.log(`Elapsed time: ${elapsedTime}ms, Remaining time: ${remainingTime}ms`);
 
                 if (remainingTime > 0) {
+                    console.log(`Waiting for ${remainingTime}ms before showing main content.`);
                     setTimeout(() => {
+                        console.log('Hiding loading screen and showing main content (after delay).');
                         loadingScreen.style.display = 'none';
                         mainContent.style.display = 'block';
                     }, remainingTime);
                 } else {
+                    console.log('Hiding loading screen and showing main content (immediately).');
                     loadingScreen.style.display = 'none';
                     mainContent.style.display = 'block';
                 }
             }
 
             // Check if all assets are loaded
-            window.addEventListener('load', showMainContent);
+            console.log('Adding window.load event listener.');
+            window.addEventListener('load', () => {
+                console.log('Window load event fired.');
+                showMainContent();
+            });
 
             // Fallback for cases where 'load' event might not fire reliably (e.g., if assets are cached)
+            console.log('Setting fallback timeout.');
             setTimeout(() => {
                 if (loadingScreen.style.display !== 'none') {
+                    console.log('Fallback timeout triggered. Forcing display of main content.');
                     showMainContent();
                 }
             }, minimumDisplayTime + 1000); // 1 second after minimum display time

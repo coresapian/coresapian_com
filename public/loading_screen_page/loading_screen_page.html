@@ -138,9 +138,7 @@
                     self.loop();
                 });
             } else {
-                setTimeout( function() {
-                    self.reset();
-                }, 750 );
+                window.location.href = '/core_truths_book/index.html';
             }
         };
 
@@ -188,7 +186,7 @@
         let hourglass;
         
         loader.load(
-            '/loading_screen_page/loading_screen_hourglass_animation_model.glb',
+            'https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_page/loading_screen_hourglass_animation_model.glb',
             function (gltf) {
                 hourglass = gltf.scene;
                 

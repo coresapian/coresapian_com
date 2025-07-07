@@ -188,7 +188,7 @@
         let hourglass;
         
         loader.load(
-            'https://cdn.jsdelivr.net/gh/Artificial-Me-Org/coresapian/public/loading_screen_page/loading_screen_hourglass_animation_model.glb',
+            'https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_page/loading_screen_hourglass_animation_model.glb',
             function (gltf) {
                 hourglass = gltf.scene;
                 
@@ -211,7 +211,7 @@
             undefined,
             function (error) {
                 console.error('Error loading hourglass model:', error);
-                // Fallback to local path if CDN fails
+                // Fallback to local path if GitHub raw fails
                 console.log('Attempting to load local model...');
                 loader.load('loading_screen_hourglass_animation_model.glb', function (gltf) {
                     hourglass = gltf.scene;

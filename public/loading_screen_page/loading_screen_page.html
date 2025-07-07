@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading Screen</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5e7c1;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f5e7c1"/><path d="M0,20 L100,20 M0,40 L100,40 M0,60 L100,60 M0,80 L100,80" stroke="%23e0c9a6" stroke-width="1"/></svg>');
+            background-size: 100px 100px;
+            margin: 0;
+            overflow: hidden;
+        }
+        .spinner-box,
+        .blue-orbit,
+        .green-orbit,
+        .red-orbit,
+        .white-orbit {
+            display: none;
+        }
+        #hourglass-container {
+            width: 200px;
+            height: 300px;
+            position: relative;
+            image-rendering: pixelated;
+        }
+        .word {
+            color: #d4af37; /* Gold */
+            font-family: 'Press Start 2P', cursive;
+            text-shadow: 2px 2px 0 #5e2c04, 
+                         -2px -2px 0 #5e2c04;
+            margin-top: 40px; /* Add space between spinner and text */
+        }
+        .word .done {
+            color: #8b4513; /* Sienna */
+        }
+        @import url(https://fonts.googleapis.com/css?family=Source+Code+Pro:400);
+        .overlay {
+            background-image: linear-gradient(transparent 0%, rgba(10, 16, 10, 0.5) 50%);
+            background-size: 1000px 2px;
+            bottom: 0;
+            content: '';
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lettering.js/0.7.0/jquery.lettering.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; width: 100vw;">
+        <div id="hourglass-container"></div>
+        <div class="word">
+            <span>L</span>
+            <span>O</span>
+            <span>A</span>
+            <span>D</span>
+            <span>I</span>
+            <span>N</span>
+            <span>G</span>
+            <span>.</span>
+            <span>.</span>
+            <span>.</span>
+        </div>
+    </div>
+
+    <script>
+        function Ticker( elem ) {
+            elem.lettering();
+            this.done = false;
+            this.cycleCount = 5;
+            this.cycleCurrent = 0;
+            this.chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*()-_=+{}|[]\\;\':"<>?,./`~'.split('');
+            this.charsCount = this.chars.length;
+            this.letters = elem.find( 'span' );
+            this.letterCount = this.letters.length;
+            this.letterCurrent = 0;
+
+            this.letters.each( function() {
+                var $this = $( this );
+                $this.attr( 'data-orig', $this.text() );
+                $this.text( '-' );
+            });
+        }
+
+        Ticker.prototype.getChar = function() {
+            return this.chars[ Math.floor( Math.random() * this.charsCount ) ];
+        };
+
+        Ticker.prototype.reset = function() {
+            this.done = false;
+            this.cycleCurrent = 0;
+            this.letterCurrent = 0;
+            this.letters.each( function() {
+                var $this = $( this );
+                $this.text( $this.attr( 'data-orig' ) );
+                $this.removeClass( 'done' );
+            });
+            this.loop();
+        };
+
+        Ticker.prototype.loop = function() {
+            var self = this;
+
+            this.letters.each( function( index, elem ) {
+                var $elem = $( elem );
+                if( index >= self.letterCurrent ) {
+                    if( $elem.text() !== ' ' ) {
+                        $elem.text( self.getChar() );
+                        $elem.css( 'opacity', Math.random() );
+                    }
+                }
+            });
+
+            if( this.cycleCurrent < this.cycleCount ) {
+                this.cycleCurrent++;
+            } else if( this.letterCurrent < this.letterCount ) {
+                var currLetter = this.letters.eq( this.letterCurrent );
+                this.cycleCurrent = 0;
+                currLetter.text( currLetter.attr( 'data-orig' ) ).css( 'opacity', 1 ).addClass( 'done' );
+                this.letterCurrent++;
+            } else {
+                this.done = true;
+            }
+
+            if( !this.done ) {
+                requestAnimationFrame( function() {
+                    self.loop();
+                });
+            } else {
+                setTimeout( function() {
+                    self.reset();
+                }, 750 );
+            }
+        };
+
+        $words = $( '.word' );
+
+        $words.each( function() {
+            var $this = $( this ),
+                ticker = new Ticker( $this ).reset();
+            $this.data( 'ticker', ticker  );
+        });
+    </script>
+    <script>
+        // Initialize Three.js scene
+        const container = document.getElementById('hourglass-container');
+        const width = container.clientWidth;
+        const height = container.clientHeight;
+
+        // Create scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf5e7c1);
+        
+        // Create camera
+        const camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
+        camera.position.z = 5;
+
+        // Create renderer with pixelated effect
+        const renderer = new THREE.WebGLRenderer({
+            antialias: false,
+            powerPreference: "low-power"
+        });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(1); // Force pixelated look
+        container.appendChild(renderer.domElement);
+
+        // Add lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(1, 1, 1);
+        scene.add(directionalLight);
+
+        // Load hourglass model
+        const loader = new THREE.GLTFLoader();
+        let hourglass;
+        
+        loader.load(
+            'https://cdn.jsdelivr.net/gh/Artificial-Me-Org/coresapian/public/loading_screen_page/loading_screen_hourglass_animation_model.glb',
+            function (gltf) {
+                hourglass = gltf.scene;
+                
+                // Apply pixel-art material
+                hourglass.traverse(function(child) {
+                    if (child.isMesh) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: 0x8b4513, // Sienna brown
+                            roughness: 0.8,
+                            metalness: 0.2
+                        });
+                    }
+                });
+                
+                scene.add(hourglass);
+                
+                // Start animation loop
+                animate();
+            },
+            undefined,
+            function (error) {
+                console.error('Error loading hourglass model:', error);
+                // Fallback to local path if CDN fails
+                console.log('Attempting to load local model...');
+                loader.load('loading_screen_hourglass_animation_model.glb', function (gltf) {
+                    hourglass = gltf.scene;
+                    
+                    // Apply pixel-art material
+                    hourglass.traverse(function(child) {
+                        if (child.isMesh) {
+                            child.material = new THREE.MeshStandardMaterial({
+                                color: 0x8b4513, // Sienna brown
+                                roughness: 0.8,
+                                metalness: 0.2
+                            });
+                        }
+                    });
+                    
+                    scene.add(hourglass);
+                    
+                    // Start animation loop
+                    animate();
+                }, undefined, function (error) {
+                    console.error('Error loading local hourglass model:', error);
+                });
+            }
+        );
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (hourglass) {
+                hourglass.rotation.y += 0.01;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        });
+    </script>
+</body>
+</html>

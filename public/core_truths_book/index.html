@@ -7,20 +7,21 @@
   <link rel="stylesheet" href="/core_truths_book/style.css">
 </head>
 <body>
+    <!-- Loading screen container -->
     <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 9999; display: flex; justify-content: center; align-items: center;">
+      <!-- The Three.js canvas will be injected here automatically -->
     </div>
 
     <!-- Main content -->
     <div id="main-content" style="display: none;">
         <div id="torch-overlay"></div>
-
         <div class="container">
             <h1>coRE</h1>
             <div class="sprite-wrapper">
                 <div class="book">
                     <div class="carousel" style="--slides: 7;">
                         <div class="sprite"></div>
-        
+                        <!-- All carousel items remain unchanged... -->
                         <!-- Slide 1: Introduction -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -50,6 +51,7 @@
                                 </div>
                             </div>
                         </div>
+                        <!-- Truths 2-6 follow... -->
                         <!-- Truth 2 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -136,30 +138,77 @@
       const minimumDisplayTime = 5000;
 
       // --- THREE.JS HOURGLASS SETUP ---
-      const clock = new THREE.Clock(); 
+      const clock = new THREE.Clock();
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x000000); 
+      scene.background = new THREE.Color(0x000000);
 
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       camera.position.z = 5;
 
-      const renderer = new THREE.WebGLRenderer({ antialias: true }); 
+      const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       loadingScreen.appendChild(renderer.domElement);
 
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+      // --- LIGHTING SETUP ---
+      // ** Tweak this value to adjust overall scene brightness (e.g., 0.2 for darker, 1.0 for brighter) **
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
       scene.add(ambientLight);
-      const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-      directionalLight.position.set(5, 10, 7.5);
-      scene.add(directionalLight);
 
+      // Function to create a glowing sprite texture
+      function createGlowTexture() {
+          const canvas = document.createElement('canvas');
+          canvas.width = 128;
+          canvas.height = 128;
+          const context = canvas.getContext('2d');
+          const gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
+          gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+          gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          context.fillStyle = gradient;
+          context.fillRect(0, 0, canvas.width, canvas.height);
+          return new THREE.CanvasTexture(canvas);
+      }
+
+      const orbitingLights = [];
+      const WARM_WHITE = 0xffd6aa; // ~3000K color temperature
+      const lightData = [
+          { radius: 2.8, speed: 0.7 },
+          { radius: 3.2, speed: 0.5 },
+          { radius: 3.0, speed: 0.9 }
+      ];
+
+      lightData.forEach(data => {
+          // ** Tweak this intensity value for the orbiting lights (e.g., 1.0 for dimmer, 3.0 for brighter) **
+          const pointLight = new THREE.PointLight(WARM_WHITE, 2.0, 20);
+
+          // Solid inner core of the light source
+          const innerSphere = new THREE.Mesh(
+              new THREE.SphereGeometry(0.08, 16, 8),
+              new THREE.MeshBasicMaterial({ color: WARM_WHITE })
+          );
+          pointLight.add(innerSphere);
+
+          // Outer glow effect using a sprite
+          const glowSprite = new THREE.Sprite(
+              new THREE.SpriteMaterial({
+                  map: createGlowTexture(),
+                  transparent: true,
+                  blending: THREE.AdditiveBlending, // Makes glows look good when overlapping
+                  color: WARM_WHITE
+              })
+          );
+          glowSprite.scale.set(1.5, 1.5, 1.5); // Make the glow larger than the core
+          pointLight.add(glowSprite);
+
+          scene.add(pointLight);
+          orbitingLights.push({ light: pointLight, data: data });
+      });
+
+      // --- MODEL LOADING ---
       const loader = new THREE.GLTFLoader();
       let hourglass, mixer, initialY;
 
       loader.load('/loading_screen_hourglass_animation_model.glb', (gltf) => {
           hourglass = gltf.scene;
-
-          // Center and scale the model
           const box = new THREE.Box3().setFromObject(hourglass);
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
@@ -167,20 +216,15 @@
           const scale = 4.0 / maxDim;
           hourglass.scale.set(scale, scale, scale);
           hourglass.position.sub(center.multiplyScalar(scale));
-          
-          // Store the initial Y position for the bobbing animation
           initialY = hourglass.position.y;
-
           scene.add(hourglass);
 
-          // Set up the AnimationMixer to play the model's animation
           mixer = new THREE.AnimationMixer(hourglass);
           if (gltf.animations.length) {
             const action = mixer.clipAction(gltf.animations[0]);
             action.play();
           }
-
-          animate(); // Start the animation loop
+          animate();
         },
         undefined,
         (error) => { console.error('Failed to load the 3D model:', error); }
@@ -189,17 +233,26 @@
       function animate() {
         requestAnimationFrame(animate);
         const delta = clock.getDelta();
+        const elapsedTime = clock.getElapsedTime();
 
-        if (mixer) {
-          mixer.update(delta);
-        }
+        if (mixer) mixer.update(delta);
+        if (hourglass) hourglass.position.y = initialY + Math.sin(elapsedTime * 1.5) * 0.1;
 
-        // procedural bobbing animation
-        if (hourglass) {
-          const elapsedTime = clock.getElapsedTime();
-          // Sine wave for smooth up-and-down motion
-          hourglass.position.y = initialY + Math.sin(elapsedTime * 1.5) * 0.1;
-        }
+        orbitingLights.forEach((orbiter, index) => {
+            const angle = elapsedTime * orbiter.data.speed;
+            const radius = orbiter.data.radius;
+            if (index === 0) {
+                orbiter.light.position.x = Math.cos(angle) * radius;
+                orbiter.light.position.y = Math.sin(angle) * radius;
+            } else if (index === 1) {
+                orbiter.light.position.x = Math.cos(angle * 1.2) * radius; // Added variation
+                orbiter.light.position.z = Math.sin(angle * 1.2) * radius;
+            } else {
+                orbiter.light.position.y = Math.cos(angle * 0.8) * radius; // Added variation
+                orbiter.light.position.z = Math.sin(angle * 0.8) * radius;
+                orbiter.light.position.x = Math.sin(angle * 0.8) * 0.5;
+            }
+        });
 
         renderer.render(scene, camera);
       }
@@ -210,6 +263,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
 
+      // --- FIXED-TIME TRANSITION ---
       setTimeout(() => {
         gsap.to(loadingScreen, {
           duration: 1.0,

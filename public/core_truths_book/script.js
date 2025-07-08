@@ -18,12 +18,10 @@ document.addEventListener("DOMContentLoaded", (event) => {
       torch.style.setProperty('--torch-y', `${torchPos.y}px`);
     });
 
-    // "Breathing" size animation
     gsap.to(torch, {
       '--torch-size': '200px', duration: 4, ease: "sine.inOut", repeat: -1, yoyo: true
     });
 
-    // NEW: "Brightness" flicker animation for the core light
     gsap.to(torch, {
         '--torch-brightness': 0.15,
         duration: 0.2,
@@ -32,7 +30,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
         yoyo: true
     });
     
-    // "Flicker" opacity animation for the outer glow
     gsap.to(torch, {
       '--torch-flicker-opacity': 0.2,
       duration: 0.1,
@@ -43,7 +40,6 @@ document.addEventListener("DOMContentLoaded", (event) => {
   }
 
   // --- ON-LOAD TITLE ANIMATION ---
-  gsap.set(".container > h1", { autoAlpha: 1 });
   const mainTitleSplit = new SplitText(".container > h1", { type: "chars" });
   gsap.from(mainTitleSplit.chars, {
       duration: 0.6, opacity: 0, scale: 0, y: 20, rotationX: -90,

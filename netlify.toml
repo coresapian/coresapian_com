@@ -3,5 +3,5 @@
 
 [[redirects]]
   from = "/"
-    to = "/loading_screen_page/loading_screen_page.html"
+  to = "/core_truths_book/index.html"
   status = 200

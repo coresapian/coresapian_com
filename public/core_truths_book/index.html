@@ -4,20 +4,13 @@
   <meta charset="UTF-8">
   <title>coRE</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="stylesheet" href="/core_truths_book/starfield.css">
   <link rel="stylesheet" href="/core_truths_book/style.css">
 </head>
 <body>
-    <!-- The loading screen container. Stars are now inside it. -->
-    <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999; display: flex; justify-content: center; align-items: center;">
-      <!-- STARFIELD ELEMENTS MOVED HERE -->
-      <div id="stars"></div>
-      <div id="stars2"></div>
-      <div id="stars3"></div>
-      <!-- The Three.js canvas will be injected here automatically -->
+    <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 9999; display: flex; justify-content: center; align-items: center;">
     </div>
 
-    <!-- Main content no longer contains the star elements -->
+    <!-- Main content -->
     <div id="main-content" style="display: none;">
         <div id="torch-overlay"></div>
 
@@ -44,8 +37,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <!-- All other "Truth" carousel items remain unchanged... -->
                         <!-- Truth 1 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -137,27 +128,38 @@
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
     <script src="/core_truths_book/script.js"></script>
+
     <script>
-      // The script for loading screen and transition remains unchanged.
-      // It will correctly inject the Three.js canvas into the loading-screen div.
+      // --- LOADING SCREEN AND TRANSITION LOGIC ---
       const loadingScreen = document.getElementById('loading-screen');
       const mainContent = document.getElementById('main-content');
       const minimumDisplayTime = 5000;
+
+      // --- THREE.JS HOURGLASS SETUP ---
+      const clock = new THREE.Clock(); 
       const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x000000); 
+
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       camera.position.z = 5;
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true }); 
       renderer.setSize(window.innerWidth, window.innerHeight);
       loadingScreen.appendChild(renderer.domElement);
+
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
       scene.add(ambientLight);
       const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
       directionalLight.position.set(5, 10, 7.5);
       scene.add(directionalLight);
+
       const loader = new THREE.GLTFLoader();
-      let hourglass;
+      let hourglass, mixer, initialY;
+
       loader.load('/loading_screen_hourglass_animation_model.glb', (gltf) => {
           hourglass = gltf.scene;
+
+          // Center and scale the model
           const box = new THREE.Box3().setFromObject(hourglass);
           const center = box.getCenter(new THREE.Vector3());
           const size = box.getSize(new THREE.Vector3());
@@ -165,22 +167,49 @@
           const scale = 4.0 / maxDim;
           hourglass.scale.set(scale, scale, scale);
           hourglass.position.sub(center.multiplyScalar(scale));
+          
+          // Store the initial Y position for the bobbing animation
+          initialY = hourglass.position.y;
+
           scene.add(hourglass);
-          animate();
+
+          // Set up the AnimationMixer to play the model's animation
+          mixer = new THREE.AnimationMixer(hourglass);
+          if (gltf.animations.length) {
+            const action = mixer.clipAction(gltf.animations[0]);
+            action.play();
+          }
+
+          animate(); // Start the animation loop
         },
         undefined,
         (error) => { console.error('Failed to load the 3D model:', error); }
       );
+
       function animate() {
         requestAnimationFrame(animate);
-        if (hourglass) { hourglass.rotation.y += 0.01; }
+        const delta = clock.getDelta();
+
+        if (mixer) {
+          mixer.update(delta);
+        }
+
+        // procedural bobbing animation
+        if (hourglass) {
+          const elapsedTime = clock.getElapsedTime();
+          // Sine wave for smooth up-and-down motion
+          hourglass.position.y = initialY + Math.sin(elapsedTime * 1.5) * 0.1;
+        }
+
         renderer.render(scene, camera);
       }
+
       window.addEventListener('resize', () => {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight);
       });
+
       setTimeout(() => {
         gsap.to(loadingScreen, {
           duration: 1.0,

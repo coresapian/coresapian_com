@@ -136,7 +136,7 @@
       // --- LOADING SCREEN AND TRANSITION LOGIC ---
       const loadingScreen = document.getElementById('loading-screen');
       const mainContent = document.getElementById('main-content');
-      const minimumDisplayTime = 5000;
+      const minimumDisplayTime = 9000;
 
       // --- THREE.JS HOURGLASS SETUP ---
       const clock = new THREE.Clock();
@@ -151,7 +151,7 @@
       loadingScreen.appendChild(renderer.domElement);
 
       // --- LIGHTING SETUP ---
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
       scene.add(ambientLight);
 
       function createGlowTexture() {

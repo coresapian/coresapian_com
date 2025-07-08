@@ -135,7 +135,7 @@
       // --- LOADING SCREEN AND TRANSITION LOGIC ---
       const loadingScreen = document.getElementById('loading-screen');
       const mainContent = document.getElementById('main-content');
-      const minimumDisplayTime = 5000;
+      const minimumDisplayTime = 8000;
 
       // --- THREE.JS HOURGLASS SETUP ---
       const clock = new THREE.Clock();
@@ -171,9 +171,9 @@
       const orbitingLights = [];
       const WARM_WHITE = 0xffd6aa; // ~3000K color temperature
       const lightData = [
-          { radius: 2.8, speed: 0.7 },
-          { radius: 3.2, speed: 0.5 },
-          { radius: 3.0, speed: 0.9 }
+          { radius: 1.8, speed: 0.7 },
+          { radius: 2.2, speed: 0.5 },
+          { radius: 2.0, speed: 0.9 }
       ];
 
       lightData.forEach(data => {

@@ -21,7 +21,7 @@
                 <div class="book">
                     <div class="carousel" style="--slides: 7;">
                         <div class="sprite"></div>
-                        <!-- All carousel items remain unchanged... -->
+        
                         <!-- Slide 1: Introduction -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -38,6 +38,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <!-- Truth 1 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -51,7 +52,7 @@
                                 </div>
                             </div>
                         </div>
-                        <!-- Truths 2-6 follow... -->
+        
                         <!-- Truth 2 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -135,7 +136,7 @@
       // --- LOADING SCREEN AND TRANSITION LOGIC ---
       const loadingScreen = document.getElementById('loading-screen');
       const mainContent = document.getElementById('main-content');
-      const minimumDisplayTime = 8000;
+      const minimumDisplayTime = 5000;
 
       // --- THREE.JS HOURGLASS SETUP ---
       const clock = new THREE.Clock();
@@ -150,53 +151,42 @@
       loadingScreen.appendChild(renderer.domElement);
 
       // --- LIGHTING SETUP ---
-      // ** Tweak this value to adjust overall scene brightness (e.g., 0.2 for darker, 1.0 for brighter) **
-      const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
       scene.add(ambientLight);
 
-      // Function to create a glowing sprite texture
       function createGlowTexture() {
           const canvas = document.createElement('canvas');
           canvas.width = 128;
           canvas.height = 128;
           const context = canvas.getContext('2d');
           const gradient = context.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, canvas.width / 2);
-          gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
-          gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+          gradient.addColorStop(0, 'rgba(255, 230, 200, 1)');
+          gradient.addColorStop(1, 'rgba(255, 230, 200, 0)');
           context.fillStyle = gradient;
           context.fillRect(0, 0, canvas.width, canvas.height);
           return new THREE.CanvasTexture(canvas);
       }
 
       const orbitingLights = [];
-      const WARM_WHITE = 0xffd6aa; // ~3000K color temperature
+      const WARM_WHITE = 0xffd6aa;
       const lightData = [
-          { radius: 1.8, speed: 0.7 },
-          { radius: 2.2, speed: 0.5 },
-          { radius: 2.0, speed: 0.9 }
+          { radius: 2.8, speed: 0.7 },
+          { radius: 3.2, speed: 0.5 },
+          { radius: 3.0, speed: 0.9 }
       ];
 
       lightData.forEach(data => {
-          // ** Tweak this intensity value for the orbiting lights (e.g., 1.0 for dimmer, 3.0 for brighter) **
           const pointLight = new THREE.PointLight(WARM_WHITE, 2.0, 20);
 
-          // Solid inner core of the light source
-          const innerSphere = new THREE.Mesh(
-              new THREE.SphereGeometry(0.08, 16, 8),
-              new THREE.MeshBasicMaterial({ color: WARM_WHITE })
-          );
-          pointLight.add(innerSphere);
-
-          // Outer glow effect using a sprite
           const glowSprite = new THREE.Sprite(
               new THREE.SpriteMaterial({
                   map: createGlowTexture(),
                   transparent: true,
-                  blending: THREE.AdditiveBlending, // Makes glows look good when overlapping
+                  blending: THREE.AdditiveBlending,
                   color: WARM_WHITE
               })
           );
-          glowSprite.scale.set(1.5, 1.5, 1.5); // Make the glow larger than the core
+          glowSprite.scale.set(1.5, 1.5, 1.5);
           pointLight.add(glowSprite);
 
           scene.add(pointLight);
@@ -245,10 +235,10 @@
                 orbiter.light.position.x = Math.cos(angle) * radius;
                 orbiter.light.position.y = Math.sin(angle) * radius;
             } else if (index === 1) {
-                orbiter.light.position.x = Math.cos(angle * 1.2) * radius; // Added variation
+                orbiter.light.position.x = Math.cos(angle * 1.2) * radius;
                 orbiter.light.position.z = Math.sin(angle * 1.2) * radius;
             } else {
-                orbiter.light.position.y = Math.cos(angle * 0.8) * radius; // Added variation
+                orbiter.light.position.y = Math.cos(angle * 0.8) * radius;
                 orbiter.light.position.z = Math.sin(angle * 0.8) * radius;
                 orbiter.light.position.x = Math.sin(angle * 0.8) * 0.5;
             }

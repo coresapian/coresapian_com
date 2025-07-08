@@ -144,11 +144,10 @@
           grid-template-rows: 1fr auto;
           > div {
             text-align: left;
-            hyphens: auto;
             line-height: 1.6;
             display: block;
-            word-wrap: break-word; /* Fallback for overflow-wrap */
-            overflow-wrap: break-word; /* Ensures long words break and wrap */
+            word-wrap: normal; 
+            overflow-wrap: normal; 
 
             /* Fix for text in grid containers: allows content to shrink and wrap */
             > * {
@@ -178,3 +177,9 @@
 @keyframes progress { 100% { --_progress: 100%; } }
 @keyframes frame { to { --sprite-fs: var(--sprite-fe); } }
 @keyframes float { 0% { transform: translate(0, 0); } 100% { transform: translate(-100px, -100px); } }
+
+/* --- MOBILE TOUCH FIX --- */
+/* Hide scroll buttons on touch devices to enable native swipe scrolling on the book. */
+.touch-device .book::scroll-button(*) {
+  display: none;
+}

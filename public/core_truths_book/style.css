@@ -147,7 +147,9 @@
             line-height: 1.6;
             display: block;
             word-wrap: normal; 
-            overflow-wrap: normal; 
+            overflow-wrap: normal;
+            word-break: normal;
+            hyphens: none; 
 
             /* Fix for text in grid containers: allows content to shrink and wrap */
             > * {

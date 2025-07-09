@@ -16,10 +16,10 @@
 #torch-overlay {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
   z-index: 1000;
-  --torch-size: 175px;
+  --torch-size: 200px;
   --torch-x: 50vw;
   --torch-y: 50vh;
-  --torch-brightness: 0.1; /* NEW: Base brightness, animated by GSAP */
+  --torch-brightness: 0.3; /* NEW: Base brightness, animated by GSAP */
   
   /* UPDATED: The color's alpha channel now uses the --torch-brightness variable */
   background: radial-gradient(
@@ -28,14 +28,14 @@
     transparent 40%,
     rgba(0, 0, 0, 0.9) 100%
   );
-  --torch-flicker-opacity: 0;
-  --flicker-size: 200px;
+  --torch-flicker-opacity: 0.2;
+  --flicker-size: 250px;
 }
 #torch-overlay::after {
   content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
   background: radial-gradient(
     circle var(--flicker-size) at var(--torch-x) var(--torch-y),
-    rgba(255, 222, 129, 0.2) 0%, transparent 100%
+    rgba(245, 121, 6, 0.2) 0%, transparent 50%
   );
   opacity: var(--torch-flicker-opacity);
 }
@@ -149,7 +149,7 @@
             word-wrap: normal; 
             overflow-wrap: normal;
             word-break: normal;
-            hyphens: none; 
+            hyphens: auto; 
 
             /* Fix for text in grid containers: allows content to shrink and wrap */
             > * {

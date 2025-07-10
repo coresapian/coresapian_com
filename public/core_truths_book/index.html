@@ -4,54 +4,22 @@
   <meta charset="UTF-8">
   <title>coRE</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <style>
-    /* Critical CSS */
-    body { margin: 0; overflow: hidden; }
-    #loading-screen { 
-      position: fixed; 
-      top: 0; 
-      left: 0; 
-      width: 100%; 
-      height: 100%; 
-      background-color: black; 
-      z-index: 9999; 
-      display: flex; 
-      justify-content: center; 
-      align-items: center; 
-    }
-    .loading-fallback { 
-      color: white; 
-      text-align: center; 
-      display: none; 
-    }
-  </style>
-  <link rel="preload" href="https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb" as="script" crossorigin="anonymous">
-  <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js" as="script">
-  <link rel="preload" href="https://cdn.jsdelivr.net/npm/gsap@3.11.4/dist/gsap.min.js" as="script">
-  <link rel="stylesheet" href="/core_truths_book/style.css" media="print" onload="this.media='all'">
-  <noscript><link rel="stylesheet" href="/core_truths_book/style.css"></noscript>
+  <link rel="stylesheet" href="/core_truths_book/style.css">
 </head>
 <body>
-    <!-- Skip navigation link -->
-    <a href="#main-content" class="skip-link">Skip to main content</a>
-    
     <!-- Loading screen container -->
     <div id="loading-screen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: black; z-index: 9999; display: flex; justify-content: center; align-items: center;">
       <!-- The Three.js canvas will be injected here automatically -->
-      <div class="loading-fallback" style="color: white; text-align: center; display: none;">
-        <p>Loading research materials...</p>
-        <progress value="0" max="100"></progress>
-      </div>
     </div>
 
     <!-- Main content -->
-    <main id="main-content" style="display: none;" tabindex="-1">
+    <div id="main-content" style="display: none;">
         <div id="torch-overlay"></div>
         <div class="container">
             <h1>coRE</h1>
             <div class="sprite-wrapper">
-                <div class="book" role="region" aria-label="Research truths carousel">
-                    <div class="carousel" style="--slides: 7;" role="group" aria-roledescription="carousel" aria-live="polite">
+                <div class="book">
+                    <div class="carousel" style="--slides: 7;">
                         <div class="sprite"></div>
         
                         <!-- Slide 1: Introduction -->
@@ -154,13 +122,15 @@
                 </div>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- Scripts with defer -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.11.4/dist/gsap.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.11.4/dist/SplitText.min.js" defer></script>
-    <script src="/core_truths_book/script.js" defer></script>
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+    <script src="/core_truths_book/script.js"></script>
 
     <script>
       // --- LOADING SCREEN AND TRANSITION LOGIC ---
@@ -227,7 +197,7 @@
       const loader = new THREE.GLTFLoader();
       let hourglass, mixer, initialY;
 
-      loader.load('https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb', (gltf) => {
+      loader.load('/loading_screen_hourglass_animation_model.glb', (gltf) => {
           hourglass = gltf.scene;
           const box = new THREE.Box3().setFromObject(hourglass);
           const center = box.getCenter(new THREE.Vector3());

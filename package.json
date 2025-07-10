@@ -1,0 +1,11 @@
+{
+  "name": "coresapian",
+  "version": "1.0.0",
+  "description": "coRE Truths Book project",
+  "scripts": {
+    "build": "echo 'No build step required for static assets, copying public directory.'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

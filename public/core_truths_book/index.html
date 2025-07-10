@@ -25,7 +25,7 @@
       display: none; 
     }
   </style>
-  <link rel="preload" href="/loading_screen_hourglass_animation_model.glb" as="fetch" crossorigin="anonymous">
+  <link rel="preload" href="https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb" as="script" crossorigin="anonymous">
   <link rel="preload" href="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js" as="script">
   <link rel="preload" href="https://cdn.jsdelivr.net/npm/gsap@3.11.4/dist/gsap.min.js" as="script">
   <link rel="stylesheet" href="/core_truths_book/style.css" media="print" onload="this.media='all'">
@@ -227,7 +227,7 @@
       const loader = new THREE.GLTFLoader();
       let hourglass, mixer, initialY;
 
-      loader.load('/loading_screen_hourglass_animation_model.glb', (gltf) => {
+      loader.load('https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb', (gltf) => {
           hourglass = gltf.scene;
           const box = new THREE.Box3().setFromObject(hourglass);
           const center = box.getCenter(new THREE.Vector3());

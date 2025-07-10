@@ -1,0 +1,21 @@
+{
+  "name": "coRE Research",
+  "short_name": "coRE",
+  "description": "Expanding the frontiers of artificial intelligence and the human mind",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#242424",
+  "theme_color": "#f1e2b2",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

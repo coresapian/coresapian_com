@@ -1,5 +1,15 @@
 [build]
   publish = "public"
+  command = "npm run build"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Service-Worker-Allowed = "/"
+    Content-Security-Policy = "default-src 'self'; font-src 'self' https://assets.codepen.io; img-src 'self' data: https://assets.codepen.io; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'"
 
 [[redirects]]
   from = "/"

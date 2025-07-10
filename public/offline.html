@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coRE - Offline</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #242424;
+      color: #f1e2b2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 1rem;
+      text-align: center;
+    }
+    h1 { font-size: 2rem; margin-bottom: 1rem; }
+    p { font-size: 1.2rem; max-width: 400px; }
+  </style>
+</head>
+<body>
+  <h1>You're offline</h1>
+  <p>The coRE research materials will be available when you reconnect to the internet.</p>
+  <button onclick="window.location.reload()">Retry Connection</button>
+</body>
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoreSapian - Loading</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        
+        :root {
+            --bg-dark: #0a0a1f;
+            --bg-light: #1a1a3a;
+            --accent-color: #FFD700;
+            --text-color: #ffffff;
+            --glow-color: rgba(255, 215, 0, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: radial-gradient(ellipse at center, var(--bg-light) 0%, var(--bg-dark) 70%);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            color: var(--text-color);
+        }
+
+        .loading-container {
+            text-align: center;
+            z-index: 10;
+        }
+
+        .logo-text {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            text-shadow: 0 0 20px var(--glow-color);
+            animation: pulse 2s infinite ease-in-out;
+        }
+
+        .hourglass-container {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 2rem;
+            position: relative;
+        }
+
+        .hourglass {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hourglass-model {
+            width: 150px;
+            height: 150px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            animation: rotate 3s linear infinite, glow 2s ease-in-out infinite alternate;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hourglass-model::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 60%;
+            height: 60%;
+            background: var(--bg-dark);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .loading-text {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .progress-bar {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-color), #fff);
+            border-radius: 2px;
+            animation: loading 4s ease-in-out forwards;
+            width: 0%;
+        }
+
+        .starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes glow {
+            from { box-shadow: 0 0 20px var(--glow-color); }
+            to { box-shadow: 0 0 40px var(--glow-color), 0 0 60px var(--glow-color); }
+        }
+
+        @keyframes loading {
+            0% { width: 0%; }
+            25% { width: 30%; }
+            50% { width: 60%; }
+            75% { width: 85%; }
+            100% { width: 100%; }
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .fade-out {
+            animation: fadeOut 1s ease-out forwards;
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="starfield" id="starfield"></div>
+    
+    <div class="loading-container" id="loadingContainer">
+        <div class="logo-text">CORESAPIAN</div>
+        
+        <div class="hourglass-container">
+            <div class="hourglass">
+                <div class="hourglass-model"></div>
+            </div>
+        </div>
+        
+        <div class="loading-text">Initializing Ancient Wisdom...</div>
+        
+        <div class="progress-bar">
+            <div class="progress-fill"></div>
+        </div>
+    </div>
+
+    <script>
+        // Create starfield
+        function createStars() {
+            const starfield = document.getElementById('starfield');
+            const numStars = 150;
+            
+            for (let i = 0; i < numStars; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                
+                const size = Math.random() * 2 + 0.5;
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `-${Math.random() * 3}s`;
+                
+                starfield.appendChild(star);
+            }
+        }
+
+        // Initialize loading sequence
+        function initializeLoading() {
+            createStars();
+            
+            // Wait for loading animation to complete, then redirect
+            setTimeout(() => {
+                const container = document.getElementById('loadingContainer');
+                container.classList.add('fade-out');
+                
+                setTimeout(() => {
+                    window.location.href = './rune_lock_screen/index.html';
+                }, 1000); // Wait for fade out animation
+            }, 4500); // Wait for loading bar to complete (4s) + buffer
+        }
+
+        // Start loading when page loads
+        window.addEventListener('load', initializeLoading);
+        
+        // Fallback in case load event doesn't fire
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(initializeLoading, 100);
+        });
+    </script>
+</body>
+</html>

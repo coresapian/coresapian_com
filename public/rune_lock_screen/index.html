@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> 
+    <title>The Celestial Orrery of ᚲᛟᚱᛖ</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+
+        :root {
+            --orrery-bg-dark: #0a0a1f; 
+            --orrery-bg-light: #1a1a3a;
+            --orrery-base-color: #404060; 
+            --orrery-accent-color: #a0a0d0; 
+            --orrery-heart-inactive: #303040;
+            --orrery-heart-active: #FFD700; 
+            --socket-color: rgba(100, 100, 150, 0.2);
+            --socket-hover-color: rgba(150, 150, 200, 0.4);
+            --socket-active-glow: rgba(200, 200, 255, 0.6);
+            --socket-placeholder-color: rgba(180,180,220,0.2);
+            --glyph-color: rgba(200, 200, 255, 0.7); 
+            --glyph-glow: rgba(220, 220, 255, 0.5);
+            --glyph-active-color: #ffffff;
+            --glyph-active-glow: rgba(255, 255, 255, 0.9);
+            --glyph-decoy-tint: rgba(180, 180, 220, 0.6); 
+            --glyph-locked-color: var(--orrery-heart-active);
+            --glyph-locked-glow: rgba(255, 215, 0, 0.9);
+            --glyph-rejection-color: #ff8080;
+            --energy-line-color: var(--orrery-heart-active);
+            --secret-message-color: #fff5e1;
+            --font-family-glyphs: 'MedievalSharp', cursive; 
+            --font-family-ui: 'Orbitron', sans-serif; 
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            background: radial-gradient(ellipse at center, var(--orrery-bg-light) 0%, var(--orrery-bg-dark) 70%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            perspective: 1500px;
+            /* Improve touch interaction by preventing unwanted text selection or callouts */
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ */
+            user-select: none; /* Standard syntax */
+            -webkit-touch-callout: none; /* iOS Safari */
+        }
+
+        #starfield {
+            position: absolute;
+            top:0; left:0; right:0; bottom:0;
+            overflow: hidden;
+        }
+        .star {
+            position: absolute;
+            background-color: white;
+            border-radius: 50%;
+            animation: twinkle 5s infinite ease-in-out;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        .nebula {
+            position: absolute;
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(100,100,200,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: driftNebula 60s infinite linear alternate;
+        }
+        @keyframes driftNebula {
+            from { transform: translateX(-50px) translateY(-30px) rotate(0deg); }
+            to { transform: translateX(50px) translateY(30px) rotate(90deg); }
+        }
+
+        #orrery-container {
+            position: relative;
+            width: 70vmin;
+            height: 70vmin;
+            max-width: 600px;
+            max-height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transform-style: preserve-3d;
+        }
+
+        #orrery-heart {
+            width: 15vmin; height: 15vmin;
+            max-width: 100px; max-height: 100px;
+            background-color: var(--orrery-heart-inactive);
+            border-radius: 50%;
+            position: absolute;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.7), 0 0 10px var(--orrery-heart-inactive);
+            transition: background-color 1s ease, box-shadow 1s ease;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 5; 
+        }
+        #orrery-heart.active {
+            background-color: var(--orrery-heart-active);
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 
+                        0 0 20px var(--orrery-heart-active), 
+                        0 0 40px var(--orrery-heart-active),
+                        0 0 80px rgba(255,215,0,0.5);
+            animation: pulseHeartActive 2s infinite ease-in-out;
+        }
+        @keyframes pulseHeartActive {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .constellation-socket {
+            position: absolute;
+            width: 12vmin; height: 12vmin;
+            max-width: 80px; max-height: 80px;
+            background-color: var(--socket-color);
+            border: 2px solid var(--orrery-base-color);
+            border-radius: 50%; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.4), 0 0 5px var(--orrery-base-color);
+            transform-style: preserve-3d; 
+            z-index: 15; 
+        }
+        .constellation-socket .socket-glyph-placeholder {
+            font-family: var(--font-family-glyphs); 
+            font-size: 7vmin; 
+            color: var(--socket-placeholder-color);
+            opacity: 0.5; 
+            transition: opacity 0.3s, color 0.3s;
+            animation: pulsePlaceholder 4s infinite ease-in-out;
+        }
+        @keyframes pulsePlaceholder {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 0.8; }
+        }
+        .constellation-socket.resonating { 
+            background-color: var(--socket-hover-color);
+            box-shadow: inset 0 0 12px rgba(0,0,0,0.5), 0 0 15px var(--socket-active-glow), 0 0 25px var(--socket-active-glow);
+            transform: scale(1.1);
+        }
+        .constellation-socket.resonating .socket-glyph-placeholder {
+            color: var(--socket-active-glow); 
+            opacity: 1;
+            animation: none; 
+        }
+        .constellation-socket.rejecting {
+            animation: rejectSocket 0.4s ease-out;
+        }
+        @keyframes rejectSocket {
+            0%, 100% { transform: translateX(0) scale(1); background-color: var(--socket-color); }
+            50% { transform: translateX(5px) scale(1.05); background-color: rgba(255,80,80,0.3); }
+        }
+        .constellation-socket.filled .socket-glyph-placeholder {
+            opacity: 0; 
+            animation: none;
+        }
+
+        .starlight-glyph {
+            position: absolute;
+            font-family: var(--font-family-glyphs);
+            font-size: 10vmin;
+            color: var(--glyph-color);
+            text-shadow: 0 0 5px var(--glyph-glow), 0 0 10px var(--glyph-glow);
+            cursor: grab;
+            user-select: none;
+            padding: 8px;
+            border-radius: 50%; 
+            transition: transform 0.15s linear, color 0.3s ease, text-shadow 0.3s ease, opacity 0.3s ease;
+            animation: floatGlyph 10s infinite ease-in-out alternate;
+            z-index: 20;
+            opacity: 0.9;
+            background-color: rgba(50,50,80,0.1); 
+        }
+        .starlight-glyph.decoy {
+            color: var(--glyph-decoy-tint);
+            text-shadow: 0 0 4px var(--glyph-decoy-tint);
+            animation-duration: 12s; 
+        }
+        .starlight-glyph.rejected-glyph { 
+            animation: glyphRejectAnim 0.5s ease-out;
+            color: var(--glyph-rejection-color) !important;
+            text-shadow: 0 0 5px var(--glyph-rejection-color) !important;
+        }
+        @keyframes glyphRejectAnim {
+            0% { transform: scale(1.1) rotate(0deg); }
+            25% { transform: scale(1.15) rotate(-8deg); }
+            50% { transform: scale(1.1) rotate(8deg); }
+            75% { transform: scale(1.15) rotate(-5deg); }
+            100% { transform: scale(1) rotate(0deg); } 
+        }
+
+
+        @keyframes floatGlyph {
+            from { transform: translateY(0px) translateX(0px) rotateZ(-2deg) scale(0.9); }
+            to   { transform: translateY(-15px) translateX(5px) rotateZ(2deg) scale(1); }
+        }
+        .starlight-glyph.dragging {
+            color: var(--glyph-active-color);
+            text-shadow: 0 0 10px var(--glyph-active-glow), 0 0 20px var(--glyph-active-glow);
+            transform: scale(1.2);
+            opacity: 1;
+            animation: none; 
+            cursor: grabbing;
+            z-index: 100; 
+        }
+        .starlight-glyph.locked {
+            position: static !important; 
+            color: var(--glyph-locked-color);
+            text-shadow: 0 0 10px var(--glyph-locked-glow), 0 0 25px var(--glyph-locked-glow), 0 0 40px var(--glyph-locked-glow);
+            transform: scale(1) !important; 
+            opacity: 1;
+            animation: lockGlyph 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), pulseGlyphLocked 2.5s infinite ease-in-out 0.6s;
+            cursor: default;
+            background-color: transparent;
+            z-index: 16; 
+        }
+        @keyframes lockGlyph {
+            0% { transform: scale(1.8) translateY(-30px) rotateZ(45deg); opacity: 0.3; }
+            70% { transform: scale(0.9) translateY(5px) rotateZ(-5deg); }
+            100% { transform: scale(1) translateY(0px) rotateZ(0deg); opacity: 1; }
+        }
+        @keyframes pulseGlyphLocked {
+            0%, 100% { text-shadow: 0 0 10px var(--glyph-locked-glow), 0 0 25px var(--glyph-locked-glow); }
+            50% { text-shadow: 0 0 15px var(--glyph-locked-glow), 0 0 35px var(--glyph-locked-glow), 0 0 50px var(--glyph-locked-glow); }
+        }
+
+        #secret-message-display {
+            position: absolute;
+            bottom: 5%; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 1.5s ease-in-out 1s; 
+            font-family: var(--font-family-ui);
+            font-size: 3vmin;
+            color: var(--secret-message-color);
+            text-shadow: 0 0 8px var(--secret-message-color), 0 0 15px var(--glyph-locked-glow);
+            z-index: 50; 
+        }
+        #secret-message-display.visible {
+            opacity: 1;
+        }
+        
+        #orrery-energy-lines-svg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 10; 
+        }
+        .orrery-energy-line {
+            stroke: var(--energy-line-color);
+            stroke-width: 2.5; 
+            stroke-linecap: round;
+            filter: drop-shadow(0 0 4px var(--energy-line-color)); 
+            opacity: 0; 
+            transition: opacity 0.1s linear; 
+        }
+        .orrery-energy-line.visible {
+            opacity: 0.85;
+            animation: pulseLine 2s infinite ease-in-out;
+        }
+        @keyframes pulseLine {
+            0%, 100% { opacity: 0.85; stroke-width: 2.5; }
+            50% { opacity: 1; stroke-width: 3; }
+        }
+
+        .orrery-energy-line.outer-circle { 
+            stroke-width: 3;
+            filter: drop-shadow(0 0 6px var(--energy-line-color));
+        }
+        .orrery-energy-line.socket-radiant {
+            stroke-width: 1.5;
+            opacity: 0; 
+        }
+        .orrery-energy-line.socket-radiant.visible {
+            opacity: 0.6;
+            animation: pulseLine 2.5s infinite ease-in-out 0.2s; 
+        }
+
+        .drawing-circle {
+            stroke: var(--energy-line-color);
+            stroke-width: 3;
+            fill: none;
+            filter: drop-shadow(0 0 6px var(--energy-line-color));
+            opacity: 0; 
+        }
+        .drawing-circle.visible {
+             opacity: 0.7;
+             animation: pulseLine 3s infinite ease-in-out 0.5s;
+        }
+        
+        .line-tracer {
+            fill: var(--energy-line-color);
+            r: 3px; 
+            filter: drop-shadow(0 0 5px var(--energy-line-color)) drop-shadow(0 0 10px white);
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="starfield"></div>
+    <div id="orrery-container">
+        <div id="orrery-heart"></div>
+        <svg id="orrery-energy-lines-svg"></svg>
+        </div>
+    <div id="secret-message-display"></div>
+
+    <script>
+        const orreryContainer = document.getElementById('orrery-container');
+        const orreryHeart = document.getElementById('orrery-heart');
+        const starfield = document.getElementById('starfield');
+        const secretMessageDisplay = document.getElementById('secret-message-display');
+        const energyLinesSVG = document.getElementById('orrery-energy-lines-svg');
+        const svgNS = "http://www.w3.org/2000/svg";
+
+        const ancientWord = "ᚲᛟᚱᛖ"; // CORE in runes: ᚲ(C) ᛟ(O) ᚱ(R) ᛖ(E)
+        const correctLetterOrder = ancientWord.split('');
+        const secretMessageText = "ᚲᛟᚱᛖ: The Core Truths Are Forged!"; 
+
+        const allGlyphChars = [ 
+            'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ', // CORE runes (correct answer)
+            'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᚲ', 'ᛚ', 'ᛗ', // Additional runes
+            'ᚾ', 'ᛈ', 'ᚱ', 'ᛊ', 'ᛏ', 'ᚢ', 'ᚹ', 'ᛉ', 'ᚦ', 'ᛋ', 'ᛦ', 'ᛪ' // More runes for difficulty
+        ];
+
+        const draggableGlyphs = [];
+        const constellationSockets = [];
+        let draggingGlyph = null;
+        let offsetX, offsetY; // For storing offset of pointer within the dragged element
+        let placedGlyphCount = 0;
+        const socketRadiusPercentage = 33; 
+        const socketPositions = []; 
+
+        function createStars() {
+            const numStars = 100;
+            for (let i = 0; i < numStars; i++) {
+                const star = document.createElement('div');
+                star.classList.add('star');
+                const size = Math.random() * 2 + 0.5; 
+                star.style.width = `${size}px`;
+                star.style.height = `${size}px`;
+                star.style.left = `${Math.random() * 100}%`;
+                star.style.top = `${Math.random() * 100}%`;
+                star.style.animationDelay = `-${Math.random() * 5}s`;
+                starfield.appendChild(star);
+            }
+            for (let i=0; i < 2; i++) {
+                const nebula = document.createElement('div');
+                nebula.classList.add('nebula');
+                nebula.style.left = `${Math.random() * 70}%`; 
+                nebula.style.top = `${Math.random() * 70}%`;
+                nebula.style.animationDelay = `-${Math.random() * 30}s`;
+                starfield.appendChild(nebula);
+            }
+        }
+
+        correctLetterOrder.forEach((letterChar, index) => {
+            const angle = (index / correctLetterOrder.length) * 2 * Math.PI - (Math.PI / 2); 
+            const xPercent = 50 + socketRadiusPercentage * Math.cos(angle); 
+            const yPercent = 50 + socketRadiusPercentage * Math.sin(angle); 
+
+            const socket = document.createElement('div');
+            socket.classList.add('constellation-socket');
+            socket.style.left = `calc(${xPercent}% - 6vmin)`; 
+            socket.style.top = `calc(${yPercent}% - 6vmin)`;  
+            socket.dataset.expectedGlyph = letterChar;
+            socket.dataset.index = index; 
+
+            const placeholder = document.createElement('span');
+            placeholder.classList.add('socket-glyph-placeholder');
+            placeholder.textContent = '✧'; 
+            socket.appendChild(placeholder);
+
+            orreryContainer.appendChild(socket);
+            constellationSockets.push(socket);
+            
+            socketPositions[index] = { xPercent: xPercent, yPercent: yPercent, char: letterChar, element: socket };
+        });
+
+        const shuffledGlyphs = [...allGlyphChars].sort(() => Math.random() - 0.5);
+        shuffledGlyphs.forEach((glyphChar, i) => {
+            const glyphEl = document.createElement('div');
+            glyphEl.classList.add('starlight-glyph');
+            glyphEl.textContent = glyphChar;
+            glyphEl.dataset.glyphChar = glyphChar;
+            
+            const isTarget = correctLetterOrder.includes(glyphChar);
+            glyphEl.dataset.isTarget = isTarget;
+            if (!isTarget) {
+                glyphEl.classList.add('decoy');
+            }
+
+            let rX, rY;
+            do {
+                rX = Math.random() * 80 + 10; 
+                rY = Math.random() * 80 + 10;
+            } while (Math.sqrt(Math.pow(rX - 50, 2) + Math.pow(rY - 50, 2)) < 45); 
+
+            glyphEl.style.left = `${rX}vw`; 
+            glyphEl.style.top = `${rY}vh`;  
+            glyphEl.style.animationDelay = `-${i * 0.6}s`;
+
+            document.body.appendChild(glyphEl); 
+            draggableGlyphs.push(glyphEl);
+
+            // Event listeners for both mouse and touch
+            glyphEl.addEventListener('mousedown', handleDragStart);
+            glyphEl.addEventListener('touchstart', handleDragStart, { passive: false });
+        });
+
+        // Unified drag start handler
+        function handleDragStart(e) {
+            const targetGlyph = e.target.closest('.starlight-glyph'); // Ensure we get the glyph if event is on child
+            if (!targetGlyph || targetGlyph.classList.contains('locked')) return;
+            
+            draggingGlyph = targetGlyph;
+            draggingGlyph.classList.add('dragging');
+            
+            const rect = draggingGlyph.getBoundingClientRect();
+            let clientX, clientY;
+
+            if (e.type === 'touchstart') {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else { // mousedown
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            offsetX = clientX - rect.left;
+            offsetY = clientY - rect.top;
+            e.preventDefault(); // Prevent text selection or other default actions
+        }
+
+        // Unified drag move handler
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('touchmove', handleDragMove, { passive: false }); // passive:false to allow preventDefault
+
+        function handleDragMove(e) {
+            if (draggingGlyph) {
+                e.preventDefault(); // Crucial for touchmove to prevent scrolling
+
+                let clientX, clientY;
+                if (e.type === 'touchmove') {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else { // mousemove
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                let newX = clientX - offsetX;
+                let newY = clientY - offsetY;
+                
+                newX = Math.max(0, Math.min(newX, window.innerWidth - draggingGlyph.offsetWidth));
+                newY = Math.max(0, Math.min(newY, window.innerHeight - draggingGlyph.offsetHeight));
+
+                draggingGlyph.style.left = `${newX}px`;
+                draggingGlyph.style.top = `${newY}px`;
+
+                constellationSockets.forEach(s => {
+                    if (!s.querySelector('.starlight-glyph.locked')) { 
+                        const isCorrectGlyphForSocket = s.dataset.expectedGlyph === draggingGlyph.dataset.glyphChar;
+                        s.classList.toggle('resonating', isOverElement(draggingGlyph, s) && isCorrectGlyphForSocket);
+                    }
+                });
+            }
+        }
+
+        // Unified drag end handler
+        document.addEventListener('mouseup', handleDragEnd);
+        document.addEventListener('touchend', handleDragEnd);
+
+        function handleDragEnd(e) {
+            if (draggingGlyph) {
+                let droppedCorrectly = false;
+                constellationSockets.forEach(socket => {
+                    socket.classList.remove('resonating'); 
+                    if (isOverElement(draggingGlyph, socket) && 
+                        socket.dataset.expectedGlyph === draggingGlyph.dataset.glyphChar &&
+                        draggingGlyph.dataset.isTarget === 'true' &&
+                        !socket.querySelector('.starlight-glyph.locked')) { 
+                        
+                        socket.appendChild(draggingGlyph); 
+                        draggingGlyph.classList.add('locked');
+                        draggingGlyph.classList.remove('dragging'); // Remove before style changes
+                        draggingGlyph.style.left = ''; 
+                        draggingGlyph.style.top = '';  
+                        
+                        socket.classList.add('filled');
+                        placedGlyphCount++;
+                        droppedCorrectly = true;
+                        
+                        drawSigilSegment(socket);
+
+                        if (placedGlyphCount === correctLetterOrder.length) {
+                            triggerFullAwakening();
+                        }
+                    } else if (isOverElement(draggingGlyph, socket)) {
+                        socket.classList.add('rejecting');
+                        draggingGlyph.classList.add('rejected-glyph');
+                        setTimeout(() => {
+                            socket.classList.remove('rejecting');
+                            if (draggingGlyph) draggingGlyph.classList.remove('rejected-glyph');
+                        }, 500);
+                    }
+                });
+
+                if (!droppedCorrectly) {
+                    if (draggingGlyph && !draggingGlyph.classList.contains('rejected-glyph')) {
+                        draggingGlyph.classList.remove('dragging');
+                    }
+                }
+                if(draggingGlyph) draggingGlyph.classList.remove('dragging'); // Ensure dragging is removed
+                draggingGlyph = null;
+            }
+        }
+
+
+        function isOverElement(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            return !(rect1.right < rect2.left || 
+                     rect1.left > rect2.right || 
+                     rect1.bottom < rect2.top || 
+                     rect1.top > rect2.bottom);
+        }
+        
+        function getSvgPixelCoords(percentage, svgDimension) {
+            return (percentage / 100) * svgDimension;
+        }
+        
+        function getSocketPixelPos(socketIndex, svgWidth, svgHeight) {
+            const posData = socketPositions[socketIndex];
+            return {
+                x: getSvgPixelCoords(posData.xPercent, svgWidth),
+                y: getSvgPixelCoords(posData.yPercent, svgHeight)
+            };
+        }
+
+        function createTracerElement(x, y, delay = 0, duration = 0.7, targetPathElement) {
+            const tracer = document.createElementNS(svgNS, "circle");
+            tracer.setAttribute('class', 'line-tracer');
+            tracer.setAttribute('cx', x); // Initial position for tracer before animation starts
+            tracer.setAttribute('cy', y);
+            // tracer.style.animation = `tracePath ${duration}s ease-out ${delay}s forwards`; // CSS animation for tracer
+            
+            const pathAnimation = document.createElementNS(svgNS, "animateMotion");
+            pathAnimation.setAttribute('dur', `${duration}s`);
+            pathAnimation.setAttribute('begin', `${delay}s`); // Sync with CSS delay if any
+            pathAnimation.setAttribute('fill', 'freeze');
+            
+            // Create a <mpath> element and link it to the target path
+            const mpath = document.createElementNS(svgNS,"mpath");
+            mpath.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", `#${targetPathElement.id}`);
+            pathAnimation.appendChild(mpath);
+
+            tracer.appendChild(pathAnimation);
+            energyLinesSVG.appendChild(tracer);
+
+            setTimeout(() => {
+                targetPathElement.classList.add('visible');
+                if (tracer.parentNode) { 
+                    tracer.remove(); 
+                }
+            }, (delay + duration) * 1000);
+        }
+        
+        let pathIdCounter = 0; // To give unique IDs to paths for mpath
+        function createPathElement(d, delay = 0, cssClass = 'orrery-energy-line') {
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute('class', cssClass);
+            path.setAttribute('d', d);
+            path.setAttribute('fill', 'none');
+            path.id = `sigilPath${pathIdCounter++}`; // Assign unique ID
+            energyLinesSVG.appendChild(path);
+            return path; 
+        }
+        
+        function createAnimatedCircle(cx, cy, r, delay = 0, duration = 1.5, cssClass = 'drawing-circle') {
+            const circlePathD = `M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy} Z`;
+            const pathForTracer = createPathElement(circlePathD, delay, cssClass);
+            
+            createTracerElement(cx - r, cy, delay, duration, pathForTracer);
+            return pathForTracer; 
+        }
+
+
+        function drawSigilSegment(currentSocket) {
+            const svgWidth = energyLinesSVG.clientWidth; 
+            const svgHeight = energyLinesSVG.clientHeight;
+
+            const currentSocketIndex = parseInt(currentSocket.dataset.index);
+            const currentP = getSocketPixelPos(currentSocketIndex, svgWidth, svgHeight);
+
+            const heartX = getSvgPixelCoords(50, svgWidth); 
+            const heartY = getSvgPixelCoords(50, svgHeight);
+            
+            const pathHeartToSocket = createPathElement(`M ${heartX} ${heartY} L ${currentP.x} ${currentP.y}`, 0);
+            createTracerElement(heartX, heartY, 0, 0.7, pathHeartToSocket);
+            
+            if (currentSocketIndex > 0) {
+                const prevSocketIndex = currentSocketIndex - 1;
+                // Ensure previous socket is actually filled before drawing line to it
+                if (constellationSockets[prevSocketIndex] && constellationSockets[prevSocketIndex].classList.contains('filled')) { 
+                    const prevP = getSocketPixelPos(prevSocketIndex, svgWidth, svgHeight);
+                    const pathSocketToSocket = createPathElement(`M ${prevP.x} ${prevP.y} L ${currentP.x} ${currentP.y}`, 0.2);
+                    createTracerElement(prevP.x, prevP.y, 0.2, 0.7, pathSocketToSocket);
+                }
+            }
+        }
+
+
+        function triggerFullAwakening() {
+            orreryHeart.classList.add('active');
+            secretMessageDisplay.textContent = secretMessageText;
+            secretMessageDisplay.classList.add('visible');
+            
+            const svgWidth = energyLinesSVG.clientWidth;
+            const svgHeight = energyLinesSVG.clientHeight;
+            const heartX = getSvgPixelCoords(50, svgWidth);
+            const heartY = getSvgPixelCoords(50, svgHeight);
+
+            const p = correctLetterOrder.map((char, index) => getSocketPixelPos(index, svgWidth, svgHeight));
+
+            let delay = 0.5; 
+            let path;
+
+            // 1. Close the perimeter (Ü back to E)
+            path = createPathElement(`M ${p[3].x} ${p[3].y} L ${p[0].x} ${p[0].y}`, delay);
+            createTracerElement(p[3].x, p[3].y, delay, 0.7, path);
+            delay += 0.7;
+            
+            // 2. Major Diagonals (E-Y, G-Ü)
+            path = createPathElement(`M ${p[0].x} ${p[0].y} L ${p[2].x} ${p[2].y}`, delay);
+            createTracerElement(p[0].x, p[0].y, delay, 0.7, path);
+            delay += 0.7;
+            path = createPathElement(`M ${p[1].x} ${p[1].y} L ${p[3].x} ${p[3].y}`, delay);
+            createTracerElement(p[1].x, p[1].y, delay, 0.7, path);
+            delay += 0.7;
+
+            // 3. Inner Diamond/Square
+            const midpointsHeartToSocket = p.map(socketPos => ({
+                x: (heartX + socketPos.x) / 2,
+                y: (heartY + socketPos.y) / 2
+            }));
+            for(let i = 0; i < midpointsHeartToSocket.length; i++) {
+                const next_i = (i + 1) % midpointsHeartToSocket.length;
+                path = createPathElement(`M ${midpointsHeartToSocket[i].x} ${midpointsHeartToSocket[i].y} L ${midpointsHeartToSocket[next_i].x} ${midpointsHeartToSocket[next_i].y}`, delay);
+                createTracerElement(midpointsHeartToSocket[i].x, midpointsHeartToSocket[i].y, delay, 0.5, path);
+                delay += 0.5;
+            }
+            
+            // 4. Outer Enclosing Circle
+            const outerCircleRadius = Math.sqrt(Math.pow(p[0].x - heartX, 2) + Math.pow(p[0].y - heartY, 2)) + getSvgPixelCoords(5, Math.min(svgWidth, svgHeight));
+            createAnimatedCircle(heartX, heartY, outerCircleRadius, delay, 1.5, 'drawing-circle outer-circle');
+            delay += 1.5;
+
+            // 5. Radiating Lines from Sockets
+            const radiantLength = getSvgPixelCoords(5, Math.min(svgWidth, svgHeight));
+            p.forEach((socketPos, index) => {
+                const angleToSocket = Math.atan2(socketPos.y - heartY, socketPos.x - heartX);
+                for (let i = -1; i <= 1; i++) { 
+                    const radiantAngle = angleToSocket + (i * Math.PI / 6); 
+                    const endX = socketPos.x + radiantLength * Math.cos(radiantAngle);
+                    const endY = socketPos.y + radiantLength * Math.sin(radiantAngle);
+                    path = createPathElement(`M ${socketPos.x} ${socketPos.y} L ${endX} ${endY}`, delay + index * 0.1 + i * 0.05, 'orrery-energy-line socket-radiant');
+                    createTracerElement(socketPos.x, socketPos.y, delay + index * 0.1 + i * 0.05, 0.4, path);
+                }
+            });
+            delay += 0.4 * 3 * p.length; 
+
+            // 6. Secondary Star (Heart to Midpoints of Outer Perimeter Segments)
+            const midpointsPerimeter = [];
+            for(let i=0; i < p.length; i++) {
+                const next_i = (i + 1) % p.length;
+                midpointsPerimeter.push({
+                    x: (p[i].x + p[next_i].x) / 2,
+                    y: (p[i].y + p[next_i].y) / 2
+                });
+            }
+            midpointsPerimeter.forEach((midP, index) => {
+                path = createPathElement(`M ${heartX} ${heartY} L ${midP.x} ${midP.y}`, delay + index * 0.2);
+                createTracerElement(heartX, heartY, delay + index * 0.2, 0.6, path);
+            });
+            
+            draggableGlyphs.forEach(g => { 
+                g.style.pointerEvents = 'none';
+                if (!g.classList.contains('locked')) { 
+                    g.style.opacity = '0.1';
+                    g.style.animation = 'none'; 
+                    g.style.transform = 'scale(0.5)';
+                }
+            });
+            
+            // Redirect to core truths book after animation completes
+            setTimeout(() => {
+                window.location.href = '../core_truths_book/index.html';
+            }, (delay + 2) * 1000); // Wait for all animations to complete plus 2 seconds
+        }
+        
+        createStars();
+    </script>
+</body>
+</html>

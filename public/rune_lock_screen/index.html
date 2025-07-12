@@ -40,7 +40,7 @@
         body {
             margin: 0;
             height: 100vh;
-            /* FIX 1: Replaced gradient with solid color to allow canvas to be visible */
+            /* FIX: Changed gradient to solid color to make canvas visible */
             background-color: var(--orrery-bg-dark);
             display: flex;
             justify-content: center;
@@ -53,14 +53,14 @@
             -webkit-touch-callout: none;
         }
         
-        /* --- NEW: Matrix Canvas Style --- */
+        /* --- Matrix Canvas Style --- */
         #matrix-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0; /* Behind everything else */
+            z-index: 0; 
             display: block;
         }
 
@@ -74,7 +74,7 @@
             justify-content: center;
             align-items: center;
             transform-style: preserve-3d;
-            z-index: 2; /* Ensure orrery is above background elements */
+            z-index: 2; 
         }
 
         #orrery-heart {
@@ -304,7 +304,7 @@
     <div id="secret-message-display"></div>
 
     <script>
-        // --- Start of Integrated Matrix Background Code ---
+        // --- Start of Horizontal Matrix Background Code ---
         (function() {
             const matrixCanvas = document.getElementById("matrix-canvas");
             if (!matrixCanvas) return;
@@ -319,10 +319,12 @@
                 matrixCanvas.width = window.innerWidth;
                 matrixCanvas.height = window.innerHeight;
                 
-                const columns = Math.floor(matrixCanvas.width / fontSize);
+                // Calculate rows for horizontal matrix
+                const rows = Math.floor(matrixCanvas.height / fontSize);
                 drops = [];
-                for (let x = 0; x < columns; x++) {
-                    drops[x] = Math.floor(Math.random() * (matrixCanvas.height / fontSize));
+                for (let y = 0; y < rows; y++) {
+                    // Each drop starts at a random horizontal position
+                    drops[y] = Math.floor(Math.random() * (matrixCanvas.width / fontSize));
                 }
             }
 
@@ -330,6 +332,7 @@
             resizeMatrixCanvas();
 
             function drawMatrix() {
+                // Fading trail effect
                 matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)"; 
                 matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
                 
@@ -338,18 +341,21 @@
 
                 for (let i = 0; i < drops.length; i++) {
                     const txt = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-                    matrixCntxt.fillText(txt, i * fontSize, drops[i] * fontSize);
+                    // Draw character at (x, y) where x is `drops[i]` and y is `i`
+                    matrixCntxt.fillText(txt, drops[i] * fontSize, i * fontSize);
                     
-                    if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.98) {
+                    // If a glyph row goes off screen, reset it to the beginning
+                    if (drops[i] * fontSize > matrixCanvas.width && Math.random() > 0.98) {
                         drops[i] = 0;
                     }
+                    // Move the drop to the right
                     drops[i]++;
                 }
             }
 
             setInterval(drawMatrix, 50);
         })();
-        // --- End of Integrated Matrix Background Code ---
+        // --- End of Matrix Background Code ---
 
         // --- Rune Lock Screen Code ---
         const orreryContainer = document.getElementById('orrery-container');
@@ -358,20 +364,20 @@
         const energyLinesSVG = document.getElementById('orrery-energy-lines-svg');
         const svgNS = "http://www.w3.org/2000/svg";
 
-        const ancientWord = "ᚲᛟᚱᛖ";
+        const ancientWord = "ᚲᛟᚱᛖ"; // CORE in runes: ᚲ(C) ᛟ(O) ᚱ(R) ᛖ(E)
         const correctLetterOrder = ancientWord.split('');
         const secretMessageText = "Core Truths Unlocked"; 
 
         const allGlyphChars = [ 
-            'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ',
-            'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᚲ', 'ᛚ', 'ᛗ',
-            'ᚾ', 'ᛈ', 'ᚱ', 'ᛊ', 'ᛏ', 'ᚢ', 'ᚹ', 'ᛉ', 'ᚦ', 'ᛋ', 'ᛦ', 'ᛪ'
+            'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ', // CORE runes (correct answer)
+            'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᚲ', 'ᛚ', 'ᛗ', // Additional runes
+            'ᚾ', 'ᛈ', 'ᚱ', 'ᛊ', 'ᛏ', 'ᚢ', 'ᚹ', 'ᛉ', 'ᚦ', 'ᛋ', 'ᛦ', 'ᛪ' // More runes for difficulty
         ];
 
         const draggableGlyphs = [];
         const constellationSockets = [];
         let draggingGlyph = null;
-        let offsetX, offsetY;
+        let offsetX, offsetY; // For storing offset of pointer within the dragged element
         let placedGlyphCount = 0;
         const socketRadiusPercentage = 33; 
         const socketPositions = []; 
@@ -399,7 +405,6 @@
             socketPositions[index] = { xPercent: xPercent, yPercent: yPercent, char: letterChar, element: socket };
         });
 
-        // --- FIX 2: Reworked glyph placement logic to prevent overlap ---
         const placedGlyphRects = [];
         const glyphBox = { width: 12, height: 12 }; // Estimated size in vw/vh to create spacing
 
@@ -418,21 +423,20 @@
 
             let rX, rY, newRect;
             let attempts = 0;
+            // FIX: Declare these variables outside the loop to fix the ReferenceError
             let isOverlappingFlag;
+            let isTooCloseToCenter;
 
             do {
-                // Generate a potential top-left corner for the glyph, ensuring it's not off-screen
                 rX = Math.random() * (100 - glyphBox.width);
                 rY = Math.random() * (100 - glyphBox.height);
                 
                 newRect = { x: rX, y: rY, width: glyphBox.width, height: glyphBox.height };
 
-                // Constraint 1: Avoid the center orrery area.
                 const boxCenterX = rX + glyphBox.width / 2;
                 const boxCenterY = rY + glyphBox.height / 2;
-                const isTooCloseToCenter = Math.sqrt(Math.pow(boxCenterX - 50, 2) + Math.pow(boxCenterY - 50, 2)) < 45;
+                isTooCloseToCenter = Math.sqrt(Math.pow(boxCenterX - 50, 2) + Math.pow(boxCenterY - 50, 2)) < 45;
 
-                // Constraint 2: Avoid overlapping with previously placed glyphs.
                 isOverlappingFlag = false;
                 for (const placedRect of placedGlyphRects) {
                     if (
@@ -447,7 +451,7 @@
                 }
                 
                 attempts++;
-                if (attempts > 200) { // Failsafe to prevent an infinite loop
+                if (attempts > 200) {
                     console.warn("Could not place a glyph without overlap after 200 attempts.");
                     break; 
                 }
@@ -719,7 +723,7 @@
                 for (let i = -1; i <= 1; i++) { 
                     const radiantAngle = angleToSocket + (i * Math.PI / 6); 
                     const endX = socketPos.x + radiantLength * Math.cos(radiantAngle);
-                    const endY = socketPos.y + radiantLength * Math.sin(radientAngle);
+                    const endY = socketPos.y + radiantLength * Math.sin(radiantAngle);
                     path = createPathElement(`M ${socketPos.x} ${socketPos.y} L ${endX} ${endY}`, delay + index * 0.1 + i * 0.05, 'orrery-energy-line socket-radiant');
                     createTracerElement(socketPos.x, socketPos.y, delay + index * 0.1 + i * 0.05, 0.4, path);
                 }
@@ -749,6 +753,7 @@
                 }
             });
             
+            // Redirect to core truths book after animation completes
             setTimeout(() => {
                 window.location.href = '../core_truths_book/index.html';
             }, (delay + 2) * 1000); 

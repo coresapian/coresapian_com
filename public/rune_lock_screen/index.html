@@ -40,23 +40,36 @@
         body {
             margin: 0;
             height: 100vh;
+            /* The gradient is now a fallback for when canvas isn't available */
             background: radial-gradient(ellipse at center, var(--orrery-bg-light) 0%, var(--orrery-bg-dark) 70%);
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
             perspective: 1500px;
-            /* Improve touch interaction by preventing unwanted text selection or callouts */
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10+ */
-            user-select: none; /* Standard syntax */
-            -webkit-touch-callout: none; /* iOS Safari */
+            /* Improve touch interaction */
+            -webkit-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        /* --- NEW: Matrix Canvas Style --- */
+        #matrix-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0; /* Behind everything else */
+            display: block;
         }
 
         #starfield {
             position: absolute;
             top:0; left:0; right:0; bottom:0;
             overflow: hidden;
+            z-index: 1; /* Above matrix, below orrery */
         }
         .star {
             position: absolute;
@@ -91,6 +104,7 @@
             justify-content: center;
             align-items: center;
             transform-style: preserve-3d;
+            z-index: 2; /* Ensure orrery is above background elements */
         }
 
         #orrery-heart {
@@ -312,14 +326,75 @@
     </style>
 </head>
 <body>
+    <canvas id="matrix-canvas"></canvas>
     <div id="starfield"></div>
     <div id="orrery-container">
         <div id="orrery-heart"></div>
         <svg id="orrery-energy-lines-svg"></svg>
-        </div>
+    </div>
     <div id="secret-message-display"></div>
 
     <script>
+        // --- Start of Integrated Matrix Background Code ---
+        (function() {
+            const matrixCanvas = document.getElementById("matrix-canvas");
+            if (!matrixCanvas) return; // Exit if canvas is not on page
+            const matrixCntxt = matrixCanvas.getContext("2d");
+            
+            // Use a mix of the original hieroglyphs and some runes for thematic consistency
+            const matrixChars = ["♃","∂","ζ","♆","≋","𝛙","⟰","☀","☽","♅","⫷", "𝞝","☳","Σ","Ϡ","Ϛ", "Δ","ځ","گ", 
+                                'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ', 'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᛚ', 'ᛗ'];
+            const fontSize = 18; // Smaller size to be more subtle
+            let drops = [];
+
+            function resizeMatrixCanvas() {
+                matrixCanvas.width = window.innerWidth;
+                matrixCanvas.height = window.innerHeight;
+                
+                // Recalculate rows and reset drops on resize
+                const rows = Math.floor(matrixCanvas.height / fontSize);
+                drops = [];
+                for (let x = 0; x < rows; x++) {
+                    // Give a random starting position to fill the screen faster on load
+                    drops[x] = Math.floor(Math.random() * (matrixCanvas.width / fontSize));
+                }
+            }
+
+            // Use addEventListener for modern and robust event handling
+            window.addEventListener('resize', resizeMatrixCanvas);
+            
+            // Initial setup call
+            resizeMatrixCanvas();
+
+            function drawMatrix() {
+                // Use the page's dark background color for the fading trail effect
+                matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)"; 
+                matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+                
+                // Use the page's accent color for the glyphs
+                matrixCntxt.fillStyle = "var(--orrery-accent-color)"; 
+                // Use the loaded runic font for thematic consistency
+                matrixCntxt.font = fontSize + "px 'Noto Sans Runic'";
+
+                for (let i = 0; i < drops.length; i++) {
+                    const txt = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+                    matrixCntxt.fillText(txt, drops[i] * fontSize, i * fontSize);
+                    
+                    // If a glyph row goes off screen, reset it to the beginning with a random chance
+                    if (drops[i] * fontSize > matrixCanvas.width && Math.random() > 0.98) {
+                        drops[i] = 0;
+                    }
+                    drops[i]++;
+                }
+            }
+
+            // Start the animation loop
+            setInterval(drawMatrix, 50); // Interval set to 50ms (20fps) for a smooth but not-too-intensive effect
+        })();
+        // --- End of Integrated Matrix Background Code ---
+
+
+        // --- Original Rune Lock Screen Code ---
         const orreryContainer = document.getElementById('orrery-container');
         const orreryHeart = document.getElementById('orrery-heart');
         const starfield = document.getElementById('starfield');
@@ -557,14 +632,12 @@
             tracer.setAttribute('class', 'line-tracer');
             tracer.setAttribute('cx', x); // Initial position for tracer before animation starts
             tracer.setAttribute('cy', y);
-            // tracer.style.animation = `tracePath ${duration}s ease-out ${delay}s forwards`; // CSS animation for tracer
             
             const pathAnimation = document.createElementNS(svgNS, "animateMotion");
             pathAnimation.setAttribute('dur', `${duration}s`);
-            pathAnimation.setAttribute('begin', `${delay}s`); // Sync with CSS delay if any
+            pathAnimation.setAttribute('begin', `${delay}s`);
             pathAnimation.setAttribute('fill', 'freeze');
             
-            // Create a <mpath> element and link it to the target path
             const mpath = document.createElementNS(svgNS,"mpath");
             mpath.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", `#${targetPathElement.id}`);
             pathAnimation.appendChild(mpath);
@@ -615,7 +688,6 @@
             
             if (currentSocketIndex > 0) {
                 const prevSocketIndex = currentSocketIndex - 1;
-                // Ensure previous socket is actually filled before drawing line to it
                 if (constellationSockets[prevSocketIndex] && constellationSockets[prevSocketIndex].classList.contains('filled')) { 
                     const prevP = getSocketPixelPos(prevSocketIndex, svgWidth, svgHeight);
                     const pathSocketToSocket = createPathElement(`M ${prevP.x} ${prevP.y} L ${currentP.x} ${currentP.y}`, 0.2);
@@ -640,12 +712,12 @@
             let delay = 0.5; 
             let path;
 
-            // 1. Close the perimeter (Ü back to E)
+            // 1. Close the perimeter
             path = createPathElement(`M ${p[3].x} ${p[3].y} L ${p[0].x} ${p[0].y}`, delay);
             createTracerElement(p[3].x, p[3].y, delay, 0.7, path);
             delay += 0.7;
             
-            // 2. Major Diagonals (E-Y, G-Ü)
+            // 2. Major Diagonals
             path = createPathElement(`M ${p[0].x} ${p[0].y} L ${p[2].x} ${p[2].y}`, delay);
             createTracerElement(p[0].x, p[0].y, delay, 0.7, path);
             delay += 0.7;
@@ -710,7 +782,7 @@
             // Redirect to core truths book after animation completes
             setTimeout(() => {
                 window.location.href = '../core_truths_book/index.html';
-            }, (delay + 2) * 1000); // Wait for all animations to complete plus 2 seconds
+            }, (delay + 2) * 1000); 
         }
         
         createStars();

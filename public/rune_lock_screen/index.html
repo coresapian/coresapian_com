@@ -1,3 +1,5 @@
+--- START OF FILE index.html ---
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -18,7 +20,7 @@
             --orrery-base-color: #404060; 
             --orrery-accent-color: #a0a0d0; 
             --orrery-heart-inactive: #303040;
-            --orrery-heart-active: #FFD700; 
+            --orrery-heart-active: rgb(255, 72, 0); 
             --socket-color: rgba(100, 100, 150, 0.2);
             --socket-hover-color: rgba(150, 150, 200, 0.4);
             --socket-active-glow: rgba(200, 200, 255, 0.6);
@@ -29,10 +31,10 @@
             --glyph-active-glow: rgba(255, 255, 255, 0.9);
             --glyph-decoy-tint: rgba(180, 180, 220, 0.6); 
             --glyph-locked-color: var(--orrery-heart-active);
-            --glyph-locked-glow: rgba(255, 215, 0, 0.9);
-            --glyph-rejection-color: #ff8080;
+            --glyph-locked-glow: rgb(255, 196, 0);
+            --glyph-rejection-color: #ff0000;
             --energy-line-color: var(--orrery-heart-active);
-            --secret-message-color: #fff5e1;
+            --secret-message-color: rgb(255, 116, 0);
             --font-family-glyphs: 'Noto Sans Runic', cursive; 
             --font-family-ui: 'Orbitron', sans-serif; 
         }
@@ -40,14 +42,12 @@
         body {
             margin: 0;
             height: 100vh;
-            /* The gradient is now a fallback for when canvas isn't available */
             background: radial-gradient(ellipse at center, var(--orrery-bg-light) 0%, var(--orrery-bg-dark) 70%);
             display: flex;
             justify-content: center;
             align-items: center;
             overflow: hidden;
             perspective: 1500px;
-            /* Improve touch interaction */
             -webkit-user-select: none;
             -ms-user-select: none;
             user-select: none;
@@ -63,35 +63,6 @@
             height: 100%;
             z-index: 0; /* Behind everything else */
             display: block;
-        }
-
-        #starfield {
-            position: absolute;
-            top:0; left:0; right:0; bottom:0;
-            overflow: hidden;
-            z-index: 1; /* Above matrix, below orrery */
-        }
-        .star {
-            position: absolute;
-            background-color: white;
-            border-radius: 50%;
-            animation: twinkle 5s infinite ease-in-out;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.3; transform: scale(0.8); }
-            50% { opacity: 1; transform: scale(1.2); }
-        }
-        .nebula {
-            position: absolute;
-            width: 300px; height: 300px;
-            background: radial-gradient(circle, rgba(100,100,200,0.15) 0%, transparent 70%);
-            border-radius: 50%;
-            opacity: 0.5;
-            animation: driftNebula 60s infinite linear alternate;
-        }
-        @keyframes driftNebula {
-            from { transform: translateX(-50px) translateY(-30px) rotate(0deg); }
-            to { transform: translateX(50px) translateY(30px) rotate(90deg); }
         }
 
         #orrery-container {
@@ -327,7 +298,6 @@
 </head>
 <body>
     <canvas id="matrix-canvas"></canvas>
-    <div id="starfield"></div>
     <div id="orrery-container">
         <div id="orrery-heart"></div>
         <svg id="orrery-energy-lines-svg"></svg>
@@ -351,12 +321,12 @@
                 matrixCanvas.width = window.innerWidth;
                 matrixCanvas.height = window.innerHeight;
                 
-                // Recalculate rows and reset drops on resize
-                const rows = Math.floor(matrixCanvas.height / fontSize);
+                // Recalculate columns and reset drops on resize
+                const columns = Math.floor(matrixCanvas.width / fontSize);
                 drops = [];
-                for (let x = 0; x < rows; x++) {
+                for (let x = 0; x < columns; x++) {
                     // Give a random starting position to fill the screen faster on load
-                    drops[x] = Math.floor(Math.random() * (matrixCanvas.width / fontSize));
+                    drops[x] = Math.floor(Math.random() * (matrixCanvas.height / fontSize));
                 }
             }
 
@@ -378,10 +348,10 @@
 
                 for (let i = 0; i < drops.length; i++) {
                     const txt = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-                    matrixCntxt.fillText(txt, drops[i] * fontSize, i * fontSize);
+                    matrixCntxt.fillText(txt, i * fontSize, drops[i] * fontSize);
                     
-                    // If a glyph row goes off screen, reset it to the beginning with a random chance
-                    if (drops[i] * fontSize > matrixCanvas.width && Math.random() > 0.98) {
+                    // If a glyph row goes off screen, reset it to the top with a random chance
+                    if (drops[i] * fontSize > matrixCanvas.height && Math.random() > 0.98) {
                         drops[i] = 0;
                     }
                     drops[i]++;
@@ -397,7 +367,6 @@
         // --- Original Rune Lock Screen Code ---
         const orreryContainer = document.getElementById('orrery-container');
         const orreryHeart = document.getElementById('orrery-heart');
-        const starfield = document.getElementById('starfield');
         const secretMessageDisplay = document.getElementById('secret-message-display');
         const energyLinesSVG = document.getElementById('orrery-energy-lines-svg');
         const svgNS = "http://www.w3.org/2000/svg";
@@ -419,29 +388,6 @@
         let placedGlyphCount = 0;
         const socketRadiusPercentage = 33; 
         const socketPositions = []; 
-
-        function createStars() {
-            const numStars = 100;
-            for (let i = 0; i < numStars; i++) {
-                const star = document.createElement('div');
-                star.classList.add('star');
-                const size = Math.random() * 2 + 0.5; 
-                star.style.width = `${size}px`;
-                star.style.height = `${size}px`;
-                star.style.left = `${Math.random() * 100}%`;
-                star.style.top = `${Math.random() * 100}%`;
-                star.style.animationDelay = `-${Math.random() * 5}s`;
-                starfield.appendChild(star);
-            }
-            for (let i=0; i < 2; i++) {
-                const nebula = document.createElement('div');
-                nebula.classList.add('nebula');
-                nebula.style.left = `${Math.random() * 70}%`; 
-                nebula.style.top = `${Math.random() * 70}%`;
-                nebula.style.animationDelay = `-${Math.random() * 30}s`;
-                starfield.appendChild(nebula);
-            }
-        }
 
         correctLetterOrder.forEach((letterChar, index) => {
             const angle = (index / correctLetterOrder.length) * 2 * Math.PI - (Math.PI / 2); 
@@ -785,7 +731,6 @@
             }, (delay + 2) * 1000); 
         }
         
-        createStars();
     </script>
 </body>
 </html>

@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     });
 
     gsap.to(torch, {
-        '--torch-brightness': 0.15,
+        '--torch-brightness': 0.35,
         duration: 0.2,
         ease: "rough({ template: none.out, strength: 2, points: 25, taper: 'out', randomize: true, clamp: false})",
         repeat: -1,

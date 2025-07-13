@@ -32,10 +32,10 @@
 #torch-overlay {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
   z-index: 1000;
-  --torch-size: 200px;
+  --torch-size: 400px;
   --torch-x: 50vw;
   --torch-y: 50vh;
-  --torch-brightness: 0.3; /* NEW: Base brightness, animated by GSAP */
+  --torch-brightness: 0.5; /* NEW: Base brightness, animated by GSAP */
   
   /* UPDATED: The color's alpha channel now uses the --torch-brightness variable */
   background: radial-gradient(
@@ -45,7 +45,7 @@
     rgba(0, 0, 0, 0.9) 100%
   );
   --torch-flicker-opacity: 0.2;
-  --flicker-size: 250px;
+  --flicker-size: 500px;
 }
 #torch-overlay::after {
   content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;

@@ -67,12 +67,13 @@
 
             // --- OBJECTS ---
 
-            // Load Hourglass Model
+            // Load Hourglass Model from the raw GitHub URL
             const loader = new GLTFLoader();
-            loader.load('loading_screen_hourglass_animation_model.glb', (gltf) => {
+            const modelUrl = 'https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb';
+            loader.load(modelUrl, (gltf) => {
                 const model = gltf.scene;
-                model.scale.set(1.5, 1.5, 1.5); // Adjust scale as needed
-                model.position.set(0, -0.5, 0); // Adjust position as needed
+                model.scale.set(1.5, 1.5, 1.5);
+                model.position.set(0, -0.5, 0);
                 scene.add(model);
 
                 // Setup animation
@@ -81,21 +82,23 @@
                     const action = mixer.clipAction(gltf.animations[0]);
                     action.play();
                 }
+            }, undefined, (error) => {
+                console.error('An error happened while loading the model:', error);
             });
 
             // Create Orbs
             const orbColors = [0xff4800, 0xffc700, 0xffa07a]; // Cosmic Orange, Stellar Gold, Light Salmon
             const orbData = [
-                { size: 0.04, speed: 0.5, path: (t) => new THREE.Vector3(1.2 * Math.cos(t), 0, 1.2 * Math.sin(t)) }, // Horizontal orbit
-                { size: 0.06, speed: 0.3, path: (t) => new THREE.Vector3(1.4 * Math.sin(t), 1.4 * Math.cos(t), 0) }, // Vertical orbit
-                { size: 0.05, speed: 0.4, path: (t) => new THREE.Vector3(1.0 * Math.cos(t), 1.0 * Math.sin(t), 1.0 * Math.sin(t)) } // Diagonal orbit
+                { size: 0.04, speed: 0.5, path: (t) => new THREE.Vector3(1.2 * Math.cos(t), 0.2 * Math.sin(t*2), 1.2 * Math.sin(t)) },
+                { size: 0.06, speed: 0.3, path: (t) => new THREE.Vector3(1.4 * Math.sin(t), 1.4 * Math.cos(t), 0) },
+                { size: 0.05, speed: 0.4, path: (t) => new THREE.Vector3(1.0 * Math.cos(t), 1.0 * Math.sin(t*0.8), 1.0 * Math.sin(t)) }
             ];
 
             orbData.forEach((data, i) => {
                 const geometry = new THREE.SphereGeometry(data.size, 16, 16);
                 const material = new THREE.MeshBasicMaterial({ color: orbColors[i] });
                 const orb = new THREE.Mesh(geometry, material);
-                orb.userData = data; // Store speed and path function
+                orb.userData = data;
                 orbs.push(orb);
                 scene.add(orb);
             });
@@ -110,40 +113,37 @@
 
             const animationDuration = 9000; // 9 seconds
             setTimeout(() => {
+                // Redirect to the next page
                 window.location.href = 'rune_puzzle/index.html';
             }, animationDuration);
         }
 
         function initPostprocessing() {
-            const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight);
+            const renderTarget = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, {
+                type: THREE.HalfFloatType,
+                depthTexture: new THREE.DepthTexture()
+            });
+            renderTarget.depthTexture.format = THREE.DepthFormat;
+            renderTarget.depthTexture.type = THREE.UnsignedShortType;
+
 
             // Composer
             composer = new EffectComposer(renderer, renderTarget);
             composer.addPass(new RenderPass(scene, camera));
 
-            // Bloom Pass for glowing orbs and hourglass
-            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.8, 0.5);
-            composer.addPass(bloomPass);
-
-            // God Rays Pass
+            // God Rays Pass (using a simplified approach)
             const godraysPass = new ShaderPass(
                 {
                     uniforms: {
                         tDiffuse: { value: null },
-                        tDepth: { value: null },
+                        tDepth: { value: renderTarget.depthTexture },
                         cameraNear: { value: camera.near },
                         cameraFar: { value: camera.far },
-                        sunPosition: { value: new THREE.Vector3(0, 10, -15) },
-                        fGodRayIntensity: { value: 0.75 },
+                        sunPosition: { value: new THREE.Vector3(0, 2, -10) }, // Position the light source
+                        fGodRayIntensity: { value: 0.6 },
                     },
-                    vertexShader: /*glsl*/`
-                        varying vec2 vUv;
-                        void main() {
-                            vUv = uv;
-                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-                        }
-                    `,
-                    fragmentShader: /*glsl*/`
+                    vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+                    fragmentShader: `
                         varying vec2 vUv;
                         uniform sampler2D tDiffuse;
                         uniform sampler2D tDepth;
@@ -152,15 +152,18 @@
                         uniform vec3 sunPosition;
                         uniform float fGodRayIntensity;
 
-                        float readDepth(sampler2D depthSampler, vec2 coord) {
-                            float fragCoordZ = texture2D(depthSampler, coord).x;
-                            float viewZ = perspectiveDepthToViewZ(fragCoordZ, cameraNear, cameraFar);
-                            return viewZToOrthographicDepth(viewZ, cameraNear, cameraFar);
+                        float getDepth( const in vec2 screenPosition ) {
+                            return texture2D( tDepth, screenPosition ).x;
+                        }
+
+                        float getViewZ( const in float depth ) {
+                            return perspectiveDepthToViewZ( depth, cameraNear, cameraFar );
                         }
 
                         void main() {
                             vec4 originalColor = texture2D(tDiffuse, vUv);
-                            float depth = readDepth(tDepth, vUv);
+                            float depth = getDepth(vUv);
+                            float viewZ = getViewZ(depth);
 
                             vec4 sunScreenPos = projectionMatrix * viewMatrix * vec4(sunPosition, 1.0);
                             sunScreenPos.xyz /= sunScreenPos.w;
@@ -168,35 +171,34 @@
 
                             vec2 delta = sunScreenPos.xy - vUv;
                             float dist = length(delta);
-                            vec2 step = delta / dist * 0.01;
+                            vec2 step = delta / dist * 0.005; // Step size for sampling
 
                             float illuminationDecay = 1.0;
                             float occlusion = 0.0;
 
                             for (int i = 0; i < 100; i++) {
                                 vec2 sampleCoord = vUv + float(i) * step;
-                                float sampleDepth = readDepth(tDepth, sampleCoord);
-                                if (sampleDepth < 1.0) {
-                                    occlusion += (1.0 - sampleDepth) * illuminationDecay;
+                                float sampleDepth = getDepth(sampleCoord);
+                                if (getViewZ(sampleDepth) < viewZ) {
+                                    occlusion += illuminationDecay;
                                 }
                                 illuminationDecay *= 0.98;
                             }
                             
-                            vec3 godrayColor = vec3(1.0, 0.8, 0.4) * max(0.0, 1.0 - occlusion * 0.1);
-                            vec3 finalColor = originalColor.rgb + godrayColor * fGodRayIntensity * max(0.0, 1.0 - dist * 1.5);
+                            vec3 godrayColor = vec3(1.0, 0.7, 0.3) * max(0.0, 1.0 - occlusion * 0.02);
+                            vec3 finalColor = originalColor.rgb + godrayColor * fGodRayIntensity * max(0.0, 1.0 - dist * 1.2);
                             
                             gl_FragColor = vec4(finalColor, 1.0);
                         }
                     `
                 }, 'tDiffuse'
             );
-            
-            // We need a depth texture.
-            const depthTexture = new THREE.DepthTexture();
-            renderTarget.depthTexture = depthTexture;
-            godraysPass.uniforms.tDepth.value = depthTexture;
+
+            // Bloom Pass for glowing orbs and hourglass
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.6, 0.3);
             
             composer.addPass(godraysPass);
+            composer.addPass(bloomPass);
         }
 
         function onWindowResize() {

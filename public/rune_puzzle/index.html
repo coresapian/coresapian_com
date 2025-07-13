@@ -291,7 +291,6 @@
             filter: drop-shadow(0 0 5px var(--energy-line-color)) drop-shadow(0 0 10px white);
             opacity: 1;
         }
-
     </style>
 </head>
 <body>
@@ -303,10 +302,8 @@
     <div id="secret-message-display"></div>
 
     <script>
-    // FIX: Wrap the entire script in window.onload to prevent font/asset loading errors.
     window.onload = function() {
 
-        // --- Start of Horizontal Matrix Background Code ---
         (function() {
             const matrixCanvas = document.getElementById("matrix-canvas");
             if (!matrixCanvas) return;
@@ -332,7 +329,6 @@
             resizeMatrixCanvas();
 
             function drawMatrix() {
-                // FIX: Use semi-transparent fillRect to create the fading trail effect.
                 matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)"; 
                 matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
                 
@@ -352,9 +348,7 @@
 
             setInterval(drawMatrix, 50);
         })();
-        // --- End of Matrix Background Code ---
 
-        // --- Rune Lock Screen Code ---
         const orreryContainer = document.getElementById('orrery-container');
         const orreryHeart = document.getElementById('orrery-heart');
         const secretMessageDisplay = document.getElementById('secret-message-display');
@@ -740,12 +734,11 @@
                 }
             });
             
-            // The final redirect after the puzzle is solved
             setTimeout(() => {
                 window.location.href = '../core_truths_book/index.html';
             }, (delay + 2) * 1000); 
         }
-    }; // End of window.onload
+    };
     </script>
 </body>
 </html>

@@ -179,7 +179,6 @@
             word-break: normal;
             hyphens: auto; 
 
-            /* Fix for text in grid containers: allows content to shrink and wrap */
             > * {
               min-width: 0;
             }

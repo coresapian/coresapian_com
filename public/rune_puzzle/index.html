@@ -12,28 +12,41 @@
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
         :root {
-            --orrery-bg-dark: #0a0a1f; 
-            --orrery-bg-light: #1a1a3a;
-            --orrery-base-color: #404060; 
-            --orrery-accent-color: #a0a0d0; 
-            --orrery-heart-inactive: #303040;
-            --orrery-heart-active: rgb(255, 72, 0); 
-            --socket-color: rgba(100, 100, 150, 0.2);
-            --socket-hover-color: rgba(150, 150, 200, 0.4);
-            --socket-active-glow: rgba(200, 200, 255, 0.6);
-            --socket-placeholder-color: rgba(180,180,220,0.2);
-            --glyph-color: rgba(200, 200, 255, 0.7); 
-            --glyph-glow: rgba(220, 220, 255, 0.5);
-            --glyph-active-color: #ffffff;
-            --glyph-active-glow: rgba(255, 255, 255, 0.9);
-            --glyph-decoy-tint: rgba(180, 180, 220, 0.6); 
-            --glyph-locked-color: var(--orrery-heart-active);
-            --glyph-locked-glow: rgb(255, 196, 0);
+            /* Unified Cosmic-Nordic Palette */
+            --void-black: #0a0a1f;
+            --stellar-dark: #1a1a3a;
+            --nordic-slate: #2E3440;
+            --cosmic-orange: #ff4800;
+            --stellar-gold: #ffc700;
+            --frost-blue: #88C0D0;
+            --deep-blue: #5E81AC;
+            --frost-white: #ECEFF4;
+            --aurora-green: #A3BE8C;
+            --mist-gray: #D8DEE9;
+            
+            /* Orrery-specific mappings using unified palette */
+            --orrery-bg-dark: var(--void-black);
+            --orrery-bg-light: var(--stellar-dark);
+            --orrery-base-color: var(--nordic-slate);
+            --orrery-accent-color: var(--frost-blue);
+            --orrery-heart-inactive: var(--nordic-slate);
+            --orrery-heart-active: var(--cosmic-orange);
+            --socket-color: rgba(94, 129, 172, 0.2); /* deep-blue with alpha */
+            --socket-hover-color: rgba(136, 192, 208, 0.4); /* frost-blue with alpha */
+            --socket-active-glow: rgba(136, 192, 208, 0.6); /* frost-blue with alpha */
+            --socket-placeholder-color: rgba(216, 222, 233, 0.2); /* mist-gray with alpha */
+            --glyph-color: rgba(136, 192, 208, 0.7); /* frost-blue with alpha */
+            --glyph-glow: rgba(136, 192, 208, 0.5); /* frost-blue with alpha */
+            --glyph-active-color: var(--frost-white);
+            --glyph-active-glow: rgba(236, 239, 244, 0.9); /* frost-white with alpha */
+            --glyph-decoy-tint: rgba(216, 222, 233, 0.6); /* mist-gray with alpha */
+            --glyph-locked-color: var(--cosmic-orange);
+            --glyph-locked-glow: var(--stellar-gold);
             --glyph-rejection-color: #ff0000;
-            --energy-line-color: var(--orrery-heart-active);
-            --secret-message-color: rgb(255, 116, 0);
-            --font-family-glyphs: 'Noto Sans Runic', cursive; 
-            --font-family-ui: 'Orbitron', sans-serif; 
+            --energy-line-color: var(--cosmic-orange);
+            --secret-message-color: var(--stellar-gold);
+            --font-family-glyphs: 'Noto Sans Runic', cursive;
+            --font-family-ui: 'Orbitron', sans-serif;
         }
 
         body {

@@ -4,13 +4,25 @@
 }
 
 :root {
-  /* Nordic Color Palette */
-  --nord-bg: #2E3440; /* Polar Night */
-  --nord-fg: #D8DEE9; /* Snow Storm */
-  --nord-frost-light: #88C0D0; /* Frost Light Blue */
-  --nord-frost-dark: #5E81AC; /* Frost Dark Blue */
-  --nord-aurora-red: #BF616A; /* Aurora Red */
-  --nord-aurora-green: #A3BE8C; /* Aurora Green */
+  /* Unified Cosmic-Nordic Palette */
+  --void-black: #0a0a1f;
+  --stellar-dark: #1a1a3a;
+  --nordic-slate: #2E3440;
+  --cosmic-orange: #ff4800;
+  --stellar-gold: #ffc700;
+  --frost-blue: #88C0D0;
+  --deep-blue: #5E81AC;
+  --frost-white: #ECEFF4;
+  --aurora-green: #A3BE8C;
+  --mist-gray: #D8DEE9;
+  
+  /* Legacy mappings for compatibility */
+  --nord-bg: var(--nordic-slate);
+  --nord-fg: var(--mist-gray);
+  --nord-frost-light: var(--frost-blue);
+  --nord-frost-dark: var(--deep-blue);
+  --nord-aurora-red: #BF616A;
+  --nord-aurora-green: var(--aurora-green);
 
   font-family: 'Doto', 'Helvetica Neue', Arial, sans-serif;
   font-optical-sizing: auto;
@@ -126,7 +138,7 @@
         overflow: hidden;
         border: 1px solid #000;
         box-shadow: inset 0 1px 3px rgba(0,0,0,0.4);
-        background: linear-gradient(90deg, #f1e2b2 0%) no-repeat left center;
+        background: linear-gradient(90deg, var(--accent-orange) 0%) no-repeat left center;
         --_progress: calc(calc(100 / var(--slides)) * 1%);
         background-size: var(--_progress, 20%) 100%;
         animation: progress linear both;

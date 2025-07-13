@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> 
-    <title>coresapian</title>
+    <title>coresapian.com</title>
     <style>
         @font-face {
             font-family: 'Noto Sans Runic';
@@ -40,7 +40,6 @@
         body {
             margin: 0;
             height: 100vh;
-            /* FIX: Changed gradient to solid color to make canvas visible */
             background-color: var(--orrery-bg-dark);
             display: flex;
             justify-content: center;
@@ -53,14 +52,16 @@
             -webkit-touch-callout: none;
         }
         
-        /* --- Matrix Canvas Style --- */
+        /* --- FIX: Matrix Canvas as a Transparent Overlay --- */
         #matrix-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 0; 
+            z-index: 90; /* High z-index to be on top of most elements */
+            opacity: 0.25; /* 25% visibility */
+            pointer-events: none; /* CRITICAL: Allows interaction with elements underneath */
             display: block;
         }
 
@@ -74,7 +75,7 @@
             justify-content: center;
             align-items: center;
             transform-style: preserve-3d;
-            z-index: 2; 
+            z-index: 2; /* Orrery is below the matrix overlay */
         }
 
         #orrery-heart {
@@ -319,11 +320,9 @@
                 matrixCanvas.width = window.innerWidth;
                 matrixCanvas.height = window.innerHeight;
                 
-                // Calculate rows for horizontal matrix
                 const rows = Math.floor(matrixCanvas.height / fontSize);
                 drops = [];
                 for (let y = 0; y < rows; y++) {
-                    // Each drop starts at a random horizontal position
                     drops[y] = Math.floor(Math.random() * (matrixCanvas.width / fontSize));
                 }
             }
@@ -332,23 +331,18 @@
             resizeMatrixCanvas();
 
             function drawMatrix() {
-                // Fading trail effect
-                matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)"; 
-                matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+                matrixCntxt.clearRect(0, 0, matrixCanvas.width, matrixCanvas.height);
                 
                 matrixCntxt.fillStyle = "var(--orrery-accent-color)"; 
                 matrixCntxt.font = fontSize + "px 'Noto Sans Runic'";
 
                 for (let i = 0; i < drops.length; i++) {
                     const txt = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-                    // Draw character at (x, y) where x is `drops[i]` and y is `i`
                     matrixCntxt.fillText(txt, drops[i] * fontSize, i * fontSize);
                     
-                    // If a glyph row goes off screen, reset it to the beginning
                     if (drops[i] * fontSize > matrixCanvas.width && Math.random() > 0.98) {
                         drops[i] = 0;
                     }
-                    // Move the drop to the right
                     drops[i]++;
                 }
             }
@@ -364,20 +358,20 @@
         const energyLinesSVG = document.getElementById('orrery-energy-lines-svg');
         const svgNS = "http://www.w3.org/2000/svg";
 
-        const ancientWord = "ᚲᛟᚱᛖ"; // CORE in runes: ᚲ(C) ᛟ(O) ᚱ(R) ᛖ(E)
+        const ancientWord = "ᚲᛟᚱᛖ";
         const correctLetterOrder = ancientWord.split('');
         const secretMessageText = "Core Truths Unlocked"; 
 
         const allGlyphChars = [ 
-            'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ', // CORE runes (correct answer)
-            'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᚲ', 'ᛚ', 'ᛗ', // Additional runes
-            'ᚾ', 'ᛈ', 'ᚱ', 'ᛊ', 'ᛏ', 'ᚢ', 'ᚹ', 'ᛉ', 'ᚦ', 'ᛋ', 'ᛦ', 'ᛪ' // More runes for difficulty
+            'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ',
+            'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᚲ', 'ᛚ', 'ᛗ',
+            'ᚾ', 'ᛈ', 'ᚱ', 'ᛊ', 'ᛏ', 'ᚢ', 'ᚹ', 'ᛉ', 'ᚦ', 'ᛋ', 'ᛦ', 'ᛪ'
         ];
 
         const draggableGlyphs = [];
         const constellationSockets = [];
         let draggingGlyph = null;
-        let offsetX, offsetY; // For storing offset of pointer within the dragged element
+        let offsetX, offsetY;
         let placedGlyphCount = 0;
         const socketRadiusPercentage = 33; 
         const socketPositions = []; 
@@ -406,7 +400,7 @@
         });
 
         const placedGlyphRects = [];
-        const glyphBox = { width: 12, height: 12 }; // Estimated size in vw/vh to create spacing
+        const glyphBox = { width: 12, height: 12 };
 
         const shuffledGlyphs = [...allGlyphChars].sort(() => Math.random() - 0.5);
         shuffledGlyphs.forEach((glyphChar, i) => {
@@ -423,7 +417,6 @@
 
             let rX, rY, newRect;
             let attempts = 0;
-            // FIX: Declare these variables outside the loop to fix the ReferenceError
             let isOverlappingFlag;
             let isTooCloseToCenter;
 
@@ -471,7 +464,6 @@
             glyphEl.addEventListener('touchstart', handleDragStart, { passive: false });
         });
 
-        // Unified drag start handler
         function handleDragStart(e) {
             const targetGlyph = e.target.closest('.starlight-glyph');
             if (!targetGlyph || targetGlyph.classList.contains('locked')) return;
@@ -495,7 +487,6 @@
             e.preventDefault();
         }
 
-        // Unified drag move handler
         document.addEventListener('mousemove', handleDragMove);
         document.addEventListener('touchmove', handleDragMove, { passive: false });
 
@@ -530,7 +521,6 @@
             }
         }
 
-        // Unified drag end handler
         document.addEventListener('mouseup', handleDragEnd);
         document.addEventListener('touchend', handleDragEnd);
 
@@ -686,12 +676,10 @@
             let delay = 0.5; 
             let path;
 
-            // 1. Close the perimeter
             path = createPathElement(`M ${p[3].x} ${p[3].y} L ${p[0].x} ${p[0].y}`, delay);
             createTracerElement(p[3].x, p[3].y, delay, 0.7, path);
             delay += 0.7;
             
-            // 2. Major Diagonals
             path = createPathElement(`M ${p[0].x} ${p[0].y} L ${p[2].x} ${p[2].y}`, delay);
             createTracerElement(p[0].x, p[0].y, delay, 0.7, path);
             delay += 0.7;
@@ -699,7 +687,6 @@
             createTracerElement(p[1].x, p[1].y, delay, 0.7, path);
             delay += 0.7;
 
-            // 3. Inner Diamond/Square
             const midpointsHeartToSocket = p.map(socketPos => ({
                 x: (heartX + socketPos.x) / 2,
                 y: (heartY + socketPos.y) / 2
@@ -711,12 +698,10 @@
                 delay += 0.5;
             }
             
-            // 4. Outer Enclosing Circle
             const outerCircleRadius = Math.sqrt(Math.pow(p[0].x - heartX, 2) + Math.pow(p[0].y - heartY, 2)) + getSvgPixelCoords(5, Math.min(svgWidth, svgHeight));
             createAnimatedCircle(heartX, heartY, outerCircleRadius, delay, 1.5, 'drawing-circle outer-circle');
             delay += 1.5;
 
-            // 5. Radiating Lines from Sockets
             const radiantLength = getSvgPixelCoords(5, Math.min(svgWidth, svgHeight));
             p.forEach((socketPos, index) => {
                 const angleToSocket = Math.atan2(socketPos.y - heartY, socketPos.x - heartX);
@@ -730,7 +715,6 @@
             });
             delay += 0.4 * 3 * p.length; 
 
-            // 6. Secondary Star (Heart to Midpoints of Outer Perimeter Segments)
             const midpointsPerimeter = [];
             for(let i=0; i < p.length; i++) {
                 const next_i = (i + 1) % p.length;
@@ -753,7 +737,6 @@
                 }
             });
             
-            // Redirect to core truths book after animation completes
             setTimeout(() => {
                 window.location.href = '../core_truths_book/index.html';
             }, (delay + 2) * 1000); 

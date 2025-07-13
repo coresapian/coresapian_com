@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> 
-    <title>coresapian.com</title>
+    <title>The Celestial Orrery of ᚲᛟᚱᛖ</title>
     <style>
         @font-face {
             font-family: 'Noto Sans Runic';
             src: url('../fonts/Noto_Sans_Runic/NotoSansRunic-Regular.ttf') format('truetype');
         }
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-
 
         :root {
             --orrery-bg-dark: #0a0a1f; 
@@ -52,16 +51,15 @@
             -webkit-touch-callout: none;
         }
         
-        /* --- FIX: Matrix Canvas as a Transparent Overlay --- */
         #matrix-canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 90; /* High z-index to be on top of most elements */
-            opacity: 0.25; /* 25% visibility */
-            pointer-events: none; /* CRITICAL: Allows interaction with elements underneath */
+            z-index: 90;
+            opacity: 0.25;
+            pointer-events: none;
             display: block;
         }
 
@@ -75,7 +73,7 @@
             justify-content: center;
             align-items: center;
             transform-style: preserve-3d;
-            z-index: 2; /* Orrery is below the matrix overlay */
+            z-index: 2;
         }
 
         #orrery-heart {
@@ -305,6 +303,9 @@
     <div id="secret-message-display"></div>
 
     <script>
+    // FIX: Wrap the entire script in window.onload to prevent font/asset loading errors.
+    window.onload = function() {
+
         // --- Start of Horizontal Matrix Background Code ---
         (function() {
             const matrixCanvas = document.getElementById("matrix-canvas");
@@ -331,7 +332,9 @@
             resizeMatrixCanvas();
 
             function drawMatrix() {
-                matrixCntxt.clearRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+                // FIX: Use semi-transparent fillRect to create the fading trail effect.
+                matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)"; 
+                matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
                 
                 matrixCntxt.fillStyle = "var(--orrery-accent-color)"; 
                 matrixCntxt.font = fontSize + "px 'Noto Sans Runic'";
@@ -737,11 +740,12 @@
                 }
             });
             
+            // The final redirect after the puzzle is solved
             setTimeout(() => {
                 window.location.href = '../core_truths_book/index.html';
             }, (delay + 2) * 1000); 
         }
-        
+    }; // End of window.onload
     </script>
 </body>
 </html>

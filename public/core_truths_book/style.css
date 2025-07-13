@@ -1,6 +1,7 @@
 @font-face {
   font-family: 'Doto';
-  src: url('../fonts/Doto/static/Doto_Rounded-Regular.ttf') format('truetype');
+  src: url('../fonts/Doto/Doto-VariableFont_ROND.ttf') format('truetype-variations');
+  font-display: block;
 }
 
 :root {
@@ -24,7 +25,7 @@
   --nord-aurora-red: #BF616A;
   --nord-aurora-green: var(--aurora-green);
 
-  font-family: 'Doto', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Doto';
   font-optical-sizing: auto;
   line-height: 1.5;
   font-weight: 400;
@@ -83,7 +84,7 @@
   @property --_progress { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
   .container { display: flex; flex-direction: column; gap: 3rem; align-items: center; --sprite-c: 5; --sprite-h: 3000; --sprite-w: 9600; --sprite-f: 7; --sprite-as: calc(var(--sprite-f) / var(--sprite-fr) * 1s); --sprite-r: round(up, calc(var(--sprite-f) / var(--sprite-c)), 1); --sprite-sh: calc(var(--sprite-h) / var(--sprite-r)); --sprite-th: calc(var(--sprite-sh) / 2); --sprite-ar: calc(var(--sprite-th) / var(--sprite-sh)); --sprite-uh: calc(var(--sprite-h) * var(--sprite-ar)); --sprite-uw: calc(var(--sprite-w) * var(--sprite-ar)); --sprite-tw: calc(var(--sprite-uw) / var(--sprite-c));
  > h1 {
-    font-family: 'Doto', serif;
+    font-family: 'Doto';
     color: var(--nord-frost-light);
     margin: 0;
     width: fit-content;
@@ -204,7 +205,7 @@
   }
   .truth-number { display: grid; place-items: center; height: 100%; }
   .truth-number h3 {
-  font-family: 'Doto', serif;
+  font-family: 'Doto';
   font-size: 4rem;
   font-weight: normal;
   color: var(--nord-frost-dark);

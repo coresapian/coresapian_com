@@ -1,3 +1,3 @@
-# Dependencies
-/node_modules
-*.zip
+transformers.js-examples/
+huggingface-transformers.txt
+

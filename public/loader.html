@@ -5,147 +5,289 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Initializing...</title>
     <style>
-        :root {
-            /* Unified Cosmic-Nordic Palette */
-            --void-black: #0a0a1f;
-            --stellar-dark: #1a1a3a;
-            --nordic-slate: #2E3440;
-            --cosmic-orange: #ff4800;
-            --stellar-gold: #ffc700;
-            --frost-blue: #88C0D0;
-            --deep-blue: #5E81AC;
-            --frost-white: #ECEFF4;
-            --aurora-green: #A3BE8C;
-            --mist-gray: #D8DEE9;
-        }
-        
         body {
             margin: 0;
             overflow: hidden;
-            background-color: var(--void-black);
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: #0a0a1f; /* Void Black */
+        }
+        #container {
+            width: 100vw;
             height: 100vh;
         }
-        
-        .loader-container {
-            position: relative;
-            width: 80vmin;
-            height: 80vmin;
-            max-width: 500px;
-            max-height: 500px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        model-viewer {
-            width: 100%;
-            height: 100%;
-            --progress-bar-color: transparent;
-            filter: drop-shadow(0 0 20px var(--cosmic-orange));
-            z-index: 1;
-        }
-        
-        .orb {
-            position: absolute;
-            border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 200, 100, 0.9), rgba(255, 72, 0, 0.8), rgba(200, 50, 0, 0.6));
-            box-shadow: 0 0 20px rgba(255, 72, 0, 0.8), inset 0 0 10px rgba(255, 200, 100, 0.3);
-            animation-timing-function: ease-in-out;
-            animation-iteration-count: infinite;
-            z-index: 0;
-        }
-        
-        .orb1 {
-            width: 15px;
-            height: 15px;
-            animation: orbit1 8s infinite;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 180, 80, 0.9), rgba(255, 72, 0, 0.8), rgba(180, 40, 0, 0.6));
-            box-shadow: 0 0 15px rgba(255, 72, 0, 0.7), inset 0 0 8px rgba(255, 180, 80, 0.4);
-        }
-        
-        .orb2 {
-            width: 22px;
-            height: 22px;
-            animation: orbit2 12s infinite;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 220, 120, 0.9), rgba(255, 100, 20, 0.8), rgba(220, 60, 10, 0.6));
-            box-shadow: 0 0 25px rgba(255, 100, 20, 0.8), inset 0 0 12px rgba(255, 220, 120, 0.3);
-        }
-        
-        .orb3 {
-            width: 18px;
-            height: 18px;
-            animation: orbit3 10s infinite;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 160, 60, 0.9), rgba(255, 50, 0, 0.8), rgba(160, 30, 0, 0.6));
-            box-shadow: 0 0 18px rgba(255, 50, 0, 0.7), inset 0 0 9px rgba(255, 160, 60, 0.4);
-        }
-        
-        @keyframes orbit1 {
-            0% { transform: translate(120px, 0) rotate(0deg) translate(-120px, 0); }
-            25% { transform: translate(80px, -100px) rotate(90deg) translate(-80px, 100px); }
-            50% { transform: translate(-120px, 0) rotate(180deg) translate(120px, 0); }
-            75% { transform: translate(-80px, 100px) rotate(270deg) translate(80px, -100px); }
-            100% { transform: translate(120px, 0) rotate(360deg) translate(-120px, 0); }
-        }
-        
-        @keyframes orbit2 {
-            0% { transform: translate(0, -140px) rotate(0deg) translate(0, 140px); }
-            25% { transform: translate(100px, -70px) rotate(90deg) translate(-100px, 70px); }
-            50% { transform: translate(0, 140px) rotate(180deg) translate(0, -140px); }
-            75% { transform: translate(-100px, 70px) rotate(270deg) translate(100px, -70px); }
-            100% { transform: translate(0, -140px) rotate(360deg) translate(0, 140px); }
-        }
-        
-        @keyframes orbit3 {
-            0% { transform: translate(-90px, -90px) rotate(0deg) translate(90px, 90px); }
-            25% { transform: translate(90px, -90px) rotate(90deg) translate(-90px, 90px); }
-            50% { transform: translate(90px, 90px) rotate(180deg) translate(-90px, -90px); }
-            75% { transform: translate(-90px, 90px) rotate(270deg) translate(90px, -90px); }
-            100% { transform: translate(-90px, -90px) rotate(360deg) translate(90px, 90px); }
-        }
     </style>
-    <!-- 3D Model Viewer Component -->
-    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
 </head>
 <body>
+    <div id="container"></div>
 
-    <!-- This displays your GLB animation with orbiting orbs -->
-    <div class="loader-container">
-        <model-viewer 
-            id="hourglass-viewer"
-            src="loading_screen_hourglass_animation_model.glb"
-            alt="An animated hourglass"
-            ar
-            ar-modes="webxr scene-viewer quick-look"
-            camera-controls
-            autoplay
-            disable-zoom
-            shadow-intensity="1">
-        </model-viewer>
-        
-        <!-- Glowing orange orbs -->
-        <div class="orb orb1"></div>
-        <div class="orb orb2"></div>
-        <div class="orb orb3"></div>
-    </div>
-
-    <script>
-        // --- Redirection Logic ---
-        const viewer = document.getElementById('hourglass-viewer');
-
-        // Set the duration of your animation in milliseconds.
-        // For example, if the animation is 5 seconds long, use 5000.
-        const animationDuration = 9000; // <-- ADJUST THIS VALUE
-
-        // Wait for the animation to finish, then redirect to the rune puzzle.
-        setTimeout(() => {
-            // The path to your rune puzzle file.
-            window.location.href = 'rune_puzzle/index.html'; 
-        }, animationDuration);
-
+    <!-- Import map for three.js and its addons -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.138.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.138.0/examples/jsm/"
+            }
+        }
     </script>
 
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { GodRaysFakeSunShader, GodRaysDepthMaskShader, GodRaysCombineShader, GodRaysGenerateShader } from 'three/addons/shaders/GodRaysShader.js';
+
+        let container, camera, scene, renderer, clock, mixer;
+        let composer, bloomPass;
+        const orbs = [];
+        
+        const postprocessing = {};
+        const sunPosition = new THREE.Vector3(0, 5, -15);
+        const bgColor = 0x0a0a1f;
+        const sunColor = 0xffee00;
+
+        init();
+
+        function init() {
+            container = document.getElementById('container');
+            clock = new THREE.Clock();
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.toneMapping = THREE.ReinhardToneMapping;
+            renderer.autoClear = false;
+            container.appendChild(renderer.domElement);
+
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera.position.set(0, 0, 3.5);
+
+            // Load Hourglass Model
+            const loader = new GLTFLoader();
+            const modelUrl = 'https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb';
+            loader.load(modelUrl, (gltf) => {
+                const model = gltf.scene;
+                model.scale.set(1.5, 1.5, 1.5);
+                model.position.set(0, -0.5, 0);
+                scene.add(model);
+
+                if (gltf.animations && gltf.animations.length) {
+                    mixer = new THREE.AnimationMixer(model);
+                    const action = mixer.clipAction(gltf.animations[0]);
+                    action.play();
+                }
+            });
+
+            // Create Orbs
+            const orbColors = [0xff4800, 0xffc700, 0xffa07a];
+            const orbData = [
+                { size: 0.04, speed: 0.5, path: (t) => new THREE.Vector3(1.2 * Math.cos(t), 0, 1.2 * Math.sin(t)) },
+                { size: 0.06, speed: 0.3, path: (t) => new THREE.Vector3(0, 1.4 * Math.cos(t), 1.4 * Math.sin(t)) },
+                { size: 0.05, speed: 0.4, path: (t) => new THREE.Vector3(1.0 * Math.cos(t), 1.0 * Math.sin(t), 1.0 * Math.sin(t*0.8)) }
+            ];
+
+            orbData.forEach((data, i) => {
+                const geometry = new THREE.SphereGeometry(data.size, 16, 16);
+                // Use MeshBasicMaterial for orbs so they are not affected by scene lights
+                const material = new THREE.MeshBasicMaterial({ color: orbColors[i] });
+                const orb = new THREE.Mesh(geometry, material);
+                orb.userData = data;
+                orbs.push(orb);
+                scene.add(orb);
+            });
+
+            initPostprocessing();
+
+            window.addEventListener('resize', onWindowResize);
+            renderer.setAnimationLoop(animate);
+
+            const animationDuration = 9000; // 9 seconds
+            setTimeout(() => {
+                window.location.href = 'rune_puzzle/index.html';
+            }, animationDuration);
+        }
+
+        function initPostprocessing() {
+            const renderTargetWidth = window.innerWidth;
+            const renderTargetHeight = window.innerHeight;
+
+            // Main composer
+            composer = new EffectComposer(renderer);
+            composer.addPass(new RenderPass(scene, camera));
+
+            // God Rays setup
+            postprocessing.scene = new THREE.Scene();
+            postprocessing.camera = new THREE.OrthographicCamera(-0.5, 0.5, 0.5, -0.5, -10000, 10000);
+            postprocessing.camera.position.z = 100;
+            postprocessing.scene.add(postprocessing.camera);
+
+            const rtParams = {
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter,
+                format: THREE.RGBFormat
+            };
+            postprocessing.rtTextureColors = new THREE.WebGLRenderTarget(renderTargetWidth, renderTargetHeight, rtParams);
+            postprocessing.rtTextureDepth = new THREE.WebGLRenderTarget(renderTargetWidth, renderTargetHeight, { ...rtParams, depthBuffer: true, depthTexture: new THREE.DepthTexture() });
+            
+            const godrayRenderTargetResolutionMultiplier = 1.0 / 4.0;
+            const adjustedWidth = renderTargetWidth * godrayRenderTargetResolutionMultiplier;
+            const adjustedHeight = renderTargetHeight * godrayRenderTargetResolutionMultiplier;
+            postprocessing.rtTextureGodRays1 = new THREE.WebGLRenderTarget(adjustedWidth, adjustedHeight, rtParams);
+            postprocessing.rtTextureGodRays2 = new THREE.WebGLRenderTarget(adjustedWidth, adjustedHeight, rtParams);
+
+            // God ray shaders
+            const godraysMaskShader = GodRaysDepthMaskShader;
+            postprocessing.godrayMaskUniforms = THREE.UniformsUtils.clone(godraysMaskShader.uniforms);
+            postprocessing.materialGodraysDepthMask = new THREE.ShaderMaterial({
+                uniforms: postprocessing.godrayMaskUniforms,
+                vertexShader: godraysMaskShader.vertexShader,
+                fragmentShader: godraysMaskShader.fragmentShader
+            });
+
+            const godraysGenShader = GodRaysGenerateShader;
+            postprocessing.godrayGenUniforms = THREE.UniformsUtils.clone(godraysGenShader.uniforms);
+            postprocessing.materialGodraysGenerate = new THREE.ShaderMaterial({
+                uniforms: postprocessing.godrayGenUniforms,
+                vertexShader: godraysGenShader.vertexShader,
+                fragmentShader: godraysGenShader.fragmentShader
+            });
+
+            const godraysCombineShader = GodRaysCombineShader;
+            postprocessing.godrayCombineUniforms = THREE.UniformsUtils.clone(godraysCombineShader.uniforms);
+            postprocessing.materialGodraysCombine = new THREE.ShaderMaterial({
+                uniforms: postprocessing.godrayCombineUniforms,
+                vertexShader: godraysCombineShader.vertexShader,
+                fragmentShader: godraysCombineShader.fragmentShader
+            });
+            
+            postprocessing.godrayCombineUniforms.fGodRayIntensity.value = 0.7;
+
+            postprocessing.quad = new THREE.Mesh(
+                new THREE.PlaneGeometry(1.0, 1.0),
+                postprocessing.materialGodraysCombine
+            );
+            postprocessing.quad.position.z = -9900;
+            postprocessing.scene.add(postprocessing.quad);
+
+            // Bloom Pass
+            bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.8, 0.6, 0.3);
+            composer.addPass(bloomPass);
+        }
+
+        function onWindowResize() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+
+            renderer.setSize(width, height);
+            composer.setSize(width, height);
+            bloomPass.setSize(width, height);
+            
+            const renderTargetWidth = window.innerWidth;
+            const renderTargetHeight = window.innerHeight;
+            postprocessing.rtTextureColors.setSize(renderTargetWidth, renderTargetHeight);
+            postprocessing.rtTextureDepth.setSize(renderTargetWidth, renderTargetHeight);
+            
+            const adjustedWidth = renderTargetWidth * (1.0 / 4.0);
+            const adjustedHeight = renderTargetHeight * (1.0 / 4.0);
+            postprocessing.rtTextureGodRays1.setSize(adjustedWidth, adjustedHeight);
+            postprocessing.rtTextureGodRays2.setSize(adjustedWidth, adjustedHeight);
+        }
+
+        function filterGodRays(inputTex, renderTarget, stepSize) {
+            postprocessing.scene.overrideMaterial = postprocessing.materialGodraysGenerate;
+            postprocessing.godrayGenUniforms['fStepSize'].value = stepSize;
+            postprocessing.godrayGenUniforms['tInput'].value = inputTex;
+            renderer.setRenderTarget(renderTarget);
+            renderer.render(postprocessing.scene, postprocessing.camera);
+            postprocessing.scene.overrideMaterial = null;
+        }
+
+        function getStepSize(filterLen, tapsPerPass, pass) {
+            return filterLen * Math.pow(tapsPerPass, -pass);
+        }
+
+        function render() {
+            const clipPosition = new THREE.Vector4();
+            const screenSpacePosition = new THREE.Vector3();
+
+            clipPosition.x = sunPosition.x;
+            clipPosition.y = sunPosition.y;
+            clipPosition.z = sunPosition.z;
+            clipPosition.w = 1;
+            clipPosition.applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix);
+
+            clipPosition.x /= clipPosition.w;
+            clipPosition.y /= clipPosition.w;
+
+            screenSpacePosition.x = (clipPosition.x + 1) / 2;
+            screenSpacePosition.y = (clipPosition.y + 1) / 2;
+            screenSpacePosition.z = clipPosition.z;
+
+            postprocessing.godrayGenUniforms['vSunPositionScreenSpace'].value.copy(screenSpacePosition);
+
+            // Render scene
+            renderer.setRenderTarget(postprocessing.rtTextureColors);
+            renderer.clear(true, true, false);
+            renderer.render(scene, camera);
+
+            // Render depth
+            scene.overrideMaterial = new THREE.MeshDepthMaterial();
+            renderer.setRenderTarget(postprocessing.rtTextureDepth);
+            renderer.clear();
+            renderer.render(scene, camera);
+            scene.overrideMaterial = null;
+
+            // God Rays Mask
+            postprocessing.godrayMaskUniforms['tInput'].value = postprocessing.rtTextureDepth.texture;
+            postprocessing.scene.overrideMaterial = postprocessing.materialGodraysDepthMask;
+            renderer.setRenderTarget(postprocessing.rtTextureGodRays1);
+            renderer.clear();
+            renderer.render(postprocessing.scene, postprocessing.camera);
+
+            // God Rays Generation
+            const filterLen = 1.0;
+            const TAPS_PER_PASS = 6.0;
+            filterGodRays(postprocessing.rtTextureGodRays1.texture, postprocessing.rtTextureGodRays2, getStepSize(filterLen, TAPS_PER_PASS, 1.0));
+            filterGodRays(postprocessing.rtTextureGodRays2.texture, postprocessing.rtTextureGodRays1, getStepSize(filterLen, TAPS_PER_PASS, 2.0));
+            filterGodRays(postprocessing.rtTextureGodRays1.texture, postprocessing.rtTextureGodRays2, getStepSize(filterLen, TAPS_PER_PASS, 3.0));
+
+            // Final Composite
+            postprocessing.godrayCombineUniforms['tColors'].value = postprocessing.rtTextureColors.texture;
+            postprocessing.godrayCombineUniforms['tGodRays'].value = postprocessing.rtTextureGodRays2.texture;
+            postprocessing.scene.overrideMaterial = postprocessing.materialGodraysCombine;
+            renderer.setRenderTarget(null);
+            renderer.render(postprocessing.scene, postprocessing.camera);
+            postprocessing.scene.overrideMaterial = null;
+
+            // Run bloom on top of the final result
+            composer.render();
+        }
+
+        function animate() {
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            if (mixer) {
+                mixer.update(delta);
+            }
+
+            orbs.forEach(orb => {
+                const time = elapsedTime * orb.userData.speed;
+                const newPos = orb.userData.path(time);
+                orb.position.copy(newPos);
+            });
+
+            render();
+        }
+    </script>
 </body>
 </html>

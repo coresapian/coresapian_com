@@ -13,8 +13,7 @@ let currentResponseElement = null; // The DOM element for the streaming response
 let fullAssistantResponse = ''; // The complete text of the assistant's response
 
 // --- Worker Initialization ---
-// Path to the bundled worker script from the build step.
-const worker = new Worker('../deepseek-r1-webgpu/dist/assets/worker-Jy3fF0zp.js', { type: 'module' });
+const worker = new Worker('./workers/worker-Jy3fF0zp.js', { type: 'module' });
 
 // --- Terminal UI Logic ---
 terminalHeader.addEventListener('click', () => {

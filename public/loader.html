@@ -106,11 +106,6 @@
 
             window.addEventListener('resize', onWindowResize);
             renderer.setAnimationLoop(animate);
-
-            const animationDuration = 9000; // 9 seconds
-            setTimeout(() => {
-                window.location.href = 'rune_puzzle/index.html';
-            }, animationDuration);
         }
 
         function initPostprocessing() {
@@ -276,6 +271,12 @@
             const delta = clock.getDelta();
             const elapsedTime = clock.getElapsedTime();
 
+            // Check if 7 seconds have elapsed, then redirect to rune puzzle
+            if (elapsedTime >= 7.0) {
+                window.location.href = './rune_puzzle/index.html';
+                return; // Stop animation loop
+            }
+
             if (mixer) {
                 mixer.update(delta);
             }
@@ -287,6 +288,7 @@
             });
 
             render();
+            requestAnimationFrame(animate);
         }
     </script>
 </body>

@@ -2,6 +2,46 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Starlight Orrery</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Background and Torch Effects -->
+    <div id="torch-overlay"></div>
+    <div id="godrays-container"></div>
+    <canvas id="matrix-canvas"></canvas>
+
+    <!-- Puzzle UI -->
+    <div id="orrery-container">
+        <div id="orrery-heart"></div>
+        <svg id="orrery-energy-lines-svg"></svg>
+    </div>
+    <div id="secret-message-display"></div>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+
+    <!-- ES Module Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.138.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.138.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <!-- Scripts -->
+    <script type="module" src="script.js"></script>
+    <script type="module" src="puzzle.js"></script>
+
+</body>
+</html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>The Celestial Orrery of ᚲᛟᚱᛖ</title>
     <style>

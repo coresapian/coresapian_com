@@ -1,6 +1,7 @@
 @font-face {
     font-family: 'Noto Sans Runic';
     src: url('../fonts/Noto_Sans_Runic/NotoSansRunic-Regular.ttf') format('truetype');
+    font-display: swap; /* Prevent FOIT (Flash of Invisible Text) */
 }
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
 
@@ -58,7 +59,7 @@ body {
 /* --- TORCH EFFECT STYLES --- */
 #torch-overlay {
   position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  z-index: 1000; /* High z-index to be on top */
+  z-index: 1000;
   --torch-size: 400px;
   --torch-x: 50vw;
   --torch-y: 50vh;
@@ -71,7 +72,9 @@ body {
   );
   --torch-flicker-opacity: 0.2;
   --flicker-size: 500px;
-  pointer-events: none; /* Crucial: allows clicks/drags to pass through */
+  pointer-events: none;
+  will-change: background; /* GPU optimization for animated gradients */
+  contain: strict; /* Layout containment for better perf */
 }
 #torch-overlay::after {
   content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;

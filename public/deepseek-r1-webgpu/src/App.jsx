@@ -192,7 +192,7 @@ function App() {
   }, [messages, isRunning]);
 
   return IS_WEBGPU_AVAILABLE ? (
-    <div className="flex flex-col h-screen mx-auto items justify-end text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-screen mx-auto items justify-end bg-[#030308] text-[#00ff41]">
       {status === null && messages.length === 0 && (
         <div className="h-full overflow-auto scrollbar-thin flex justify-center items-center flex-col relative">
           <div className="flex flex-col items-center mb-1 max-w-[400px] text-center">
@@ -201,23 +201,26 @@ function App() {
               width="80%"
               height="auto"
               className="block drop-shadow-lg bg-transparent"
+              style={{ filter: 'hue-rotate(90deg) saturate(2) brightness(1.2)' }}
             ></img>
-            <h1 className="text-4xl font-bold mb-1">DeepSeek-R1 WebGPU</h1>
-            <h2 className="font-semibold">
+            <h1 className="text-4xl font-bold mb-1 text-[#00ff41]" style={{ textShadow: '0 0 10px rgba(0,255,65,0.6), 0 0 20px rgba(0,255,65,0.4)' }}>
+              DeepSeek-R1 WebGPU
+            </h1>
+            <h2 className="font-semibold text-[#00d4ff]" style={{ textShadow: '0 0 10px rgba(0,212,255,0.4)' }}>
               A next-generation reasoning model that runs locally in your
               browser with WebGPU acceleration.
             </h2>
           </div>
 
           <div className="flex flex-col items-center px-4">
-            <p className="max-w-[510px] mb-4">
+            <p className="max-w-[510px] mb-4 text-[#00cc33]">
               <br />
               You are about to load{" "}
               <a
                 href="https://huggingface.co/onnx-community/DeepSeek-R1-Distill-Qwen-1.5B-ONNX"
                 target="_blank"
                 rel="noreferrer"
-                className="font-medium underline"
+                className="font-medium underline text-[#00d4ff] hover:text-[#00ff41]"
               >
                 DeepSeek-R1-Distill-Qwen-1.5B
               </a>
@@ -227,9 +230,9 @@ function App() {
                 href="https://huggingface.co/docs/transformers.js"
                 target="_blank"
                 rel="noreferrer"
-                className="underline"
+                className="underline text-[#00d4ff] hover:text-[#00ff41]"
               >
-                🤗&nbsp;Transformers.js
+                Transformers.js
               </a>{" "}
               and ONNX Runtime Web, meaning no data is sent to a server. Once
               loaded, it can even be used offline. The source code for the demo
@@ -238,7 +241,7 @@ function App() {
                 href="https://github.com/huggingface/transformers.js-examples/tree/main/deepseek-r1-webgpu"
                 target="_blank"
                 rel="noreferrer"
-                className="font-medium underline"
+                className="font-medium underline text-[#00d4ff] hover:text-[#00ff41]"
               >
                 GitHub
               </a>
@@ -246,23 +249,27 @@ function App() {
             </p>
 
             {error && (
-              <div className="text-red-500 text-center mb-2">
+              <div className="text-[#ff3366] text-center mb-2 p-3 border border-[#ff3366] rounded-lg" style={{ boxShadow: '0 0 15px rgba(255,51,102,0.3)' }}>
                 <p className="mb-1">
-                  Unable to load model due to the following error:
+                  {"> "}ERROR: Unable to load model
                 </p>
-                <p className="text-sm">{error}</p>
+                <p className="text-sm font-mono">{error}</p>
               </div>
             )}
 
             <button
-              className="border px-4 py-2 rounded-lg bg-blue-400 text-white hover:bg-blue-500 disabled:bg-blue-100 cursor-pointer disabled:cursor-not-allowed select-none"
+              className="border border-[#00ff41] px-6 py-3 rounded-lg bg-transparent text-[#00ff41] hover:bg-[#00ff41]/10 disabled:border-[#00cc33]/30 disabled:text-[#00cc33]/30 cursor-pointer disabled:cursor-not-allowed select-none font-mono uppercase tracking-wider transition-all duration-300"
+              style={{
+                boxShadow: status === null && error === null ? '0 0 15px rgba(0,255,65,0.3), inset 0 0 15px rgba(0,255,65,0.05)' : 'none',
+                textShadow: status === null && error === null ? '0 0 10px rgba(0,255,65,0.6)' : 'none'
+              }}
               onClick={() => {
                 worker.current.postMessage({ type: "load" });
                 setStatus("loading");
               }}
               disabled={status !== null || error !== null}
             >
-              Load model
+              {"> "}Initialize Model
             </button>
           </div>
         </div>
@@ -270,7 +277,9 @@ function App() {
       {status === "loading" && (
         <>
           <div className="w-full max-w-[500px] text-left mx-auto p-4 bottom-0 mt-auto">
-            <p className="text-center mb-1">{loadingMessage}</p>
+            <p className="text-center mb-1 text-[#00d4ff] font-mono" style={{ textShadow: '0 0 10px rgba(0,212,255,0.4)' }}>
+              {"> "}{loadingMessage}
+            </p>
             {progressItems.map(({ file, progress, total }, i) => (
               <Progress
                 key={i}
@@ -294,15 +303,16 @@ function App() {
               {EXAMPLES.map((msg, i) => (
                 <div
                   key={i}
-                  className="m-1 border border-gray-300 dark:border-gray-600 rounded-md p-2 bg-gray-100 dark:bg-gray-700 cursor-pointer"
+                  className="m-1 border border-[#00cc33] rounded-md p-3 bg-[#0d1117] cursor-pointer hover:border-[#00ff41] hover:bg-[#00ff41]/5 transition-all duration-300 font-mono text-sm"
+                  style={{ boxShadow: '0 0 10px rgba(0,255,65,0.1)' }}
                   onClick={() => onEnter(msg)}
                 >
-                  {msg}
+                  <span className="text-[#00d4ff]">{"> "}</span>{msg}
                 </div>
               ))}
             </div>
           )}
-          <p className="text-center text-sm min-h-6 text-gray-500 dark:text-gray-300">
+          <p className="text-center text-sm min-h-6 text-[#00cc33] font-mono">
             {tps && messages.length > 0 && (
               <>
                 {!isRunning && (
@@ -313,10 +323,10 @@ function App() {
                 )}
                 {
                   <>
-                    <span className="font-medium text-center mr-1 text-black dark:text-white">
+                    <span className="font-medium text-center mr-1 text-[#00ff41]" style={{ textShadow: '0 0 10px rgba(0,255,65,0.6)' }}>
                       {tps.toFixed(2)}
                     </span>
-                    <span className="text-gray-500 dark:text-gray-300">
+                    <span className="text-[#00cc33]">
                       tokens/second
                     </span>
                   </>
@@ -325,7 +335,7 @@ function App() {
                   <>
                     <span className="mr-1">&#41;.</span>
                     <span
-                      className="underline cursor-pointer"
+                      className="underline cursor-pointer text-[#00d4ff] hover:text-[#00ff41]"
                       onClick={() => {
                         worker.current.postMessage({ type: "reset" });
                         setMessages([]);
@@ -341,11 +351,14 @@ function App() {
         </div>
       )}
 
-      <div className="mt-2 border border-gray-300 dark:bg-gray-700 rounded-lg w-[600px] max-w-[80%] max-h-[200px] mx-auto relative mb-3 flex">
+      <div
+        className="mt-2 border border-[#00cc33] rounded-lg w-[600px] max-w-[80%] max-h-[200px] mx-auto relative mb-3 flex bg-[#0d1117]"
+        style={{ boxShadow: '0 0 20px rgba(0,255,65,0.1), inset 0 0 20px rgba(0,255,65,0.02)' }}
+      >
         <textarea
           ref={textareaRef}
-          className="scrollbar-thin w-[550px] dark:bg-gray-700 px-3 py-4 rounded-lg bg-transparent border-none outline-hidden text-gray-800 disabled:text-gray-400 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 disabled:placeholder-gray-200 resize-none disabled:cursor-not-allowed"
-          placeholder="Type your message..."
+          className="scrollbar-thin w-[550px] bg-transparent px-3 py-4 rounded-lg border-none outline-hidden text-[#00ff41] disabled:text-[#00cc33]/30 placeholder-[#00cc33]/50 resize-none disabled:cursor-not-allowed font-mono"
+          placeholder="> Enter your query..."
           type="text"
           rows={1}
           value={input}
@@ -366,32 +379,33 @@ function App() {
         />
         {isRunning ? (
           <div className="cursor-pointer" onClick={onInterrupt}>
-            <StopIcon className="h-8 w-8 p-1 rounded-md text-gray-800 dark:text-gray-100 absolute right-3 bottom-3" />
+            <StopIcon className="h-8 w-8 p-1 rounded-md text-[#ff3366] absolute right-3 bottom-3" style={{ filter: 'drop-shadow(0 0 5px rgba(255,51,102,0.5))' }} />
           </div>
         ) : input.length > 0 ? (
           <div className="cursor-pointer" onClick={() => onEnter(input)}>
             <ArrowRightIcon
-              className={`h-8 w-8 p-1 bg-gray-800 dark:bg-gray-100 text-white dark:text-black rounded-md absolute right-3 bottom-3`}
+              className="h-8 w-8 p-1 bg-[#00ff41] text-[#030308] rounded-md absolute right-3 bottom-3"
+              style={{ boxShadow: '0 0 15px rgba(0,255,65,0.5)' }}
             />
           </div>
         ) : (
           <div>
             <ArrowRightIcon
-              className={`h-8 w-8 p-1 bg-gray-200 dark:bg-gray-600 text-gray-50 dark:text-gray-800 rounded-md absolute right-3 bottom-3`}
+              className="h-8 w-8 p-1 bg-[#00cc33]/20 text-[#00cc33]/50 rounded-md absolute right-3 bottom-3"
             />
           </div>
         )}
       </div>
 
-      <p className="text-xs text-gray-400 text-center mb-3">
-        Disclaimer: Generated content may be inaccurate or false.
+      <p className="text-xs text-[#00cc33]/60 text-center mb-3 font-mono">
+        {"> "}Disclaimer: Generated content may be inaccurate or false.
       </p>
     </div>
   ) : (
-    <div className="fixed w-screen h-screen bg-black z-10 bg-opacity-[92%] text-white text-2xl font-semibold flex justify-center items-center text-center">
-      WebGPU is not supported
+    <div className="fixed w-screen h-screen bg-[#030308] z-10 text-[#ff3366] text-2xl font-semibold flex justify-center items-center text-center font-mono" style={{ textShadow: '0 0 20px rgba(255,51,102,0.6)' }}>
+      {"> "}ERROR: WebGPU is not supported
       <br />
-      by this browser :&#40;
+      by this browser
     </div>
   );
 }

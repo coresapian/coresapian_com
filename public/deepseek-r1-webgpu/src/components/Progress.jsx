@@ -9,13 +9,23 @@ function formatBytes(size) {
 export default function Progress({ text, percentage, total }) {
   percentage ??= 0;
   return (
-    <div className="w-full bg-gray-100 dark:bg-gray-700 text-left rounded-lg overflow-hidden mb-0.5">
+    <div
+      className="w-full bg-[#030308] border border-[#00cc33] text-left rounded-lg overflow-hidden mb-1 font-mono text-sm"
+      style={{ boxShadow: '0 0 10px rgba(0, 255, 65, 0.1)' }}
+    >
       <div
-        className="bg-blue-400 whitespace-nowrap px-1 text-sm"
-        style={{ width: `${percentage}%` }}
+        className="whitespace-nowrap px-2 py-1 text-[#030308] transition-all duration-300"
+        style={{
+          width: `${percentage}%`,
+          background: 'linear-gradient(90deg, #00ff41, #00cc33)',
+          boxShadow: '0 0 15px rgba(0, 255, 65, 0.5)',
+          textShadow: 'none'
+        }}
       >
-        {text} ({percentage.toFixed(2)}%
-        {isNaN(total) ? "" : ` of ${formatBytes(total)}`})
+        <span className="text-[#030308] font-bold">
+          {"> "}{text} ({percentage.toFixed(2)}%
+          {isNaN(total) ? "" : ` of ${formatBytes(total)}`})
+        </span>
       </div>
     </div>
   );

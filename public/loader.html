@@ -3,16 +3,127 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Initializing…</title>
+  <title>Initializing...</title>
   <style>
-    body{margin:0;overflow:hidden;background:#0a0a1f}
-    #container{width:100vw;height:100vh}
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+
+    :root {
+      --matrix-green: #00ff41;
+      --matrix-cyan: #00d4ff;
+      --matrix-dark: #0d1117;
+      --matrix-darker: #030308;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--matrix-darker);
+      font-family: 'Orbitron', 'Courier New', monospace;
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Scanline effect */
+    #container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 255, 65, 0.03) 2px,
+        rgba(0, 255, 65, 0.03) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Loading indicator */
+    #loading-indicator {
+      position: fixed;
+      bottom: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      z-index: 100;
+    }
+
+    #loading-text {
+      color: var(--matrix-green);
+      font-size: 1.2rem;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      text-shadow: 0 0 10px rgba(0, 255, 65, 0.6), 0 0 20px rgba(0, 255, 65, 0.4);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    #loading-bar-container {
+      width: 300px;
+      height: 4px;
+      background: var(--matrix-dark);
+      border: 1px solid var(--matrix-green);
+      border-radius: 2px;
+      margin-top: 15px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+    }
+
+    #loading-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--matrix-green), var(--matrix-cyan));
+      box-shadow: 0 0 15px var(--matrix-green);
+      animation: loadProgress 9s ease-in-out forwards;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    @keyframes loadProgress {
+      0% { width: 0%; }
+      10% { width: 15%; }
+      30% { width: 35%; }
+      50% { width: 55%; }
+      70% { width: 75%; }
+      90% { width: 90%; }
+      100% { width: 100%; }
+    }
+
+    #status-text {
+      color: var(--matrix-cyan);
+      font-size: 0.8rem;
+      margin-top: 10px;
+      text-shadow: 0 0 5px rgba(0, 212, 255, 0.4);
+    }
+
+    .error-message {
+      color: #ff3366 !important;
+      text-shadow: 0 0 10px rgba(255, 51, 102, 0.6) !important;
+    }
   </style>
 </head>
 <body>
   <div id="container"></div>
 
-  <!-- Import map – fails loudly if CDN unreachable -->
+  <div id="loading-indicator">
+    <div id="loading-text">> Initializing System...</div>
+    <div id="loading-bar-container">
+      <div id="loading-bar"></div>
+    </div>
+    <div id="status-text">> Loading neural interface...</div>
+  </div>
+
+  <!-- Import map -->
   <script type="importmap">
     {
       "imports": {
@@ -23,99 +134,137 @@
   </script>
 
   <script type="module">
-    /* ------------------------------------------------------------------
-       SAFE-LOADER – prints crystal-clear errors in the console
-    ------------------------------------------------------------------ */
-    import * as THREE from 'three';
-    const log = (lvl, ...a)=>console[lvl]('[LOADER]', ...a);
+    const log = (lvl, ...a) => console[lvl]('[LOADER]', ...a);
+    const statusText = document.getElementById('status-text');
+    const loadingText = document.getElementById('loading-text');
 
-    // ---------- 1.  Feature-guard ----------
+    function setStatus(msg) {
+      if (statusText) statusText.textContent = '> ' + msg;
+    }
+
+    function setError(msg) {
+      if (loadingText) {
+        loadingText.textContent = '> ERROR';
+        loadingText.classList.add('error-message');
+      }
+      if (statusText) {
+        statusText.textContent = '> ' + msg;
+        statusText.classList.add('error-message');
+      }
+    }
+
+    // ---------- 1. Feature-guard ----------
+    setStatus('Checking WebGL2 support...');
     if (!window.WebGL2RenderingContext) {
-      log('error','WebGL2 unavailable – aborting.');
-      document.body.innerHTML =
-        '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">WebGL2 not supported by this browser.</h1>';
+      log('error', 'WebGL2 unavailable – aborting.');
+      setError('WebGL2 not supported by this browser');
       throw new Error('WebGL2 unavailable');
     }
 
-    // ---------- 2.  Three.js sanity ----------
-    if (!THREE.REVISION) {
-      log('error','Three.js failed to load – check import-map / network.');
-      document.body.innerHTML =
-        '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load Three.js.</h1>';
-      throw new Error('THREE undefined');
-    }
-
-    // ---------- 3.  Dynamic import of optional modules ----------
-    let GLTFLoader, EffectComposer, RenderPass, UnrealBloomPass, GodRays;
+    // ---------- 2. Import Three.js ----------
+    setStatus('Loading graphics engine...');
+    let THREE;
     try {
-      const m = await Promise.all([
-        import('three/addons/loaders/GLTFLoader.js'),
-        import('three/addons/postprocessing/EffectComposer.js'),
-        import('three/addons/postprocessing/RenderPass.js'),
-        import('three/addons/postprocessing/UnrealBloomPass.js'),
-        import('three/addons/shaders/GodRaysShader.js')
-      ]);
-      [GLTFLoader, EffectComposer, RenderPass, UnrealBloomPass, GodRays] =
-        [m[0].GLTFLoader, m[1].EffectComposer, m[2].RenderPass, m[3].UnrealBloomPass, m[4]];
+      THREE = await import('three');
     } catch (e) {
-      log('error','Failed to load Three.js add-ons:', e);
-      document.body.innerHTML =
-        '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load graphics modules.</h1>';
+      log('error', 'Three.js failed to load:', e);
+      setError('Could not load graphics engine');
       throw e;
     }
 
-    // ---------- 4.  Scene bootstrap ----------
+    if (!THREE.REVISION) {
+      log('error', 'Three.js failed to load – check import-map / network.');
+      setError('Graphics engine initialization failed');
+      throw new Error('THREE undefined');
+    }
+
+    // ---------- 3. Dynamic import of optional modules ----------
+    setStatus('Loading rendering modules...');
+    let GLTFLoader;
+    try {
+      const loaderModule = await import('three/addons/loaders/GLTFLoader.js');
+      GLTFLoader = loaderModule.GLTFLoader;
+    } catch (e) {
+      log('error', 'Failed to load GLTFLoader:', e);
+      setError('Could not load model loader');
+      throw e;
+    }
+
+    // ---------- 4. Scene bootstrap ----------
+    setStatus('Initializing renderer...');
     const container = document.getElementById('container');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, .1, 3000);
-    camera.position.set(0,0,3.5);
+    const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.1, 3000);
+    camera.position.set(0, 0, 3.5);
 
-    const renderer = new THREE.WebGLRenderer({antialias:true});
-    renderer.setPixelRatio(devicePixelRatio);
-    renderer.setSize(innerWidth, innerHeight);
-    renderer.toneMapping = THREE.ReinhardToneMapping;
-    renderer.autoClear = false;
-    container.appendChild(renderer.domElement);
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setPixelRatio(devicePixelRatio);
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.toneMapping = THREE.ReinhardToneMapping;
+      renderer.autoClear = false;
+      renderer.setClearColor(0x030308, 1);
+      container.appendChild(renderer.domElement);
+    } catch (e) {
+      log('error', 'WebGL renderer failed:', e);
+      setError('WebGL context creation failed');
+      throw e;
+    }
 
-    // ---------- 5.  Load model ----------
+    // ---------- 5. Load model ----------
+    setStatus('Loading hourglass model...');
     const modelUrl = 'https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb';
     const loader = new GLTFLoader();
     let mixer;
+
     loader.load(
       modelUrl,
-      gltf=>{
+      gltf => {
+        setStatus('Model loaded, starting animation...');
         const model = gltf.scene;
         model.scale.setScalar(1.5);
-        model.position.set(0,-.5,0);
+        model.position.set(0, -0.5, 0);
         scene.add(model);
         if (gltf.animations?.length) {
           mixer = new THREE.AnimationMixer(model);
           mixer.clipAction(gltf.animations[0]).play();
         }
       },
-      undefined,
-      err=>{
-        log('error','Hourglass model failed to load:', err);
+      progress => {
+        if (progress.total > 0) {
+          const pct = Math.round((progress.loaded / progress.total) * 100);
+          setStatus(`Downloading model... ${pct}%`);
+        }
+      },
+      err => {
+        log('error', 'Hourglass model failed to load:', err);
+        setStatus('Model load failed, continuing...');
       }
     );
 
-    // ---------- 6.  Tiny animation loop ----------
+    // ---------- 6. Animation loop ----------
     const clock = new THREE.Clock();
-    renderer.setAnimationLoop(()=>{
+    renderer.setAnimationLoop(() => {
       const delta = clock.getDelta();
       mixer?.update(delta);
       renderer.clear();
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     });
 
-    // ---------- 7.  Redirect after 9 s ----------
-    setTimeout(()=>location.href='../rune_puzzle/index.html', 9000);
+    // ---------- 7. Redirect after 9s ----------
+    setTimeout(() => {
+      setStatus('Entering the matrix...');
+      setTimeout(() => {
+        location.href = 'core_truths_book/index.html';
+      }, 500);
+    }, 8500);
 
-    // ---------- 8.  Resize ----------
-    addEventListener('resize',()=>{
-      camera.aspect = innerWidth/innerHeight;
+    // ---------- 8. Resize ----------
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth,innerHeight);
+      renderer.setSize(innerWidth, innerHeight);
     });
   </script>
 </body>

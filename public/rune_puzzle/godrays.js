@@ -5,60 +5,72 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GodRaysEffect } from 'three/addons/postprocessing/GodRaysEffect.js';
 
-// --- Basic scene setup ---
+// --- Basic scene setup with error handling ---
 const container = document.getElementById('godrays-container');
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 3000);
-camera.position.z = 200;
 
-const renderer = new THREE.WebGLRenderer({ alpha: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-container.appendChild(renderer.domElement);
+let renderer, composer, controls;
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
+try {
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 1, 3000);
+    camera.position.z = 200;
 
-// --- God Rays setup ---
+    renderer = new THREE.WebGLRenderer({ alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    container.appendChild(renderer.domElement);
 
-// 1. Occlusion scene
-const occlusionScene = new THREE.Scene();
-const sphere = new THREE.Mesh(
-    new THREE.SphereGeometry(20, 16, 8),
-    new THREE.MeshBasicMaterial({ color: 0x000000 }) // Black for occlusion
-);
+    controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
 
-occlusionScene.add(sphere);
+    // --- God Rays setup ---
 
-// 2. Composer and passes
-const composer = new EffectComposer(renderer);
-composer.addPass(new RenderPass(scene, camera)); // Render main scene first
+    // 1. Occlusion scene
+    const occlusionScene = new THREE.Scene();
+    const sphere = new THREE.Mesh(
+        new THREE.SphereGeometry(20, 16, 8),
+        new THREE.MeshBasicMaterial({ color: 0x000000 }) // Black for occlusion
+    );
 
-const godRaysEffect = new GodRaysEffect(camera, sphere, {
-    resolutionScale: 1,
-    density: 0.8,
-    decay: 0.95,
-    weight: 0.6,
-    samples: 100
-});
+    occlusionScene.add(sphere);
 
-composer.addPass(godRaysEffect);
+    // 2. Composer and passes
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera)); // Render main scene first
 
-// --- Animation loop ---
-function animate() {
-    controls.update();
-    composer.render();
+    const godRaysEffect = new GodRaysEffect(camera, sphere, {
+        resolutionScale: 1,
+        density: 0.8,
+        decay: 0.95,
+        weight: 0.6,
+        samples: 100
+    });
+
+    composer.addPass(godRaysEffect);
+
+    // --- Animation loop ---
+    function animate() {
+        controls.update();
+        composer.render();
+    }
+
+    renderer.setAnimationLoop(animate);
+
+    // --- Resize listener ---
+    window.addEventListener('resize', () => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+        composer.setSize(width, height);
+    });
+
+} catch (error) {
+    console.warn('WebGL not available, godrays effect disabled:', error.message);
+    // Fallback: hide the container or show a static background
+    if (container) {
+        container.style.display = 'none';
+    }
 }
-
-renderer.setAnimationLoop(animate);
-
-// --- Resize listener ---
-window.addEventListener('resize', () => {
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-
-    camera.aspect = width / height;
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(width, height);
-    composer.setSize(width, height);
-});

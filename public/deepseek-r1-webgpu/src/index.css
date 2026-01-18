@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
-/* Custom scrollbar styles */
+/* Matrix Cyberpunk Theme Variables */
+:root {
+  --matrix-green: #00ff41;
+  --matrix-green-dim: #00cc33;
+  --matrix-cyan: #00d4ff;
+  --matrix-dark: #0d1117;
+  --matrix-darker: #030308;
+  --terminal-green: #39ff14;
+  --glow-green: rgba(0, 255, 65, 0.6);
+  --glow-cyan: rgba(0, 212, 255, 0.4);
+}
+
+/* Global dark theme */
+body {
+  background-color: var(--matrix-darker);
+  color: var(--matrix-green);
+  font-family: 'Courier New', 'Consolas', monospace;
+}
+
+/* Matrix scanline effect overlay */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 65, 0.03) 2px,
+    rgba(0, 255, 65, 0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Custom scrollbar styles - Matrix theme */
 .scrollbar-thin::-webkit-scrollbar {
-  width: 0.5rem; /* Equivalent to w-2 in Tailwind */
+  width: 0.5rem;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  border-radius: 9999px; /* Equivalent to rounded-full in Tailwind */
-  background-color: #f3f4f6; /* Equivalent to bg-gray-100 in Tailwind */
-}
-
-.scrollbar-thin::-webkit-scrollbar-track.dark {
-  background-color: #374151; /* Equivalent to dark:bg-gray-700 in Tailwind */
+  border-radius: 9999px;
+  background-color: var(--matrix-darker);
+  border: 1px solid var(--matrix-green-dim);
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  border-radius: 9999px; /* Equivalent to rounded-full in Tailwind */
-  background-color: #d1d5db; /* Equivalent to bg-gray-300 in Tailwind */
+  border-radius: 9999px;
+  background-color: var(--matrix-green-dim);
+  box-shadow: 0 0 10px var(--glow-green);
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background-color: #6b7280; /* Equivalent to bg-gray-500 in Tailwind */
+  background-color: var(--matrix-green);
+  box-shadow: 0 0 15px var(--glow-green);
 }
 
 /* Animation delay classes */
@@ -35,4 +72,74 @@
 /* Overflow wrap class */
 .overflow-wrap-anywhere {
   overflow-wrap: anywhere;
+}
+
+/* Matrix glow text effect */
+.matrix-glow {
+  text-shadow: 0 0 10px var(--glow-green), 0 0 20px var(--glow-green);
+}
+
+/* Matrix button styles */
+.matrix-btn {
+  background: transparent;
+  border: 1px solid var(--matrix-green);
+  color: var(--matrix-green);
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.2), inset 0 0 10px rgba(0, 255, 65, 0.05);
+  transition: all 0.3s ease;
+}
+
+.matrix-btn:hover {
+  background: rgba(0, 255, 65, 0.1);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.4), inset 0 0 20px rgba(0, 255, 65, 0.1);
+}
+
+/* Matrix input field */
+.matrix-input {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--matrix-green-dim);
+  color: var(--matrix-green);
+  box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.05);
+}
+
+.matrix-input:focus {
+  outline: none;
+  border-color: var(--matrix-green);
+  box-shadow: 0 0 15px rgba(0, 255, 65, 0.3), inset 0 0 10px rgba(0, 255, 65, 0.1);
+}
+
+.matrix-input::placeholder {
+  color: rgba(0, 255, 65, 0.4);
+}
+
+/* Matrix card */
+.matrix-card {
+  background: linear-gradient(135deg, var(--matrix-darker) 0%, var(--matrix-dark) 100%);
+  border: 1px solid var(--matrix-green-dim);
+  box-shadow: 0 0 20px rgba(0, 255, 65, 0.1), inset 0 0 30px rgba(0, 255, 65, 0.02);
+}
+
+/* Typing cursor animation */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '_';
+  animation: blink 1s infinite;
+  color: var(--matrix-green);
+}
+
+/* Matrix pulse animation */
+@keyframes matrix-pulse {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--matrix-green), 0 0 10px var(--matrix-green);
+  }
+  50% {
+    box-shadow: 0 0 15px var(--matrix-green), 0 0 30px var(--matrix-green);
+  }
+}
+
+.matrix-pulse {
+  animation: matrix-pulse 2s ease-in-out infinite;
 }

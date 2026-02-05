@@ -19,13 +19,13 @@ coresapian_com/
     ├── loading_screen_hourglass_animation_model.glb  # 3D hourglass model
     ├── favicon.ico
     ├── js/
-    │   └── loader.js       # Three.js scene (god rays, bloom, particles)
+    │   └── loader.js       # UNUSED — legacy Three.js scene (not imported by loader.html)
     ├── fonts/              # Custom fonts (Doto, Noto Sans Runic)
     ├── rune_puzzle/         # Interactive drag-and-drop rune puzzle
     │   ├── index.html
     │   ├── puzzle.js        # Puzzle mechanics (drag-drop, SVG animations)
-    │   ├── godrays.js       # God rays visual effects
-    │   └── script.js
+    │   ├── godrays.js       # God rays visual effects (dynamically imported by puzzle.js)
+    │   └── script.js        # UNUSED — legacy god rays/torch/matrix code (not loaded by index.html)
     ├── core_truths_book/    # Scrollable book carousel with terminal
     │   ├── index.html
     │   ├── script.js        # GSAP animations, Konami code easter egg
@@ -52,11 +52,16 @@ coresapian_com/
 
 ## User Flow
 
-1. **`/` (root)** → Netlify redirects to `/loader.html`
-2. **`/loader.html`** — 9-second Three.js loading animation with 3D hourglass, then auto-redirects to:
-3. **`/rune_puzzle/`** — Drag-and-drop Elder Futhark rune puzzle on an orrery layout. On completion, redirects to:
-4. **`/core_truths_book/`** — Scrollable book carousel presenting 6 core truths about AI. Includes an integrated terminal/oracle chat.
-5. **`/deepseek-r1-webgpu/dist/`** — Standalone React app running DeepSeek-R1 LLM entirely in-browser via WebGPU (not directly linked from main flow).
+**Main navigation path (3 steps, each auto-redirects to the next):**
+
+1. **`/` (root)** → Netlify redirects to `/loader.html` (configured in `netlify.toml`)
+2. **`/loader.html`** — 9-second Three.js loading animation with 3D hourglass. Auto-redirects via `setTimeout` in inline `<script>` (line 112).
+3. **`/rune_puzzle/`** — Drag-and-drop Elder Futhark rune puzzle on an orrery layout. On completion (all 4 glyphs placed), redirects after 3s (`puzzle.js:126`).
+4. **`/core_truths_book/`** — Scrollable book carousel presenting 6 core truths about AI. Includes an integrated terminal/oracle chat powered by a local ONNX worker. **This is the end of the main flow — there is no automatic redirect from here.**
+
+**Standalone page (not linked from main flow):**
+
+- **`/deepseek-r1-webgpu/dist/`** — React app running DeepSeek-R1 LLM entirely in-browser via WebGPU. Must be navigated to directly.
 
 ## Technology Stack
 
@@ -126,7 +131,8 @@ The static pages (loader, rune_puzzle, core_truths_book) have no build step — 
 
 - **WebGPU requirement:** The deepseek AI chatbot requires WebGPU browser support. A fallback message is shown if unavailable.
 - **WebGL2 requirement:** The loader animation checks for WebGL2 and shows an error if missing.
-- **3D model URL:** The hourglass GLB model is loaded from a GitHub raw URL in `loader.js`.
+- **3D model URL:** The hourglass GLB model is loaded from a GitHub raw URL in the inline script within `loader.html`.
 - **Pre-built dist:** The `deepseek-r1-webgpu/dist/` directory is committed to git. After making changes to the React app source, run `npm run build` and commit the updated `dist/`.
 - **No backend:** There are no API routes, databases, or server processes. Do not introduce server dependencies.
 - **Konami code easter egg:** The sequence `Up Up Down Down Left Right Left Right B A` triggers a rainbow/shake animation in the core truths book.
+- **Dead code files:** `js/loader.js` and `rune_puzzle/script.js` are not loaded by any HTML page and appear to be legacy files. The active loader logic is inline in `loader.html`; the active puzzle logic is in `rune_puzzle/puzzle.js` (which dynamically imports `godrays.js`).

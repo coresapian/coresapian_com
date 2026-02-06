@@ -3,16 +3,125 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Initializing…</title>
+  <title>coRE</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <style>
-    body{margin:0;overflow:hidden;background:#0a0a1f}
-    #container{width:100vw;height:100vh}
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Caveat:wght@400;500&display=swap');
+
+    :root {
+      --parchment: #F5F0E8;
+      --cream: #FAF7F0;
+      --charcoal: #3C3226;
+      --warm-gray: #7A6F63;
+      --terracotta: #C4704B;
+      --indigo: #3D405B;
+      --kraft: #D4C5A9;
+      --gold: #D4A853;
+    }
+
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: var(--parchment);
+      font-family: 'Playfair Display', Georgia, serif;
+      color: var(--charcoal);
+    }
+
+    /* Paper grain */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.35;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.08'/%3E%3C/svg%3E");
+    }
+
+    #container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Enter prompt */
+    #enter-prompt {
+      position: fixed;
+      bottom: 15vh;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      text-align: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 1.5s ease-in;
+    }
+    #enter-prompt.visible {
+      opacity: 1;
+    }
+    #enter-prompt:hover .enter-btn {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 24px rgba(60,50,38,0.15);
+    }
+    .enter-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--indigo);
+      margin-bottom: 1.5rem;
+      text-shadow:
+        0 2px 0 rgba(255,255,255,0.5),
+        0 -1px 0 rgba(0,0,0,0.08);
+      letter-spacing: 2px;
+    }
+    .enter-btn {
+      display: inline-block;
+      padding: 0.75rem 2.5rem;
+      background: var(--cream);
+      border: 1px solid var(--kraft);
+      border-radius: 2rem;
+      font-family: 'Caveat', cursive;
+      font-size: 1.3rem;
+      color: var(--warm-gray);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(60,50,38,0.08);
+    }
+    .enter-btn:hover {
+      color: var(--charcoal);
+      border-color: var(--terracotta);
+    }
+
+    /* Fade-out transition */
+    .fade-out {
+      animation: fadeOut 1s ease-in forwards;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+
+    /* Dust canvas */
+    #dust-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      opacity: 0.5;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
+  <canvas id="dust-canvas"></canvas>
   <div id="container"></div>
 
-  <!-- Import map – fails loudly if CDN unreachable -->
+  <div id="enter-prompt">
+    <div class="enter-title">coRE</div>
+    <div class="enter-btn">Enter</div>
+  </div>
+
   <script type="importmap">
     {
       "imports": {
@@ -23,100 +132,166 @@
   </script>
 
   <script type="module">
-    /* ------------------------------------------------------------------
-       SAFE-LOADER – prints crystal-clear errors in the console
-    ------------------------------------------------------------------ */
     import * as THREE from 'three';
     const log = (lvl, ...a)=>console[lvl]('[LOADER]', ...a);
 
-    // ---------- 1.  Feature-guard ----------
+    // Feature guard
     if (!window.WebGL2RenderingContext) {
-      log('error','WebGL2 unavailable – aborting.');
+      log('error','WebGL2 unavailable');
       document.body.innerHTML =
-        '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">WebGL2 not supported by this browser.</h1>';
+        '<h1 style="color:#B85450;text-align:center;margin-top:40vh">WebGL2 not supported by this browser.</h1>';
       throw new Error('WebGL2 unavailable');
     }
 
-    // ---------- 2.  Three.js sanity ----------
     if (!THREE.REVISION) {
-      log('error','Three.js failed to load – check import-map / network.');
+      log('error','Three.js failed to load');
       document.body.innerHTML =
-        '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load Three.js.</h1>';
+        '<h1 style="color:#B85450;text-align:center;margin-top:40vh">Could not load Three.js.</h1>';
       throw new Error('THREE undefined');
     }
 
-    // ---------- 3.  Dynamic import of optional modules ----------
-    let GLTFLoader, EffectComposer, RenderPass, UnrealBloomPass, GodRays;
+    // Dynamic imports
+    let GLTFLoader;
     try {
-      const m = await Promise.all([
-        import('three/addons/loaders/GLTFLoader.js'),
-        import('three/addons/postprocessing/EffectComposer.js'),
-        import('three/addons/postprocessing/RenderPass.js'),
-        import('three/addons/postprocessing/UnrealBloomPass.js'),
-        import('three/addons/shaders/GodRaysShader.js')
-      ]);
-      [GLTFLoader, EffectComposer, RenderPass, UnrealBloomPass, GodRays] =
-        [m[0].GLTFLoader, m[1].EffectComposer, m[2].RenderPass, m[3].UnrealBloomPass, m[4]];
+      const m = await import('three/addons/loaders/GLTFLoader.js');
+      GLTFLoader = m.GLTFLoader;
     } catch (e) {
-      log('error','Failed to load Three.js add-ons:', e);
+      log('error','Failed to load GLTFLoader:', e);
       document.body.innerHTML =
-        '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load graphics modules.</h1>';
+        '<h1 style="color:#B85450;text-align:center;margin-top:40vh">Could not load graphics modules.</h1>';
       throw e;
     }
 
-    // ---------- 4.  Scene bootstrap ----------
+    // Scene setup - warm lighting
     const container = document.getElementById('container');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, .1, 3000);
-    camera.position.set(0,0,3.5);
+    scene.background = new THREE.Color(0xF5F0E8); // Parchment
+    scene.fog = new THREE.Fog(0xF5F0E8, 5, 15);
 
-    const renderer = new THREE.WebGLRenderer({antialias:true});
+    const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, .1, 3000);
+    camera.position.set(0, 0, 3.5);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(devicePixelRatio);
     renderer.setSize(innerWidth, innerHeight);
-    renderer.toneMapping = THREE.ReinhardToneMapping;
-    renderer.autoClear = false;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    renderer.outputEncoding = THREE.sRGBEncoding;
     container.appendChild(renderer.domElement);
 
-    // ---------- 5.  Load model ----------
+    // Warm lighting
+    const ambientLight = new THREE.AmbientLight(0xF5E6D3, 0.6); // warm ambient
+    scene.add(ambientLight);
+
+    const keyLight = new THREE.DirectionalLight(0xFFF0E0, 1.2); // warm key
+    keyLight.position.set(3, 4, 5);
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0xD4A853, 0.4); // gold fill
+    fillLight.position.set(-2, 1, 3);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.DirectionalLight(0xC4704B, 0.3); // terracotta rim
+    rimLight.position.set(0, -2, -3);
+    scene.add(rimLight);
+
+    // Load hourglass model
     const modelUrl = 'https://raw.githubusercontent.com/Artificial-Me/coresapian/main/public/loading_screen_hourglass_animation_model.glb';
     const loader = new GLTFLoader();
     let mixer;
     loader.load(
       modelUrl,
-      gltf=>{
+      gltf => {
         const model = gltf.scene;
         model.scale.setScalar(1.5);
-        model.position.set(0,-.5,0);
+        model.position.set(0, -0.5, 0);
         scene.add(model);
         if (gltf.animations?.length) {
           mixer = new THREE.AnimationMixer(model);
           mixer.clipAction(gltf.animations[0]).play();
         }
+        // Show enter prompt once model is loaded
+        setTimeout(() => {
+          document.getElementById('enter-prompt').classList.add('visible');
+        }, 1500);
       },
       undefined,
-      err=>{
+      err => {
         log('error','Hourglass model failed to load:', err);
+        // Still show enter prompt on error
+        document.getElementById('enter-prompt').classList.add('visible');
       }
     );
 
-    // ---------- 6.  Tiny animation loop ----------
+    // Animation loop
     const clock = new THREE.Clock();
-    renderer.setAnimationLoop(()=>{
+    renderer.setAnimationLoop(() => {
       const delta = clock.getDelta();
       mixer?.update(delta);
-      renderer.clear();
-      renderer.render(scene,camera);
+      renderer.render(scene, camera);
     });
 
-    // ---------- 7.  Redirect after 9 s ----------
-    setTimeout(()=>location.href='../rune_puzzle/index.html', 9000);
+    // User-initiated navigation
+    document.getElementById('enter-prompt').addEventListener('click', () => {
+      document.body.classList.add('fade-out');
+      setTimeout(() => location.href = '../rune_puzzle/index.html', 1000);
+    });
 
-    // ---------- 8.  Resize ----------
-    addEventListener('resize',()=>{
-      camera.aspect = innerWidth/innerHeight;
+    // Resize
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(innerWidth,innerHeight);
+      renderer.setSize(innerWidth, innerHeight);
     });
+  </script>
+
+  <!-- Golden dust particles -->
+  <script>
+  (function() {
+    const canvas = document.getElementById('dust-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    const COUNT = 30;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    for (let i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 0.5,
+        speedX: (Math.random() - 0.5) * 0.25,
+        speedY: -Math.random() * 0.12 - 0.02,
+        opacity: Math.random() * 0.35 + 0.1,
+        hue: Math.random() * 20 + 35
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue}, 55%, 62%, ${p.opacity})`;
+        ctx.fill();
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.opacity += (Math.random() - 0.5) * 0.01;
+        p.opacity = Math.max(0.05, Math.min(0.45, p.opacity));
+        if (p.y < -5) p.y = canvas.height + 5;
+        if (p.x < -5) p.x = canvas.width + 5;
+        if (p.x > canvas.width + 5) p.x = -5;
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  })();
   </script>
 </body>
 </html>

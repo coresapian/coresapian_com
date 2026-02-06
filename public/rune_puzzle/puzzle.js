@@ -6,12 +6,12 @@ console.log('[PUZZLE] rune puzzle script start');
 // ---------- 1.  Guard for required globals ----------
 if (!window.THREE) {
   console.error('[PUZZLE] THREE is undefined – check import-map.');
-  document.body.innerHTML = '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load Three.js.</h1>';
+  document.body.innerHTML = '<h1 style="color:#B85450;text-align:center;margin-top:40vh">Could not load Three.js.</h1>';
   throw new Error('THREE undefined');
 }
 if (!gsap) {
   console.error('[PUZZLE] GSAP unavailable – check CDN.');
-  document.body.innerHTML = '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load GSAP.</h1>';
+  document.body.innerHTML = '<h1 style="color:#B85450;text-align:center;margin-top:40vh">Could not load GSAP.</h1>';
   throw new Error('GSAP undefined');
 }
 
@@ -167,7 +167,6 @@ const drawSegment = (socket)=>{
   createPath(`M${hx},${hy} L${centerX},${centerY}`, .2);
 };
 
-// ---------- 7.  God-rays (optional) ----------
-import('./godrays.js').catch(err=>console.warn('[PUZZLE] god-rays skipped:',err.message));
+// ---------- 7.  God-rays removed (not needed for organic theme) ----------
 
 console.log('[PUZZLE] rune puzzle ready');

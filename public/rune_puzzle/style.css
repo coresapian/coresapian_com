@@ -2,58 +2,49 @@
     font-family: 'Noto Sans Runic';
     src: url('../fonts/Noto_Sans_Runic/NotoSansRunic-Regular.ttf') format('truetype');
 }
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lora:wght@400;500&family=Caveat:wght@400;500&display=swap');
 
 :root {
-    /* Matrix Cyberpunk Palette */
-    --void-black: #030308;
-    --stellar-dark: #0a0a1a;
-    --nordic-slate: #0d1117;
-    --cosmic-orange: #ff4800;
-    --stellar-gold: #ffc700;
-    --frost-blue: #00d4ff;
-    --deep-blue: #0066cc;
-    --frost-white: #c0ffee;
-    --aurora-green: #00ff41;
-    --mist-gray: #39ff14;
+    /* Organic Palette */
+    --parchment:     #F5F0E8;
+    --linen:         #EDE6D6;
+    --cream:         #FAF7F0;
+    --charcoal:      #3C3226;
+    --warm-gray:     #7A6F63;
+    --terracotta:    #C4704B;
+    --sage:          #8B9F82;
+    --indigo:        #3D405B;
+    --kraft:         #D4C5A9;
+    --gold:          #D4A853;
+    --error-warm:    #B85450;
 
-    /* Matrix Green Theme */
-    --matrix-green: #00ff41;
-    --matrix-green-dim: #00cc33;
-    --matrix-cyan: #00d4ff;
-    --matrix-dark: #0d1117;
-    --matrix-darker: #030308;
-    --terminal-green: #39ff14;
-    --glow-green: rgba(0, 255, 65, 0.6);
-    --glow-cyan: rgba(0, 212, 255, 0.4);
-
-    /* Orrery-specific mappings - Matrix theme */
-    --orrery-bg-dark: transparent;
-    --orrery-accent-color: var(--matrix-cyan);
-    --orrery-heart-inactive: var(--matrix-dark);
-    --orrery-heart-active: var(--matrix-green);
-    --socket-color: rgba(0, 255, 65, 0.1);
-    --socket-hover-color: rgba(0, 255, 65, 0.3);
-    --socket-active-glow: var(--glow-green);
-    --socket-placeholder-color: rgba(0, 255, 65, 0.3);
-    --glyph-color: var(--matrix-green);
-    --glyph-glow: var(--glow-green);
-    --glyph-active-color: var(--frost-white);
-    --glyph-active-glow: rgba(192, 255, 238, 0.9);
-    --glyph-decoy-tint: rgba(0, 204, 51, 0.6);
-    --glyph-locked-color: var(--matrix-cyan);
-    --glyph-locked-glow: var(--glow-cyan);
-    --glyph-rejection-color: #ff3366;
-    --energy-line-color: var(--matrix-green);
-    --secret-message-color: var(--matrix-cyan);
+    /* Orrery mappings - Organic theme */
+    --orrery-bg-dark: var(--parchment);
+    --orrery-accent-color: var(--terracotta);
+    --orrery-heart-inactive: var(--linen);
+    --orrery-heart-active: var(--gold);
+    --socket-color: rgba(212,197,169,0.3);
+    --socket-hover-color: rgba(196,112,75,0.2);
+    --socket-active-glow: rgba(196,112,75,0.5);
+    --socket-placeholder-color: var(--kraft);
+    --glyph-color: var(--charcoal);
+    --glyph-glow: rgba(60,50,38,0.15);
+    --glyph-active-color: var(--indigo);
+    --glyph-active-glow: rgba(61,64,91,0.4);
+    --glyph-decoy-tint: var(--warm-gray);
+    --glyph-locked-color: var(--terracotta);
+    --glyph-locked-glow: rgba(196,112,75,0.4);
+    --glyph-rejection-color: var(--error-warm);
+    --energy-line-color: var(--terracotta);
+    --secret-message-color: var(--indigo);
     --font-family-glyphs: 'Noto Sans Runic', cursive;
-    --font-family-ui: 'Orbitron', sans-serif;
+    --font-family-ui: 'Playfair Display', Georgia, serif;
 }
 
 body {
     margin: 0;
     height: 100vh;
-    background-color: var(--orrery-bg-dark);
+    background-color: var(--parchment);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -65,54 +56,41 @@ body {
     -webkit-touch-callout: none;
 }
 
-/* --- TORCH EFFECT STYLES (MATRIX GREEN) --- */
-#torch-overlay {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  z-index: 1000;
-  --torch-size: 400px;
-  --torch-x: 50vw;
-  --torch-y: 50vh;
-  --torch-brightness: 0.5;
-  background: radial-gradient(
-    circle var(--torch-size) at var(--torch-x) var(--torch-y),
-    hsla(135, 100%, 50%, var(--torch-brightness)) 0%,
-    transparent 40%,
-    rgba(3, 3, 8, 0.95) 100%
-  );
-  --torch-flicker-opacity: 0.2;
-  --flicker-size: 500px;
-  pointer-events: none;
-}
-#torch-overlay::after {
-  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: radial-gradient(
-    circle var(--flicker-size) at var(--torch-x) var(--torch-y),
-    rgba(0, 255, 65, 0.15) 0%, transparent 50%
-  );
-  opacity: var(--torch-flicker-opacity);
-}
-.touch-device #torch-overlay { background: transparent; }
-
-
-#godrays-container {
+/* Paper grain texture */
+body::before {
+    content: '';
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1; /* Behind everything */
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.08'/%3E%3C/svg%3E");
 }
 
-#matrix-canvas {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 90;
-    opacity: 0.25;
+/* Warm vignette (replaces torch) */
+#warm-vignette {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    z-index: 1;
     pointer-events: none;
-    display: block;
+    background: radial-gradient(
+        ellipse 70% 70% at 50% 50%,
+        transparent 0%,
+        rgba(237,230,214,0.3) 60%,
+        rgba(212,197,169,0.5) 100%
+    );
+}
+
+/* Dust canvas */
+#dust-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    opacity: 0.5;
+    pointer-events: none;
 }
 
 #orrery-container {
@@ -125,31 +103,32 @@ body {
     justify-content: center;
     align-items: center;
     transform-style: preserve-3d;
-    z-index: 2; /* On top of godrays, behind torch */
+    z-index: 2;
 }
 
 #orrery-heart {
     width: 15vmin; height: 15vmin;
     max-width: 100px; max-height: 100px;
     background-color: var(--orrery-heart-inactive);
+    border: 2px solid var(--kraft);
     border-radius: 50%;
     position: absolute;
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.7), 0 0 10px var(--orrery-heart-inactive);
-    transition: background-color 1s ease, box-shadow 1s ease;
+    box-shadow: inset 0 0 10px rgba(60,50,38,0.1), 0 2px 8px rgba(60,50,38,0.1);
+    transition: background-color 1s ease, box-shadow 1s ease, border-color 1s ease;
     display: flex; justify-content: center; align-items: center;
     z-index: 5;
 }
 #orrery-heart.active {
-    background-color: var(--orrery-heart-active);
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5),
-                0 0 20px var(--orrery-heart-active),
-                0 0 40px var(--orrery-heart-active),
-                0 0 80px rgba(255,215,0,0.5);
+    background-color: var(--gold);
+    border-color: var(--terracotta);
+    box-shadow: inset 0 0 8px rgba(60,50,38,0.1),
+                0 0 15px rgba(212,168,83,0.3),
+                0 0 30px rgba(212,168,83,0.15);
     animation: pulseHeartActive 2s infinite ease-in-out;
 }
 @keyframes pulseHeartActive {
     0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.1); }
+    50% { transform: scale(1.08); }
 }
 
 .constellation-socket {
@@ -157,13 +136,13 @@ body {
     width: 12vmin; height: 12vmin;
     max-width: 80px; max-height: 80px;
     background-color: var(--socket-color);
-    border: 2px solid var(--nordic-slate);
+    border: 2px solid var(--kraft);
     border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
     transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.4), 0 0 5px var(--nordic-slate);
+    box-shadow: inset 0 0 8px rgba(60,50,38,0.08), 0 2px 6px rgba(60,50,38,0.08);
     transform-style: preserve-3d;
     z-index: 15;
 }
@@ -171,21 +150,22 @@ body {
     font-family: var(--font-family-glyphs);
     font-size: 7vmin;
     color: var(--socket-placeholder-color);
-    opacity: 0.5;
+    opacity: 0.4;
     transition: opacity 0.3s, color 0.3s;
     animation: pulsePlaceholder 4s infinite ease-in-out;
 }
 @keyframes pulsePlaceholder {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 0.8; }
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
 }
 .constellation-socket.resonating {
     background-color: var(--socket-hover-color);
-    box-shadow: inset 0 0 12px rgba(0,0,0,0.5), 0 0 15px var(--socket-active-glow), 0 0 25px var(--socket-active-glow);
-    transform: scale(1.1);
+    border-color: var(--terracotta);
+    box-shadow: inset 0 0 8px rgba(60,50,38,0.1), 0 0 12px var(--socket-active-glow);
+    transform: scale(1.08);
 }
 .constellation-socket.resonating .socket-glyph-placeholder {
-    color: var(--socket-active-glow);
+    color: var(--terracotta);
     opacity: 1;
     animation: none;
 }
@@ -194,7 +174,7 @@ body {
 }
 @keyframes rejectSocket {
     0%, 100% { transform: translateX(0) scale(1); background-color: var(--socket-color); }
-    50% { transform: translateX(5px) scale(1.05); background-color: rgba(255,80,80,0.3); }
+    50% { transform: translateX(5px) scale(1.03); background-color: rgba(184,84,80,0.15); }
 }
 .constellation-socket.filled .socket-glyph-placeholder {
     opacity: 0;
@@ -206,7 +186,7 @@ body {
     font-family: var(--font-family-glyphs);
     font-size: 10vmin;
     color: var(--glyph-color);
-    text-shadow: 0 0 5px var(--glyph-glow), 0 0 10px var(--glyph-glow);
+    text-shadow: 0 1px 2px var(--glyph-glow);
     cursor: grab;
     user-select: none;
     padding: 8px;
@@ -214,18 +194,19 @@ body {
     transition: transform 0.15s linear, color 0.3s ease, text-shadow 0.3s ease, opacity 0.3s ease;
     animation: floatGlyph 10s infinite ease-in-out alternate;
     z-index: 20;
-    opacity: 0.9;
-    background-color: rgba(50,50,80,0.1);
+    opacity: 0.85;
+    background-color: rgba(245,240,232,0.3);
 }
 .starlight-glyph.decoy {
     color: var(--glyph-decoy-tint);
-    text-shadow: 0 0 4px var(--glyph-decoy-tint);
+    text-shadow: none;
+    opacity: 0.5;
     animation-duration: 12s;
 }
 .starlight-glyph.rejected-glyph {
     animation: glyphRejectAnim 0.5s ease-out;
     color: var(--glyph-rejection-color) !important;
-    text-shadow: 0 0 5px var(--glyph-rejection-color) !important;
+    text-shadow: 0 1px 3px rgba(184,84,80,0.3) !important;
 }
 @keyframes glyphRejectAnim {
     0% { transform: scale(1.1) rotate(0deg); }
@@ -235,24 +216,24 @@ body {
     100% { transform: scale(1) rotate(0deg); }
 }
 
-
 @keyframes floatGlyph {
     from { transform: translateY(0px) translateX(0px) rotateZ(-2deg) scale(0.9); }
     to   { transform: translateY(-15px) translateX(5px) rotateZ(2deg) scale(1); }
 }
 .starlight-glyph.dragging {
     color: var(--glyph-active-color);
-    text-shadow: 0 0 10px var(--glyph-active-glow), 0 0 20px var(--glyph-active-glow);
+    text-shadow: 0 2px 6px var(--glyph-active-glow);
     transform: scale(1.2);
     opacity: 1;
     animation: none;
     cursor: grabbing;
     z-index: 100;
+    background-color: rgba(245,240,232,0.6);
 }
 .starlight-glyph.locked {
     position: static !important;
     color: var(--glyph-locked-color);
-    text-shadow: 0 0 10px var(--glyph-locked-glow), 0 0 25px var(--glyph-locked-glow), 0 0 40px var(--glyph-locked-glow);
+    text-shadow: 0 1px 4px var(--glyph-locked-glow), 0 2px 8px var(--glyph-locked-glow);
     transform: scale(1) !important;
     opacity: 1;
     animation: lockGlyph 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275), pulseGlyphLocked 2.5s infinite ease-in-out 0.6s;
@@ -266,8 +247,8 @@ body {
     100% { transform: scale(1) translateY(0px) rotateZ(0deg); opacity: 1; }
 }
 @keyframes pulseGlyphLocked {
-    0%, 100% { text-shadow: 0 0 10px var(--glyph-locked-glow), 0 0 25px var(--glyph-locked-glow); }
-    50% { text-shadow: 0 0 15px var(--glyph-locked-glow), 0 0 35px var(--glyph-locked-glow), 0 0 50px var(--glyph-locked-glow); }
+    0%, 100% { text-shadow: 0 1px 4px var(--glyph-locked-glow), 0 2px 8px var(--glyph-locked-glow); }
+    50% { text-shadow: 0 2px 6px var(--glyph-locked-glow), 0 4px 12px var(--glyph-locked-glow); }
 }
 
 #secret-message-display {
@@ -282,7 +263,7 @@ body {
     font-family: var(--font-family-ui);
     font-size: 3vmin;
     color: var(--secret-message-color);
-    text-shadow: 0 0 8px var(--secret-message-color), 0 0 15px var(--glyph-locked-glow);
+    text-shadow: 0 1px 2px rgba(61,64,91,0.2);
     z-index: 50;
 }
 #secret-message-display.visible {
@@ -297,49 +278,47 @@ body {
 }
 .orrery-energy-line {
     stroke: var(--energy-line-color);
-    stroke-width: 2.5;
+    stroke-width: 2;
     stroke-linecap: round;
-    filter: drop-shadow(0 0 4px var(--energy-line-color));
+    filter: none;
     opacity: 0;
-    transition: opacity 0.1s linear;
+    transition: opacity 0.3s ease;
 }
 .orrery-energy-line.visible {
-    opacity: 0.85;
-    animation: pulseLine 2s infinite ease-in-out;
+    opacity: 0.6;
+    animation: pulseLine 2.5s infinite ease-in-out;
 }
 @keyframes pulseLine {
-    0%, 100% { opacity: 0.85; stroke-width: 2.5; }
-    50% { opacity: 1; stroke-width: 3; }
+    0%, 100% { opacity: 0.5; stroke-width: 2; }
+    50% { opacity: 0.7; stroke-width: 2.5; }
 }
 
 .orrery-energy-line.outer-circle {
-    stroke-width: 3;
-    filter: drop-shadow(0 0 6px var(--energy-line-color));
+    stroke-width: 2.5;
 }
 .orrery-energy-line.socket-radiant {
     stroke-width: 1.5;
     opacity: 0;
 }
 .orrery-energy-line.socket-radiant.visible {
-    opacity: 0.6;
+    opacity: 0.4;
     animation: pulseLine 2.5s infinite ease-in-out 0.2s;
 }
 
 .drawing-circle {
     stroke: var(--energy-line-color);
-    stroke-width: 3;
+    stroke-width: 2.5;
     fill: none;
-    filter: drop-shadow(0 0 6px var(--energy-line-color));
     opacity: 0;
 }
 .drawing-circle.visible {
-     opacity: 0.7;
+     opacity: 0.5;
      animation: pulseLine 3s infinite ease-in-out 0.5s;
 }
 
 .line-tracer {
     fill: var(--energy-line-color);
     r: 3px;
-    filter: drop-shadow(0 0 5px var(--energy-line-color)) drop-shadow(0 0 10px white);
-    opacity: 1;
+    filter: none;
+    opacity: 0.7;
 }

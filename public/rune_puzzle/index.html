@@ -3,18 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-  <title>The Celestial Orrery of ᚲᛟᚱᛖ</title>
-  <link rel="stylesheet" href="styles.css"><!-- keep your existing styles -->
+  <title>coRE - Rune Puzzle</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <!-- TORCH (same as before) -->
-  <div id="torch-overlay"></div>
+  <!-- Warm vignette (replaces torch) -->
+  <div id="warm-vignette"></div>
 
-  <!-- God-rays canvas -->
-  <div id="godrays-container"></div>
-
-  <!-- Matrix rain -->
-  <canvas id="matrix-canvas"></canvas>
+  <!-- Golden dust particles (replaces matrix rain) -->
+  <canvas id="dust-canvas"></canvas>
 
   <!-- Puzzle -->
   <div id="orrery-container">
@@ -37,45 +34,53 @@
     }
   </script>
 
-  <script type="module" src="puzzle.js"></script>
-</body>
-</html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
-  <title>The Celestial Orrery of ᚲᛟᚱᛖ</title>
-  <link rel="stylesheet" href="styles.css"><!-- keep your existing styles -->
-</head>
-<body>
-  <!-- TORCH (same as before) -->
-  <div id="torch-overlay"></div>
+  <!-- Golden dust particles -->
+  <script>
+  (function() {
+    const canvas = document.getElementById('dust-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    const COUNT = 35;
 
-  <!-- God-rays canvas -->
-  <div id="godrays-container"></div>
-
-  <!-- Matrix rain -->
-  <canvas id="matrix-canvas"></canvas>
-
-  <!-- Puzzle -->
-  <div id="orrery-container">
-    <div id="orrery-heart"></div>
-    <svg id="orrery-energy-lines-svg"></svg>
-  </div>
-  <div id="secret-message-display"></div>
-
-  <!-- External libs -->
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
-
-  <!-- Three.js via import-map -->
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://unpkg.com/three@0.138.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.138.0/examples/jsm/"
-      }
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', resize);
+    resize();
+
+    for (let i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 0.5,
+        speedX: (Math.random() - 0.5) * 0.3,
+        speedY: -Math.random() * 0.15 - 0.03,
+        opacity: Math.random() * 0.4 + 0.15,
+        hue: Math.random() * 20 + 35
+      });
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue}, 55%, 62%, ${p.opacity})`;
+        ctx.fill();
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.opacity += (Math.random() - 0.5) * 0.015;
+        p.opacity = Math.max(0.08, Math.min(0.55, p.opacity));
+        if (p.y < -5) p.y = canvas.height + 5;
+        if (p.x < -5) p.x = canvas.width + 5;
+        if (p.x > canvas.width + 5) p.x = -5;
+      });
+      requestAnimationFrame(draw);
+    }
+    draw();
+  })();
   </script>
 
   <script type="module" src="puzzle.js"></script>

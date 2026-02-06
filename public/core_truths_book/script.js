@@ -1,42 +1,9 @@
 document.addEventListener("DOMContentLoaded", (event) => {
   gsap.registerPlugin(SplitText);
 
-  // --- ENHANCED TORCH EFFECT ---
-  const torch = document.getElementById('torch-overlay');
-
+  // Touch device detection
   if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
     document.body.classList.add('touch-device');
-  } else {
-    const torchPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-    
-    window.addEventListener('mousemove', (e) => {
-      gsap.to(torchPos, { duration: 0.6, x: e.clientX, y: e.clientY, ease: "power2.out" });
-    });
-    
-    gsap.ticker.add(() => {
-      torch.style.setProperty('--torch-x', `${torchPos.x}px`);
-      torch.style.setProperty('--torch-y', `${torchPos.y}px`);
-    });
-
-    gsap.to(torch, {
-      '--torch-size': '200px', duration: 4, ease: "sine.inOut", repeat: -1, yoyo: true
-    });
-
-    gsap.to(torch, {
-        '--torch-brightness': 0.35,
-        duration: 0.2,
-        ease: "rough({ template: none.out, strength: 2, points: 25, taper: 'out', randomize: true, clamp: false})",
-        repeat: -1,
-        yoyo: true
-    });
-    
-    gsap.to(torch, {
-      '--torch-flicker-opacity': 0.2,
-      duration: 0.1,
-      ease: "rough({ template: none.out, strength: 1.5, points: 30, taper: 'none', randomize: true, clamp: false})",
-      repeat: -1,
-      yoyo: true
-    });
   }
 
   // --- ON-LOAD TITLE ANIMATION ---
@@ -91,7 +58,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
     threshold: 0.5
   });
 
-    document.querySelectorAll('.carousel-item').forEach(item => observer.observe(item));
+  document.querySelectorAll('.carousel-item').forEach(item => observer.observe(item));
 
   // --- KONAMI CODE EASTER EGG ---
   const konamiCode = [
@@ -112,7 +79,7 @@ document.addEventListener("DOMContentLoaded", (event) => {
       konamiIndex++;
       if (konamiIndex === konamiCode.length) {
         document.body.classList.add('konami-active');
-        konamiIndex = 0; // Reset for next time
+        konamiIndex = 0;
       }
     } else {
       konamiIndex = 0;

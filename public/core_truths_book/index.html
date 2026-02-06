@@ -1,68 +1,24 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>coRE</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
   <link rel="stylesheet" href="./style.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- TORCH EFFECT SCRIPT DEPENDENCIES -->
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
-  <style>
-    /* --- TORCH EFFECT STYLES --- */
-    #torch-overlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      z-index: 1000; /* High z-index to be on top */
-      --torch-size: 400px;
-      --torch-x: 50vw;
-      --torch-y: 50vh;
-      --torch-brightness: 0.5;
-      background: radial-gradient(
-        circle var(--torch-size) at var(--torch-x) var(--torch-y),
-        hsla(40, 100%, 80%, var(--torch-brightness)) 0%,
-        transparent 40%,
-        rgba(0, 0, 0, 0.9) 100%
-      );
-      --torch-flicker-opacity: 0.2;
-      --flicker-size: 500px;
-      pointer-events: none; /* Crucial: allows clicks/drags to pass through */
-    }
-    #torch-overlay::after {
-      content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: radial-gradient(
-        circle var(--flicker-size) at var(--torch-x) var(--torch-y),
-        rgba(245, 121, 6, 0.2) 0%, transparent 50%
-      );
-      opacity: var(--torch-flicker-opacity);
-    }
-    .touch-device #torch-overlay { background: transparent; }
-
-    #matrix-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 90;
-      opacity: 0.25;
-      pointer-events: none;
-      display: block;
-    }
-  </style> 
 </head>
 <body>
-    <!-- Main content is now the only element, visible by default -->
+    <canvas id="dust-canvas"></canvas>
+
     <div id="main-content">
-        <div id="torch-overlay"></div>
-        <canvas id="matrix-canvas"></canvas>
         <div class="container">
             <h1>coRE</h1>
             <div class="sprite-wrapper">
                 <div class="book">
                     <div class="carousel" style="--slides: 7;">
                         <div class="sprite"></div>
-        
+
                         <!-- Slide 1: Introduction -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -93,7 +49,7 @@
                                 </div>
                             </div>
                         </div>
-        
+
                         <!-- Truth 2 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -102,11 +58,12 @@
                                 </div>
                                 <div class="page right-page">
                                     <div style="display: grid; align-items: center; height: 100%;">
-                                        <p class="truth-text" style="font-size: 1.2em; line-height: 1.4;">A single human commands unprecedented cognitive leverage. The bottleneck is no longer access to knowledge, but the capacity to direct its application. Skillful execution of this direction is the new measure of impact.</p>     
+                                        <p class="truth-text" style="font-size: 1.2em; line-height: 1.4;">A single human commands unprecedented cognitive leverage. The bottleneck is no longer access to knowledge, but the capacity to direct its application. Skillful execution of this direction is the new measure of impact.</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
                         <!-- Truth 3 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -120,6 +77,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <!-- Truth 4 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -133,6 +91,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <!-- Truth 5 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -146,6 +105,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <!-- Truth 6 -->
                         <div class="carousel-item">
                             <div class="page-container">
@@ -165,112 +125,83 @@
         </div>
     </div>
 
-    <!-- Nordic Stone Tablet Terminal -->
-    <div id="terminal-container" class="fixed bottom-0 left-0 right-0 h-12 overflow-hidden transition-all duration-500 stone-tablet">
-      <div id="terminal-header" class="flex items-center justify-between px-6 py-3 cursor-pointer tablet-header">
-        <span class="text-base font-bold runic-text tablet-title">⚡ ᛟᚱᚨᚲᛚᛖ ᛟᚠ ᚲᛟᚱᛖ</span>
-        <span id="terminal-toggle" class="text-xl runic-glow">▲</span>
-      </div>
-      <div id="terminal-content" class="hidden tablet-content overflow-y-auto" style="height: calc(20rem - 3rem);">
-        <div id="terminal-output" class="p-6 space-y-2"></div>
-        <div class="flex items-center px-6 pb-4">
-          <span class="text-lg runic-text mr-3">ᚱ</span>
-          <input id="terminal-input" type="text" class="flex-1 bg-transparent border-none outline-none carved-input" placeholder="Speak your query to the Oracle..." />
+    <!-- Floating Journal -->
+    <div id="journal-container" class="journal-closed">
+      <button id="journal-toggle" class="journal-toggle-btn" aria-label="Open journal">
+        <span class="journal-toggle-icon">&#x270E;</span>
+        <span class="journal-toggle-text">Write a thought...</span>
+      </button>
+
+      <div id="journal-page" class="journal-page" role="dialog" aria-label="Journal">
+        <div class="journal-header">
+          <h3 class="journal-title">Journal</h3>
+          <button id="journal-close" class="journal-close-btn" aria-label="Close journal">&times;</button>
+        </div>
+        <div id="journal-output" class="journal-output"></div>
+        <div class="journal-input-area">
+          <input id="journal-input" type="text"
+                 class="journal-input"
+                 placeholder="Write a thought or ask a question..."
+                 autocomplete="off" />
         </div>
       </div>
     </div>
 
     <!-- Scripts -->
-    <script src="./terminal.js" type="module"></script>
+    <script src="./journal.js" type="module"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
     <script src="./script.js"></script>
+
+    <!-- Golden dust particles -->
     <script>
-    // --- TORCH EFFECT SCRIPT ---
-    document.addEventListener("DOMContentLoaded", (event) => {
-        const torch = document.getElementById('torch-overlay');
-
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            document.body.classList.add('touch-device');
-        } else {
-            const torchPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-
-            window.addEventListener('mousemove', (e) => {
-            gsap.to(torchPos, { duration: 0.6, x: e.clientX, y: e.clientY, ease: "power2.out" });
-            });
-
-            gsap.ticker.add(() => {
-            torch.style.setProperty('--torch-x', `${torchPos.x}px`);
-            torch.style.setProperty('--torch-y', `${torchPos.y}px`);
-            });
-
-            gsap.to(torch, {
-            '--torch-size': '200px', duration: 4, ease: "sine.inOut", repeat: -1, yoyo: true
-            });
-
-            gsap.to(torch, {
-                '--torch-brightness': 0.35,
-                duration: 0.2,
-                ease: "rough({ template: none.out, strength: 2, points: 25, taper: 'out', randomize: true, clamp: false})",
-                repeat: -1,
-                yoyo: true
-            });
-
-            gsap.to(torch, {
-            '--torch-flicker-opacity': 0.2,
-            duration: 0.1,
-            ease: "rough({ template: none.out, strength: 1.5, points: 30, taper: 'none', randomize: true, clamp: false})",
-            repeat: -1,
-            yoyo: true
-            });
-        }
-    });
-
-    // --- MATRIX CANVAS SCRIPT ---
     (function() {
-        const matrixCanvas = document.getElementById("matrix-canvas");
-        if (!matrixCanvas) return;
-        const matrixCntxt = matrixCanvas.getContext("2d");
+      const canvas = document.getElementById('dust-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let particles = [];
+      const PARTICLE_COUNT = 35;
 
-        const matrixChars = ["♃","∂","ζ","♆","≋","𝛙","⟰","☀","☽","♅","⫷", "𝞝","☳","Σ","Ϡ","Ϛ", "Δ","ځ","گ",
-                            'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ', 'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᛚ', 'ᛗ'];
-        const fontSize = 18;
-        let drops = [];
+      function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
 
-        function resizeMatrixCanvas() {
-            matrixCanvas.width = window.innerWidth;
-            matrixCanvas.height = window.innerHeight;
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        particles.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: Math.random() * 2 + 0.5,
+          speedX: (Math.random() - 0.5) * 0.3,
+          speedY: -Math.random() * 0.15 - 0.03,
+          opacity: Math.random() * 0.4 + 0.15,
+          hue: Math.random() * 20 + 35
+        });
+      }
 
-            const rows = Math.floor(matrixCanvas.height / fontSize);
-            drops = [];
-            for (let y = 0; y < rows; y++) {
-                drops[y] = Math.floor(Math.random() * (matrixCanvas.width / fontSize));
-            }
-        }
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fillStyle = `hsla(${p.hue}, 55%, 62%, ${p.opacity})`;
+          ctx.fill();
 
-        window.addEventListener('resize', resizeMatrixCanvas);
-        resizeMatrixCanvas();
+          p.x += p.speedX;
+          p.y += p.speedY;
+          p.opacity += (Math.random() - 0.5) * 0.015;
+          p.opacity = Math.max(0.08, Math.min(0.55, p.opacity));
 
-        function drawMatrix() {
-            matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)";
-            matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
-
-            matrixCntxt.fillStyle = "var(--orrery-accent-color)";
-            matrixCntxt.font = fontSize + "px 'Noto Sans Runic'";
-
-            for (let i = 0; i < drops.length; i++) {
-                const txt = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-                matrixCntxt.fillText(txt, drops[i] * fontSize, i * fontSize);
-
-                if (drops[i] * fontSize > matrixCanvas.width && Math.random() > 0.98) {
-                    drops[i] = 0;
-                }
-                drops[i]++;
-            }
-        }
-
-        setInterval(drawMatrix, 50);
+          if (p.y < -5) p.y = canvas.height + 5;
+          if (p.x < -5) p.x = canvas.width + 5;
+          if (p.x > canvas.width + 5) p.x = -5;
+        });
+        requestAnimationFrame(draw);
+      }
+      draw();
     })();
     </script>
 </body>

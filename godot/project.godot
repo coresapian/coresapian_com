@@ -1,0 +1,44 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] key=value
+
+config_version=5
+
+[application]
+
+config/name="CoreSapian"
+config/description="Interactive rune puzzle and core truths experience"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.4", "Mobile")
+config/icon="res://icon.svg"
+
+[display]
+
+window/size/viewport_width=1170
+window/size/viewport_height=2532
+window/size/mode=2
+window/handheld/orientation=1
+window/stretch/mode="viewport"
+window/stretch/aspect="expand"
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.012, 0.012, 0.031, 1)
+anti_aliasing/quality/msaa_3d=2
+
+[input]
+
+touch_drag={
+"deadzone": 0.5,
+"events": []
+}
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+pointing/emulate_mouse_from_touch=true

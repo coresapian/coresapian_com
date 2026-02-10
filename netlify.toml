@@ -3,5 +3,5 @@
 
 [[redirects]]
   from = "/"
-  to = "/loader.html"
-  status = 200
+  to = "/rune_puzzle/"
+  status = 301

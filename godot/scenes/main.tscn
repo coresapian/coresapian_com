@@ -8,7 +8,10 @@ script = ExtResource("1")
 
 [node name="RunePuzzle" parent="." instance=ExtResource("2")]
 
-[node name="FadeOverlay" type="ColorRect" parent="."]
+[node name="FadeCanvasLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="FadeOverlay" type="ColorRect" parent="FadeCanvasLayer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

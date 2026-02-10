@@ -3,11 +3,25 @@
 # Usage: ./export_to_ios.sh
 #
 # Prerequisites:
-#   - Godot 4.4+ accessible via `godot` or at /Users/core/Downloads/Godot.app
+#   - Godot 4.6+ accessible via `godot`, in /Applications, or ~/Downloads
 #   - iOS export preset configured in export_presets.cfg
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GODOT_BIN="${GODOT_BIN:-/Users/core/Downloads/Godot.app/Contents/MacOS/Godot}"
+
+# Locate Godot binary: prefer GODOT_BIN env var, then PATH, then common macOS locations
+if [ -n "${GODOT_BIN:-}" ]; then
+    : # Use provided GODOT_BIN
+elif command -v godot &>/dev/null; then
+    GODOT_BIN="$(command -v godot)"
+elif [ -x "/Applications/Godot.app/Contents/MacOS/Godot" ]; then
+    GODOT_BIN="/Applications/Godot.app/Contents/MacOS/Godot"
+elif [ -x "/Users/$(whoami)/Downloads/Godot.app/Contents/MacOS/Godot" ]; then
+    GODOT_BIN="/Users/$(whoami)/Downloads/Godot.app/Contents/MacOS/Godot"
+else
+    echo "Error: Godot not found. Set GODOT_BIN or install Godot."
+    exit 1
+fi
+
 IOS_DIR="$SCRIPT_DIR/../ios"
 PCK_OUTPUT="$IOS_DIR/main.pck"
 

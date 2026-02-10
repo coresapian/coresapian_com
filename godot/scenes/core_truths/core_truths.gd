@@ -36,6 +36,7 @@ const TRUTHS: Array[Dictionary] = [
 
 var current_page: int = 0
 var is_animating: bool = false
+var _swipe_cooldown: float = 0.0
 
 # Konami code tracking
 const KONAMI_SEQUENCE: Array[String] = [
@@ -93,7 +94,7 @@ func _create_pages() -> void:
 		body_label.modulate = COLOR_GREEN
 		body_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
 		body_label.position = Vector3(0, 0, 0)
-		body_label.width = 600.0
+		body_label.width = 6.0  # World units; camera at z=6, fov=50 -> visible width ~5.6 units
 		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		body_label.name = "Body"
@@ -168,15 +169,24 @@ func _update_navigation() -> void:
 	page_indicator.text = "%d / %d" % [current_page + 1, TRUTHS.size()]
 
 
-func _unhandled_input(event: InputEvent) -> void:
-	# Swipe detection
-	if event is InputEventScreenDrag:
-		if event.velocity.x < -500 and not is_animating:
-			_on_next_page()
-		elif event.velocity.x > 500 and not is_animating:
-			_on_prev_page()
+func _process(delta: float) -> void:
+	if _swipe_cooldown > 0.0:
+		_swipe_cooldown -= delta
 
-	# Konami code detection
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Swipe detection with cooldown to prevent multiple triggers per gesture
+	if event is InputEventScreenDrag:
+		if _swipe_cooldown <= 0.0 and not is_animating:
+			if event.velocity.x < -500:
+				_swipe_cooldown = 0.3
+				_on_next_page()
+			elif event.velocity.x > 500:
+				_swipe_cooldown = 0.3
+				_on_prev_page()
+
+	# Konami code detection (keyboard-only easter egg; intentionally unavailable on iOS
+	# since this is primarily a mobile experience with optional desktop testing support)
 	if event is InputEventKey and event.pressed and not event.echo:
 		_check_konami(event)
 
@@ -219,7 +229,9 @@ func _activate_konami() -> void:
 		rainbow_tween.tween_property(title, "modulate", Color.BLUE, 0.5)
 		rainbow_tween.tween_property(title, "modulate", Color.MAGENTA, 0.5)
 
-	# Camera shake
+	# Camera shake: Note that randf_range values are computed once at tween build time,
+	# so the 10 loops repeat the same offset pattern. This is acceptable for an easter
+	# egg — the visual effect is still chaotic enough to feel like a shake.
 	var shake_tween := create_tween().set_loops(10)
 	var cam_base := camera.position
 	for i in 4:

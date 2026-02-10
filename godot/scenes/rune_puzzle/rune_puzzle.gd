@@ -1,7 +1,9 @@
 extends Node3D
 
 ## Rune Puzzle — drag Elder Futhark glyphs into correct sockets to spell ᚲᛟᚱᛖ.
-## On completion, transitions to the Core Truths scene after 3 seconds.
+## On completion, emits puzzle_completed signal after 3 seconds.
+
+signal puzzle_completed
 
 const ANCIENT_WORD: String = "ᚲᛟᚱᛖ"
 const ALL_GLYPHS: Array[String] = [
@@ -22,9 +24,6 @@ var _dragging_glyph: Node3D = null
 var _drag_plane := Plane(Vector3.UP, 0.0)
 var _camera: Camera3D
 
-# Preloaded scenes
-var glyph_scene: PackedScene
-
 @onready var sockets_parent: Node3D = $Sockets
 @onready var glyphs_parent: Node3D = $Glyphs
 @onready var orrery_heart: MeshInstance3D = $OrreryHeart
@@ -43,6 +42,8 @@ func _ready() -> void:
 
 func _setup_environment() -> void:
 	# Subtle camera breathing
+	# ASSUMPTION: Nothing else should modify camera.position.y while this tween is active.
+	# The tween captures the initial Y value and oscillates around it indefinitely.
 	var tween := create_tween().set_loops()
 	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(camera, "position:y", camera.position.y + 0.15, 4.0)
@@ -146,13 +147,9 @@ func _create_glyphs() -> void:
 		label.name = "Label"
 		glyph_node.add_child(label)
 
-		# OmniLight3D for glow
-		var light := OmniLight3D.new()
-		light.light_energy = 0.3 if is_decoy else 0.6
-		light.light_color = Color(0.0, 0.8, 0.2) if is_decoy else Color(0.0, 1.0, 0.255)
-		light.omni_range = 1.5
-		light.name = "GlowLight"
-		glyph_node.add_child(light)
+		# NOTE: Per-glyph OmniLight3D removed for mobile performance.
+		# The emissive materials + bloom in the environment provide sufficient glow.
+		# Lights are only kept on the 4 target sockets and the heart.
 
 		glyphs_parent.add_child(glyph_node)
 		glyphs.append(glyph_node)
@@ -162,13 +159,21 @@ func _create_glyphs() -> void:
 
 
 func _start_glyph_float(glyph: Node3D) -> void:
-	var tween := create_tween().set_loops()
-	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var base_y: float = glyph.get_meta("base_y", glyph.position.y)
+	glyph.set_meta("base_y", base_y)
 	var offset := randf_range(0.2, 0.5)
 	var duration := randf_range(3.0, 6.0)
-	var base_y := glyph.position.y
-	tween.tween_property(glyph, "position:y", base_y + offset, duration)
-	tween.tween_property(glyph, "position:y", base_y - offset, duration)
+	# Settle to base_y first (handles restart after drag), then loop symmetrically
+	var tween := create_tween()
+	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_property(glyph, "position:y", base_y, 0.3)
+	tween.tween_callback(func():
+		var loop := create_tween().set_loops()
+		loop.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		loop.tween_property(glyph, "position:y", base_y + offset, duration)
+		loop.tween_property(glyph, "position:y", base_y - offset, duration)
+		glyph.set_meta("float_tween", loop)
+	)
 	glyph.set_meta("float_tween", tween)
 
 
@@ -218,9 +223,6 @@ func _try_pick_glyph(screen_pos: Vector2) -> void:
 		# Visual feedback
 		var label: Label3D = glyph.get_node("Label")
 		label.modulate = Color(0.753, 1.0, 0.933)  # frost-white
-		var light: OmniLight3D = glyph.get_node("GlowLight")
-		light.light_energy = 1.5
-		light.light_color = Color(0.753, 1.0, 0.933)
 
 
 func _move_glyph(screen_pos: Vector2) -> void:
@@ -229,10 +231,12 @@ func _move_glyph(screen_pos: Vector2) -> void:
 	var from := _camera.project_ray_origin(screen_pos)
 	var dir := _camera.project_ray_normal(screen_pos)
 	var hit = _drag_plane.intersects_ray(from, dir)
-	if hit:
-		_dragging_glyph.global_position = hit
+	if not hit:
+		# Ray doesn't intersect the drag plane; glyph would freeze, so bail out early.
+		return
+	_dragging_glyph.global_position = hit
 
-	# Check for resonating sockets
+	# Check for resonating sockets (only 4 sockets, so per-frame iteration is acceptable)
 	for socket in sockets:
 		if socket.get_meta("filled", false):
 			continue
@@ -281,15 +285,6 @@ func _drop_glyph() -> void:
 			# Lock visuals
 			var label: Label3D = glyph.get_node("Label")
 			label.modulate = Color(0.0, 0.831, 1.0)  # cyan
-			var light: OmniLight3D = glyph.get_node("GlowLight")
-			light.light_energy = 2.0
-			light.light_color = Color(0.0, 0.831, 1.0)
-
-			# Pulse glow on locked glyph
-			var pulse := create_tween().set_loops()
-			pulse.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-			pulse.tween_property(light, "light_energy", 3.0, 1.25)
-			pulse.tween_property(light, "light_energy", 1.5, 1.25)
 
 			# Hide placeholder
 			var placeholder: Label3D = socket.get_node("Placeholder")
@@ -307,15 +302,14 @@ func _drop_glyph() -> void:
 		elif dist < SNAP_DISTANCE and glyph_char != expected:
 			# Wrong glyph — reject
 			_reject_glyph(glyph)
+			placed = true  # Mark as handled to prevent conflicting float tween restart
+			break
 
 	if not placed:
 		# Return to normal state
 		var is_decoy: bool = glyph.get_meta("is_decoy", false)
 		var label: Label3D = glyph.get_node("Label")
 		label.modulate = Color(0.0, 0.8, 0.2, 0.6) if is_decoy else Color(0.0, 1.0, 0.255)
-		var light: OmniLight3D = glyph.get_node("GlowLight")
-		light.light_energy = 0.3 if is_decoy else 0.6
-		light.light_color = Color(0.0, 0.8, 0.2) if is_decoy else Color(0.0, 1.0, 0.255)
 		_start_glyph_float(glyph)
 
 	_dragging_glyph = null
@@ -323,7 +317,8 @@ func _drop_glyph() -> void:
 
 func _reject_glyph(glyph: Node3D) -> void:
 	var label: Label3D = glyph.get_node("Label")
-	var orig_color := label.modulate
+	var is_decoy: bool = glyph.get_meta("is_decoy", false)
+	var rest_color := Color(0.0, 0.8, 0.2, 0.6) if is_decoy else Color(0.0, 1.0, 0.255)
 	label.modulate = Color(1.0, 0.2, 0.4)
 
 	var tween := create_tween()
@@ -332,7 +327,10 @@ func _reject_glyph(glyph: Node3D) -> void:
 		var shake := Vector3(randf_range(-0.15, 0.15), 0, randf_range(-0.15, 0.15))
 		tween.tween_property(glyph, "global_position", orig_pos + shake, 0.04)
 	tween.tween_property(glyph, "global_position", orig_pos, 0.04)
-	tween.tween_callback(func(): label.modulate = orig_color)
+	tween.tween_callback(func():
+		label.modulate = rest_color
+		_start_glyph_float(glyph)
+	)
 
 
 func _draw_energy_line(socket_pos: Vector3) -> void:
@@ -347,6 +345,7 @@ func _draw_energy_line(socket_pos: Vector3) -> void:
 
 	line.mesh = immediate
 	var mat := StandardMaterial3D.new()
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = Color(0.0, 1.0, 0.255)
 	mat.emission_enabled = true
 	mat.emission = Color(0.0, 1.0, 0.255)
@@ -355,7 +354,7 @@ func _draw_energy_line(socket_pos: Vector3) -> void:
 	line.material_override = mat
 	energy_lines.add_child(line)
 
-	# Animate line appearing
+	# Animate line appearing (alpha is now respected with TRANSPARENCY_ALPHA)
 	mat.albedo_color.a = 0.0
 	var tween := create_tween()
 	tween.tween_property(mat, "albedo_color:a", 0.85, 0.5)
@@ -370,6 +369,6 @@ func _on_puzzle_complete() -> void:
 		var tween := create_tween()
 		tween.tween_property(heart_mat, "emission_energy_multiplier", 5.0, 1.5)
 
-	# Transition to core truths after 3 seconds
+	# Wait 3 seconds, then signal completion (Main handles fade-out and scene change)
 	await get_tree().create_timer(3.0).timeout
-	get_tree().change_scene_to_file("res://scenes/core_truths/core_truths.tscn")
+	puzzle_completed.emit()

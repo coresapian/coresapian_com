@@ -1,7 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scenes/rune_puzzle/rune_puzzle.gd" id="1"]
 [ext_resource type="Shader" path="res://shaders/matrix_rain.gdshader" id="2"]
+
+[sub_resource type="ShaderMaterial" id="matrix_rain_mat"]
+shader = ExtResource("2")
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.01, 0.01, 0.03, 1)
@@ -71,3 +74,14 @@ omni_range = 4.0
 [node name="Glyphs" type="Node3D" parent="."]
 
 [node name="EnergyLines" type="Node3D" parent="."]
+
+[node name="MatrixRainLayer" type="CanvasLayer" parent="."]
+layer = 1
+
+[node name="MatrixRainRect" type="ColorRect" parent="MatrixRainLayer"]
+self_modulate = Color(1, 1, 1, 0.15)
+material = SubResource("matrix_rain_mat")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2

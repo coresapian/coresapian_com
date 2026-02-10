@@ -1,6 +1,42 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/core_truths/core_truths.gd" id="1"]
+
+[sub_resource type="StyleBoxFlat" id="btn_normal"]
+bg_color = Color(0.01, 0.05, 0.02, 0.8)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.5, 0.15, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="btn_hover"]
+bg_color = Color(0.02, 0.1, 0.04, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.83, 1, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="btn_pressed"]
+bg_color = Color(0.01, 0.05, 0.02, 1.0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0, 0.5, 0.15, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.01, 0.01, 0.03, 1)
@@ -52,6 +88,13 @@ offset_left = 20.0
 offset_top = -30.0
 offset_right = 80.0
 offset_bottom = 30.0
+theme_override_colors/font_color = Color(0, 1, 0.25, 1)
+theme_override_colors/font_hover_color = Color(0, 0.83, 1, 1)
+theme_override_colors/font_pressed_color = Color(0, 1, 0.25, 1)
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+theme_override_styles/pressed = SubResource("btn_pressed")
 text = "<"
 
 [node name="RightArrow" type="Button" parent="UI"]
@@ -65,6 +108,13 @@ offset_left = -80.0
 offset_top = -30.0
 offset_right = -20.0
 offset_bottom = 30.0
+theme_override_colors/font_color = Color(0, 1, 0.25, 1)
+theme_override_colors/font_hover_color = Color(0, 0.83, 1, 1)
+theme_override_colors/font_pressed_color = Color(0, 1, 0.25, 1)
+theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("btn_normal")
+theme_override_styles/hover = SubResource("btn_hover")
+theme_override_styles/pressed = SubResource("btn_pressed")
 text = ">"
 
 [node name="PageIndicator" type="Label" parent="UI"]
@@ -78,5 +128,7 @@ offset_left = -50.0
 offset_top = -60.0
 offset_right = 50.0
 offset_bottom = -20.0
+theme_override_colors/font_color = Color(0, 1, 0.25, 0.7)
+theme_override_font_sizes/font_size = 18
 text = "1 / 7"
 horizontal_alignment = 1

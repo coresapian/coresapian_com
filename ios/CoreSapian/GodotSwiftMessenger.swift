@@ -11,7 +11,9 @@ class GodotSwiftMessenger: Object {
     public static let shared = GodotSwiftMessenger()
 
     /// Emitted by Godot when the rune puzzle is completed
-    @Signal var puzzleCompleted: Signal
+    /// Note: Recent SwiftGodotKit versions use `SimpleSignal` for parameterless signals.
+    /// If using an older version, change this back to `Signal`.
+    @Signal var puzzleCompleted: SimpleSignal
 
     /// Emitted by iOS to request a scene change in Godot
     @Signal var sceneTransition: SignalWithArguments<String>

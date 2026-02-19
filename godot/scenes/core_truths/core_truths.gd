@@ -185,21 +185,73 @@ func _unhandled_input(event: InputEvent) -> void:
 				_swipe_cooldown = 0.3
 				_on_prev_page()
 
-	# Konami code detection (keyboard-only easter egg; intentionally unavailable on iOS
-	# since this is primarily a mobile experience with optional desktop testing support)
+	# Touch fallback for Konami code:
+	# tap top/bottom/left/right screen regions for directions,
+	# and bottom-left / bottom-right corners for B / A.
+	if event is InputEventScreenTouch and event.pressed:
+		var touch_token := _touch_token_for_konami(event.position)
+		if touch_token != "":
+			_check_konami_token(touch_token)
+
+	# Keyboard Konami code detection for desktop testing
 	if event is InputEventKey and event.pressed and not event.echo:
-		_check_konami(event)
+		_check_konami_key(event)
 
 
-func _check_konami(event: InputEventKey) -> void:
+func _touch_token_for_konami(screen_pos: Vector2) -> String:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return ""
+
+	var nx := screen_pos.x / viewport_size.x
+	var ny := screen_pos.y / viewport_size.y
+
+	# B and A touch zones take precedence over directional zones.
+	if ny > 0.78 and nx < 0.35:
+		return "B"
+	if ny > 0.78 and nx > 0.65:
+		return "A"
+
+	if ny < 0.30:
+		return "ui_up"
+	if ny > 0.70:
+		return "ui_down"
+	if nx < 0.30:
+		return "ui_left"
+	if nx > 0.70:
+		return "ui_right"
+
+	return ""
+
+
+func _check_konami_key(event: InputEventKey) -> void:
+	var token := ""
+	if event.keycode == KEY_B:
+		token = "B"
+	elif event.keycode == KEY_A:
+		token = "A"
+	elif event.is_action_pressed("ui_up"):
+		token = "ui_up"
+	elif event.is_action_pressed("ui_down"):
+		token = "ui_down"
+	elif event.is_action_pressed("ui_left"):
+		token = "ui_left"
+	elif event.is_action_pressed("ui_right"):
+		token = "ui_right"
+
+	if token != "":
+		_check_konami_token(token)
+
+
+func _check_konami_token(token: String) -> void:
 	var expected: String = KONAMI_SEQUENCE[konami_index]
 	var matched := false
 
-	if expected == "B" and event.keycode == KEY_B:
+	if expected == "B" and token == "B":
 		matched = true
-	elif expected == "A" and event.keycode == KEY_A:
+	elif expected == "A" and token == "A":
 		matched = true
-	elif expected != "B" and expected != "A" and event.is_action_pressed(expected):
+	elif expected != "B" and expected != "A" and token == expected:
 		matched = true
 
 	if matched:
@@ -229,12 +281,14 @@ func _activate_konami() -> void:
 		rainbow_tween.tween_property(title, "modulate", Color.BLUE, 0.5)
 		rainbow_tween.tween_property(title, "modulate", Color.MAGENTA, 0.5)
 
-	# Camera shake: Note that randf_range values are computed once at tween build time,
-	# so the 10 loops repeat the same offset pattern. This is acceptable for an easter
-	# egg — the visual effect is still chaotic enough to feel like a shake.
-	var shake_tween := create_tween().set_loops(10)
-	var cam_base := camera.position
-	for i in 4:
-		shake_tween.tween_property(camera, "position:x",
-			cam_base.x + randf_range(-0.1, 0.1), 0.05)
-	shake_tween.tween_property(camera, "position:x", cam_base.x, 0.05)
+	# Camera shake with per-step random offsets generated at runtime.
+	var cam_base_x := camera.position.x
+	var shake_tween := create_tween()
+	for i in 40:
+		shake_tween.tween_callback(func():
+			camera.position.x = cam_base_x + randf_range(-0.1, 0.1)
+		)
+		shake_tween.tween_interval(0.03)
+	shake_tween.tween_callback(func():
+		camera.position.x = cam_base_x
+	)

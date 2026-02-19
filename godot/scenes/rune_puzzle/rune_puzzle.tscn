@@ -79,7 +79,7 @@ omni_range = 4.0
 layer = 1
 
 [node name="MatrixRainRect" type="ColorRect" parent="MatrixRainLayer"]
-self_modulate = Color(1, 1, 1, 0.15)
+self_modulate = Color(1, 1, 1, 0.08)
 material = SubResource("matrix_rain_mat")
 anchors_preset = 15
 anchor_right = 1.0

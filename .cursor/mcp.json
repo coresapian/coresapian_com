@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "godot": {
+      "command": "node",
+      "args": [
+        "/Users/core/Documents/GitHub/godot-mcp/build/index.js"
+      ],
+      "env": {
+        "GODOT_PATH": "/opt/homebrew/bin/godot"
+      }
+    }
+  }
+}

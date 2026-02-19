@@ -3,7 +3,7 @@ extends Node
 ## Main entry point — loads the rune puzzle as the first scene.
 ## Handles scene transitions with a fade effect.
 
-const CORE_TRUTHS_SCENE := "res://scenes/core_truths/core_truths.tscn"
+const CORE_TRUTHS_SCENE: PackedScene = preload("res://scenes/core_truths/core_truths.tscn")
 
 @onready var fade_rect: ColorRect = $FadeCanvasLayer/FadeOverlay
 @onready var current_scene: Node = $RunePuzzle
@@ -32,7 +32,10 @@ func _on_puzzle_completed() -> void:
 		current_scene = null
 
 	# Load and add new scene
-	var new_scene := load(CORE_TRUTHS_SCENE).instantiate()
+	if CORE_TRUTHS_SCENE == null:
+		push_error("Core truths scene is missing and could not be loaded.")
+		return
+	var new_scene := CORE_TRUTHS_SCENE.instantiate()
 	add_child(new_scene)
 	current_scene = new_scene
 

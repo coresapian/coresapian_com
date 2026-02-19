@@ -12,8 +12,19 @@ const ALL_GLYPHS: Array[String] = [
 ]
 
 const SOCKET_RADIUS: float = 3.0
-const GLYPH_SCATTER_RADIUS: float = 6.0
+const GLYPH_SCATTER_RADIUS: float = 4.5
+const GLYPH_SCATTER_JITTER: float = 0.9
 const SNAP_DISTANCE: float = 1.2
+const CAMERA_PITCH_DEGREES: float = 45.0
+const CAMERA_MIN_DISTANCE: float = 12.0
+const CAMERA_BREATH_Y: float = 0.15
+const CAMERA_TARGET_RADIUS: float = GLYPH_SCATTER_RADIUS + GLYPH_SCATTER_JITTER + 1.8
+const REQUIRED_GLYPH_SCREEN_SLOTS: Array[Vector2] = [
+	Vector2(0.16, 0.86),
+	Vector2(0.38, 0.86),
+	Vector2(0.62, 0.86),
+	Vector2(0.84, 0.86)
+]
 
 var target_glyphs: Array[String] = []
 var sockets: Array[Node3D] = []
@@ -23,6 +34,7 @@ var filled_count: int = 0
 var _dragging_glyph: Node3D = null
 var _drag_plane := Plane(Vector3.UP, 0.0)
 var _camera: Camera3D
+var _camera_breathe_tween: Tween = null
 
 @onready var sockets_parent: Node3D = $Sockets
 @onready var glyphs_parent: Node3D = $Glyphs
@@ -34,6 +46,8 @@ var _camera: Camera3D
 func _ready() -> void:
 	_camera = camera
 	target_glyphs.assign(ANCIENT_WORD.split(""))
+	get_viewport().size_changed.connect(_on_viewport_resized)
+	_fit_camera_to_puzzle()
 
 	_create_sockets()
 	_create_glyphs()
@@ -41,13 +55,52 @@ func _ready() -> void:
 
 
 func _setup_environment() -> void:
-	# Subtle camera breathing
-	# ASSUMPTION: Nothing else should modify camera.position.y while this tween is active.
-	# The tween captures the initial Y value and oscillates around it indefinitely.
-	var tween := create_tween().set_loops()
-	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(camera, "position:y", camera.position.y + 0.15, 4.0)
-	tween.tween_property(camera, "position:y", camera.position.y - 0.15, 4.0)
+	_start_camera_breathe()
+
+
+func _on_viewport_resized() -> void:
+	_fit_camera_to_puzzle()
+	_start_camera_breathe()
+
+
+func _fit_camera_to_puzzle() -> void:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.y <= 0.0:
+		return
+
+	var aspect := viewport_size.x / viewport_size.y
+	# Widen FOV on narrow screens so the full rune board stays visible.
+	camera.fov = clampf(70.0 + (1.0 - minf(aspect, 1.0)) * 25.0, 70.0, 95.0)
+
+	var vertical_fov_rad := deg_to_rad(camera.fov)
+	var horizontal_fov_rad := 2.0 * atan(tan(vertical_fov_rad * 0.5) * aspect)
+	var limiting_fov_rad := minf(vertical_fov_rad, horizontal_fov_rad)
+	if limiting_fov_rad <= 0.001:
+		return
+
+	# Use sphere-fit math (sin) instead of plane-fit (tan) to include perspective depth
+	# and prevent the near-side socket/runes from clipping at the bottom.
+	var required_distance := CAMERA_TARGET_RADIUS / sin(limiting_fov_rad * 0.5)
+	required_distance = maxf(required_distance, CAMERA_MIN_DISTANCE)
+	var pitch := deg_to_rad(CAMERA_PITCH_DEGREES)
+
+	camera.position = Vector3(
+		0.0,
+		sin(pitch) * required_distance,
+		cos(pitch) * required_distance
+	)
+	camera.look_at(Vector3.ZERO, Vector3.UP)
+
+
+func _start_camera_breathe() -> void:
+	if _camera_breathe_tween:
+		_camera_breathe_tween.kill()
+
+	var base_y := camera.position.y
+	_camera_breathe_tween = create_tween().set_loops()
+	_camera_breathe_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_camera_breathe_tween.tween_property(camera, "position:y", base_y + CAMERA_BREATH_Y, 4.0)
+	_camera_breathe_tween.tween_property(camera, "position:y", base_y - CAMERA_BREATH_Y, 4.0)
 
 
 func _create_sockets() -> void:
@@ -104,58 +157,135 @@ func _create_sockets() -> void:
 
 
 func _create_glyphs() -> void:
-	var shuffled := ALL_GLYPHS.duplicate()
-	shuffled.shuffle()
+	var placed_positions: Array[Vector3] = []
+	var slot_positions := _compute_required_glyph_slot_positions()
 
-	for idx in shuffled.size():
-		var glyph_char: String = shuffled[idx]
-		var is_target: bool = glyph_char in target_glyphs
-		var is_decoy: bool = not is_target
+	# Spawn required runes first at guaranteed visible slots.
+	for idx in target_glyphs.size():
+		var rune_char: String = target_glyphs[idx]
+		var slot_pos := slot_positions[idx] if idx < slot_positions.size() else Vector3.ZERO
+		var required_glyph := _spawn_glyph(rune_char, slot_pos, false, true, idx)
+		placed_positions.append(required_glyph.global_position)
 
-		# Scatter position in a ring around the center
-		var angle: float = (float(idx) / float(shuffled.size())) * TAU + randf_range(-0.3, 0.3)
-		var radius: float = GLYPH_SCATTER_RADIUS + randf_range(-1.5, 1.5)
-		var x: float = radius * cos(angle)
-		var z: float = radius * sin(angle)
+	# Spawn decoys separately to avoid any chance of replacing/obscuring required runes.
+	var decoys: Array[String] = []
+	for glyph_char in ALL_GLYPHS:
+		if glyph_char not in target_glyphs:
+			decoys.append(glyph_char)
+	decoys.shuffle()
 
-		var glyph_node := RigidBody3D.new()
-		glyph_node.name = "Glyph_%s_%d" % [glyph_char, idx]
-		glyph_node.position = Vector3(x, randf_range(-0.3, 0.3), z)
-		glyph_node.freeze = true
-		glyph_node.input_ray_pickable = true
-		glyph_node.set_meta("glyph_char", glyph_char)
-		glyph_node.set_meta("is_decoy", is_decoy)
-		glyph_node.set_meta("is_locked", false)
+	for idx in decoys.size():
+		var decoy_pos := _find_scatter_position(placed_positions, idx, decoys.size())
+		var decoy := _spawn_glyph(decoys[idx], decoy_pos, true, false, idx + target_glyphs.size())
+		placed_positions.append(decoy.global_position)
 
-		# Collision shape
-		var col := CollisionShape3D.new()
-		var box := BoxShape3D.new()
-		box.size = Vector3(0.8, 0.8, 0.2)
-		col.shape = box
-		glyph_node.add_child(col)
 
-		# Label3D for the rune character
-		var label := Label3D.new()
-		label.text = glyph_char
-		label.font_size = 128
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.no_depth_test = true
-		if is_decoy:
-			label.modulate = Color(0.0, 0.8, 0.2, 0.6)
-		else:
-			label.modulate = Color(0.0, 1.0, 0.255)
-		label.name = "Label"
-		glyph_node.add_child(label)
+func _compute_required_glyph_slot_positions() -> Array[Vector3]:
+	var positions: Array[Vector3] = []
+	for slot in REQUIRED_GLYPH_SCREEN_SLOTS:
+		positions.append(_screen_slot_to_drag_plane(slot))
+	return positions
 
-		# NOTE: Per-glyph OmniLight3D removed for mobile performance.
-		# The emissive materials + bloom in the environment provide sufficient glow.
-		# Lights are only kept on the 4 target sockets and the heart.
 
-		glyphs_parent.add_child(glyph_node)
-		glyphs.append(glyph_node)
+func _screen_slot_to_drag_plane(slot: Vector2) -> Vector3:
+	var viewport_size := get_viewport().get_visible_rect().size
+	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+		return Vector3.ZERO
 
-		# Floating animation
-		_start_glyph_float(glyph_node)
+	var screen_pos := Vector2(
+		clampf(slot.x, 0.0, 1.0) * viewport_size.x,
+		clampf(slot.y, 0.0, 1.0) * viewport_size.y
+	)
+	var from := _camera.project_ray_origin(screen_pos)
+	var dir := _camera.project_ray_normal(screen_pos)
+	var hit = _drag_plane.intersects_ray(from, dir)
+	if hit:
+		return hit
+	# Fallback near lower center if a ray/plane intersection is unavailable.
+	return Vector3((slot.x - 0.5) * 8.0, 0.0, 4.0)
+
+
+func _find_scatter_position(placed_positions: Array[Vector3], idx: int, total: int) -> Vector3:
+	var tries := 0
+	while tries < 40:
+		var angle := randf() * TAU
+		var radius := GLYPH_SCATTER_RADIUS + randf_range(-GLYPH_SCATTER_JITTER, GLYPH_SCATTER_JITTER)
+		radius = maxf(radius, SOCKET_RADIUS + 1.2)
+		var pos := Vector3(
+			radius * cos(angle),
+			randf_range(-0.25, 0.25),
+			radius * sin(angle)
+		)
+		var overlaps := false
+		for placed in placed_positions:
+			if placed.distance_to(pos) < 1.0:
+				overlaps = true
+				break
+		if not overlaps:
+			return pos
+		tries += 1
+
+	var safe_total := maxf(float(total), 1.0)
+	var fallback_angle := (float(idx) / safe_total) * TAU
+	return Vector3(
+		(GLYPH_SCATTER_RADIUS + 0.3) * cos(fallback_angle),
+		randf_range(-0.2, 0.2),
+		(GLYPH_SCATTER_RADIUS + 0.3) * sin(fallback_angle)
+	)
+
+
+func _spawn_glyph(glyph_char: String, spawn_pos: Vector3, is_decoy: bool, is_required_target: bool, idx: int) -> RigidBody3D:
+	var glyph_node := RigidBody3D.new()
+	glyph_node.name = "Glyph_%s_%d" % [glyph_char, idx]
+	glyph_node.position = spawn_pos
+	glyph_node.freeze = true
+	glyph_node.input_ray_pickable = true
+	glyph_node.set_meta("glyph_char", glyph_char)
+	glyph_node.set_meta("is_decoy", is_decoy)
+	glyph_node.set_meta("is_required_target", is_required_target)
+	glyph_node.set_meta("is_locked", false)
+
+	# Collision shape
+	var col := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.8, 0.8, 0.2)
+	col.shape = box
+	glyph_node.add_child(col)
+
+	# Label3D for the rune character
+	var label := Label3D.new()
+	label.text = glyph_char
+	label.font_size = 140 if is_required_target else 128
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.no_depth_test = true
+	if is_decoy:
+		label.modulate = Color(0.0, 0.8, 0.2, 0.6)
+	elif is_required_target:
+		label.modulate = Color(0.0, 0.831, 1.0)
+	else:
+		label.modulate = Color(0.0, 1.0, 0.255)
+	label.name = "Label"
+	glyph_node.add_child(label)
+
+	# Small glow for required runes so they're always easy to spot.
+	if is_required_target:
+		var glow := OmniLight3D.new()
+		glow.light_color = Color(0.0, 0.831, 1.0)
+		glow.light_energy = 0.35
+		glow.omni_range = 2.0
+		glyph_node.add_child(glow)
+
+	# NOTE: Per-glyph OmniLight3D removed for mobile performance.
+	# The emissive materials + bloom in the environment provide sufficient glow.
+	# Lights are only kept on the 4 target sockets and the heart.
+
+	glyphs_parent.add_child(glyph_node)
+	glyph_node.set_meta("home_position", glyph_node.global_position)
+	glyphs.append(glyph_node)
+
+	# Floating animation
+	_start_glyph_float(glyph_node)
+	return glyph_node
 
 
 func _start_glyph_float(glyph: Node3D) -> void:
@@ -308,9 +438,14 @@ func _drop_glyph() -> void:
 	if not placed:
 		# Return to normal state
 		var is_decoy: bool = glyph.get_meta("is_decoy", false)
+		var is_required_target: bool = glyph.get_meta("is_required_target", false)
 		var label: Label3D = glyph.get_node("Label")
-		label.modulate = Color(0.0, 0.8, 0.2, 0.6) if is_decoy else Color(0.0, 1.0, 0.255)
-		_start_glyph_float(glyph)
+		if is_required_target:
+			label.modulate = Color(0.0, 0.831, 1.0)
+			_return_required_glyph_home(glyph)
+		else:
+			label.modulate = Color(0.0, 0.8, 0.2, 0.6) if is_decoy else Color(0.0, 1.0, 0.255)
+			_start_glyph_float(glyph)
 
 	_dragging_glyph = null
 
@@ -318,7 +453,10 @@ func _drop_glyph() -> void:
 func _reject_glyph(glyph: Node3D) -> void:
 	var label: Label3D = glyph.get_node("Label")
 	var is_decoy: bool = glyph.get_meta("is_decoy", false)
-	var rest_color := Color(0.0, 0.8, 0.2, 0.6) if is_decoy else Color(0.0, 1.0, 0.255)
+	var is_required_target: bool = glyph.get_meta("is_required_target", false)
+	var rest_color := Color(0.0, 0.831, 1.0) if is_required_target else (
+		Color(0.0, 0.8, 0.2, 0.6) if is_decoy else Color(0.0, 1.0, 0.255)
+	)
 	label.modulate = Color(1.0, 0.2, 0.4)
 
 	var tween := create_tween()
@@ -329,6 +467,19 @@ func _reject_glyph(glyph: Node3D) -> void:
 	tween.tween_property(glyph, "global_position", orig_pos, 0.04)
 	tween.tween_callback(func():
 		label.modulate = rest_color
+		if is_required_target:
+			_return_required_glyph_home(glyph)
+		else:
+			_start_glyph_float(glyph)
+	)
+
+
+func _return_required_glyph_home(glyph: Node3D) -> void:
+	var home_pos: Vector3 = glyph.get_meta("home_position", glyph.global_position)
+	var return_tween := create_tween()
+	return_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	return_tween.tween_property(glyph, "global_position", home_pos, 0.28)
+	return_tween.tween_callback(func():
 		_start_glyph_float(glyph)
 	)
 

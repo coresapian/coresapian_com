@@ -4,11 +4,9 @@
   <meta charset="UTF-8">
   <title>coRE</title>
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="./style.css">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <!-- TORCH EFFECT SCRIPT DEPENDENCIES -->
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" integrity="sha384-HtMZLkYo+pR5/u7zCzXxMJP6QoNnQJt1qkHM0EaOPvGDIzaVZbmYr/TlvUZ/sKAg" crossorigin="anonymous">
   <style>
     /* --- TORCH EFFECT STYLES --- */
     #torch-overlay {
@@ -53,14 +51,14 @@
 </head>
 <body>
     <!-- Main content is now the only element, visible by default -->
-    <div id="main-content">
-        <div id="torch-overlay"></div>
-        <canvas id="matrix-canvas"></canvas>
+    <main id="main-content" role="main" aria-label="coRE truths - The guiding principles of CoreSapian">
+        <div id="torch-overlay" aria-hidden="true"></div>
+        <canvas id="matrix-canvas" aria-hidden="true"></canvas>
         <div class="container">
             <h1>coRE</h1>
             <div class="sprite-wrapper">
-                <div class="book">
-                    <div class="carousel" style="--slides: 7;">
+                <div class="book" role="region" aria-label="coRE truths book">
+                    <div class="carousel" style="--slides: 7;" role="list" aria-label="Scrollable book pages">
                         <div class="sprite"></div>
         
                         <!-- Slide 1: Introduction -->
@@ -163,37 +161,46 @@
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
     <!-- Nordic Stone Tablet Terminal -->
-    <div id="terminal-container" class="fixed bottom-0 left-0 right-0 h-12 overflow-hidden transition-all duration-500 stone-tablet">
-      <div id="terminal-header" class="flex items-center justify-between px-6 py-3 cursor-pointer tablet-header">
+    <aside id="terminal-container" class="fixed bottom-0 left-0 right-0 h-12 overflow-hidden transition-all duration-500 stone-tablet" role="complementary" aria-label="Oracle terminal - Ask questions to receive wisdom">
+      <div id="terminal-header" class="flex items-center justify-between px-6 py-3 cursor-pointer tablet-header" role="button" tabindex="0" aria-expanded="false" aria-controls="terminal-content" aria-label="Toggle Oracle terminal">
         <span class="text-base font-bold runic-text tablet-title">⚡ ᛟᚱᚨᚲᛚᛖ ᛟᚠ ᚲᛟᚱᛖ</span>
         <span id="terminal-toggle" class="text-xl runic-glow">▲</span>
       </div>
-      <div id="terminal-content" class="hidden tablet-content overflow-y-auto" style="height: calc(20rem - 3rem);">
-        <div id="terminal-output" class="p-6 space-y-2"></div>
+      <div id="terminal-content" class="hidden tablet-content overflow-y-auto" style="height: calc(20rem - 3rem);" aria-label="Terminal output">
+        <div id="terminal-output" class="p-6 space-y-2" role="log" aria-live="polite" aria-label="Oracle responses"></div>
         <div class="flex items-center px-6 pb-4">
-          <span class="text-lg runic-text mr-3">ᚱ</span>
-          <input id="terminal-input" type="text" class="flex-1 bg-transparent border-none outline-none carved-input" placeholder="Speak your query to the Oracle..." />
+          <span class="text-lg runic-text mr-3" aria-hidden="true">ᚱ</span>
+          <input id="terminal-input" type="text" class="flex-1 bg-transparent border-none outline-none carved-input" placeholder="Speak your query to the Oracle..." aria-label="Ask the Oracle" />
         </div>
       </div>
-    </div>
+    </aside>
 
     <!-- Scripts -->
     <script src="./terminal.js" type="module"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" integrity="sha384-HOvlOYPIs/zjoIkWUGXkVmXsjr8GuZLV+Q+rcPwmJOVZVpvTSXQChiN4t9Euv9Vc" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js" integrity="sha384-wq+xSBVOweitHUSL82oVs8f7PPHg7/O3FLG9u+RiUjJg4k4MZomu42Vs2617FyJh" crossorigin="anonymous"></script>
     <script src="./script.js"></script>
     <script>
+    // --- IMPROVED INPUT TYPE DETECTION ---
+    // Distinguishes between touch-only, mouse-only, and hybrid devices
+    (function() {
+        const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        const hasFinePointer = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        const isTouchOnly = hasTouch && !hasFinePointer;
+
+        if (isTouchOnly) {
+            document.body.classList.add('touch-device');
+        }
+    })();
+
     // --- TORCH EFFECT SCRIPT ---
     document.addEventListener("DOMContentLoaded", (event) => {
         const torch = document.getElementById('torch-overlay');
 
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            document.body.classList.add('touch-device');
-        } else {
+        if (!document.body.classList.contains('touch-device')) {
             const torchPos = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 
             window.addEventListener('mousemove', (e) => {
@@ -237,6 +244,7 @@
                             'ᚲ', 'ᛟ', 'ᚱ', 'ᛖ', 'ᚨ', 'ᛒ', 'ᛞ', 'ᛇ', 'ᚠ', 'ᚷ', 'ᚺ', 'ᛁ', 'ᛃ', 'ᛚ', 'ᛗ'];
         const fontSize = 18;
         let drops = [];
+        let matrixAnimationId = null;
 
         function resizeMatrixCanvas() {
             matrixCanvas.width = window.innerWidth;
@@ -252,12 +260,21 @@
         window.addEventListener('resize', resizeMatrixCanvas);
         resizeMatrixCanvas();
 
-        function drawMatrix() {
+        let lastTime = 0;
+        const frameInterval = 50; // 50ms between frames
+
+        function drawMatrix(currentTime) {
+            matrixAnimationId = requestAnimationFrame(drawMatrix);
+
+            // Throttle to ~20fps for performance
+            if (currentTime - lastTime < frameInterval) return;
+            lastTime = currentTime;
+
             matrixCntxt.fillStyle = "rgba(10, 10, 31, 0.08)";
             matrixCntxt.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
 
-            matrixCntxt.fillStyle = "var(--orrery-accent-color)";
-            matrixCntxt.font = fontSize + "px 'Noto Sans Runic'";
+            matrixCntxt.fillStyle = "var(--matrix-green, #00ff41)";
+            matrixCntxt.font = fontSize + "px 'Noto Sans Runic', monospace";
 
             for (let i = 0; i < drops.length; i++) {
                 const txt = matrixChars[Math.floor(Math.random() * matrixChars.length)];
@@ -270,7 +287,15 @@
             }
         }
 
-        setInterval(drawMatrix, 50);
+        // Start animation
+        matrixAnimationId = requestAnimationFrame(drawMatrix);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (matrixAnimationId) {
+                cancelAnimationFrame(matrixAnimationId);
+            }
+        });
     })();
     </script>
 </body>

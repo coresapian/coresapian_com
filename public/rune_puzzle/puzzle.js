@@ -1,21 +1,34 @@
-/* eslint-disable no-console */
 /* global gsap */
 
-console.log('[PUZZLE] rune puzzle script start');
+// ---------- 1.  Utility: Improved Touch Detection ----------
+// Distinguishes between touch-only, mouse-only, and hybrid devices
+const InputType = {
+  TOUCH: 'touch',
+  MOUSE: 'mouse',
+  HYBRID: 'hybrid',
+  UNKNOWN: 'unknown'
+};
 
-// ---------- 1.  Guard for required globals ----------
-if (!window.THREE) {
-  console.error('[PUZZLE] THREE is undefined – check import-map.');
-  document.body.innerHTML = '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load Three.js.</h1>';
-  throw new Error('THREE undefined');
+function detectInputType() {
+  const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const hasMouse = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  
+  if (hasTouch && hasMouse) return InputType.HYBRID;
+  if (hasTouch) return InputType.TOUCH;
+  if (hasMouse) return InputType.MOUSE;
+  return InputType.UNKNOWN;
 }
+
+const inputType = detectInputType();
+const isTouchDevice = inputType === InputType.TOUCH;
+
+// ---------- 2.  Guard for required globals ----------
 if (!gsap) {
-  console.error('[PUZZLE] GSAP unavailable – check CDN.');
   document.body.innerHTML = '<h1 style="color:#ff4800;text-align:center;margin-top:40vh">Could not load GSAP.</h1>';
   throw new Error('GSAP undefined');
 }
 
-// ---------- 2.  Constants ----------
+// ---------- 3.  Constants ----------
 const ANCIENT_WORD = 'ᚲᛟᚱᛖ';
 const TARGET_GLYPHS = ANCIENT_WORD.split('');
 const ALL_GLYPHS = ['ᚨ','ᛒ','ᛞ','ᛇ','ᚠ','ᚷ','ᚺ','ᛁ','ᛃ','ᚲ','ᛚ','ᛗ','ᚾ','ᛈ','ᚱ','ᛊ','ᛏ','ᚢ','ᚹ','ᛉ','ᛋ','ᛦ','ᛪ'];
@@ -122,7 +135,6 @@ const endDrag = (e)=>{
         drawSegment(sock);
 
         if (document.querySelectorAll('.constellation-socket.filled').length === TARGET_GLYPHS.length) {
-          console.log('[PUZZLE] All glyphs placed – triggering awakening');
           setTimeout(()=>location.href='../core_truths_book/index.html', 3000);
         }
       }
@@ -136,12 +148,12 @@ const isOver = (a,b)=>{
   return !(r1.right<r2.left||r1.left>r2.right||r1.bottom<r2.top||r1.top>r2.bottom);
 };
 
-document.addEventListener('mousedown', startDrag);
-document.addEventListener('mousemove', moveDrag);
-document.addEventListener('mouseup',   endDrag);
+document.addEventListener('mousedown', startDrag, {passive:false});
+document.addEventListener('mousemove', moveDrag, {passive:false});
+document.addEventListener('mouseup',   endDrag, {passive:false});
 document.addEventListener('touchstart', startDrag, {passive:false});
 document.addEventListener('touchmove',  moveDrag,  {passive:false});
-document.addEventListener('touchend',   endDrag);
+document.addEventListener('touchend',   endDrag, {passive:false});
 
 // ---------- 6.  SVG drawing helpers ----------
 const svg = document.getElementById('orrery-energy-lines-svg');

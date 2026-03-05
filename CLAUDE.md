@@ -1,138 +1,93 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ## Project Overview
 
-**coresapian.com** is a fully static interactive web experience deployed on Netlify. It combines 3D graphics, interactive puzzles, narrative content, and an in-browser AI reasoning model (DeepSeek-R1) — all with a matrix/cyberpunk hacker aesthetic. There is no backend server; everything runs client-side.
-
-## Repository Structure
-
-```
-coresapian_com/
-├── CLAUDE.md              # This file
-├── README.md              # Project philosophy and core truths
-├── netlify.toml           # Netlify deployment config (publishes public/)
-├── .gitignore             # Ignores: huggingface-transformers.txt
-├── assets/
-│   └── core.PNG           # Architecture diagram
-└── public/                # Deployed root directory
-    ├── loader.html         # Entry point — Three.js loading animation
-    ├── loading_screen_hourglass_animation_model.glb  # 3D hourglass model
-    ├── favicon.ico
-    ├── js/
-    │   └── loader.js       # UNUSED — legacy Three.js scene (not imported by loader.html)
-    ├── fonts/              # Custom fonts (Doto, Noto Sans Runic)
-    ├── rune_puzzle/         # Interactive drag-and-drop rune puzzle
-    │   ├── index.html
-    │   ├── puzzle.js        # Puzzle mechanics (drag-drop, SVG animations)
-    │   ├── godrays.js       # God rays visual effects (dynamically imported by puzzle.js)
-    │   └── script.js        # UNUSED — legacy god rays/torch/matrix code (not loaded by index.html)
-    ├── core_truths_book/    # Scrollable book carousel with terminal
-    │   ├── index.html
-    │   ├── script.js        # GSAP animations, Konami code easter egg
-    │   ├── style.css        # Matrix-themed styling, torch effect
-    │   ├── terminal.js      # Oracle chat interface
-    │   └── workers/
-    └── deepseek-r1-webgpu/  # React app — in-browser AI chatbot
-        ├── package.json
-        ├── vite.config.js
-        ├── eslint.config.js
-        ├── index.html
-        ├── dist/            # Built production output
-        └── src/
-            ├── main.jsx     # React entry point
-            ├── App.jsx      # Main component (worker management, state)
-            ├── index.css    # Global styles (Tailwind imports)
-            ├── worker.js    # Web Worker for model inference
-            └── components/
-                ├── Chat.jsx      # Message display (markdown, MathJax)
-                ├── Chat.css
-                ├── Progress.jsx  # Loading progress bar
-                └── icons/        # SVG icon components
-```
-
-## User Flow
-
-**Main navigation path (3 steps, each auto-redirects to the next):**
-
-1. **`/` (root)** → Netlify redirects to `/loader.html` (configured in `netlify.toml`)
-2. **`/loader.html`** — 9-second Three.js loading animation with 3D hourglass. Auto-redirects via `setTimeout` in inline `<script>` (line 112).
-3. **`/rune_puzzle/`** — Drag-and-drop Elder Futhark rune puzzle on an orrery layout. On completion (all 4 glyphs placed), redirects after 3s (`puzzle.js:126`).
-4. **`/core_truths_book/`** — Scrollable book carousel presenting 6 core truths about AI. Includes an integrated terminal/oracle chat powered by a local ONNX worker. **This is the end of the main flow — there is no automatic redirect from here.**
-
-**Standalone page (not linked from main flow):**
-
-- **`/deepseek-r1-webgpu/dist/`** — React app running DeepSeek-R1 LLM entirely in-browser via WebGPU. Must be navigated to directly.
-
-## Technology Stack
-
-| Area | Technology |
-|------|-----------|
-| Static pages | Vanilla HTML/CSS/JS |
-| 3D graphics | Three.js 0.138.0 (via CDN import-map) |
-| Animations | GSAP 3.13.0 + SplitText plugin |
-| AI chatbot app | React 18.3, Vite 6, Tailwind CSS 4 beta |
-| AI inference | @huggingface/transformers 3.5.0 (ONNX Runtime / WebGPU) |
-| Markdown rendering | marked 15.0.5 + DOMPurify 3.2.3 |
-| Math rendering | better-react-mathjax 2.0.3 |
-| Linting | ESLint 9 (React, hooks, refresh plugins) |
-| Deployment | Netlify (static hosting) |
-| Package manager | npm |
-| Module system | ES modules (`"type": "module"`) |
+**coresapian.com** is a dual-platform interactive experience: a static web app deployed on Netlify and a Godot 4.6 + iOS native app. Both versions present the same flow — a drag-and-drop Elder Futhark rune puzzle followed by a scrollable "core truths" book — with a matrix/cyberpunk hacker aesthetic. There is no backend server; everything runs client-side.
 
 ## Development Commands
 
-All commands below run from `public/deepseek-r1-webgpu/`:
+### Web (static, no build step)
 
 ```bash
-npm install          # Install dependencies
-npm run dev          # Start Vite dev server
-npm run build        # Production build → dist/
-npm run preview      # Preview production build locally
-npm run lint         # Run ESLint
+# Local dev server with redirect support
+npx netlify-cli dev
+
+# Or simple static serve (no redirects)
+npx serve public
 ```
 
-The static pages (loader, rune_puzzle, core_truths_book) have no build step — they are served as-is from `public/`.
+No testing framework is configured.
 
-## Deployment
+### Godot
 
-- **Platform:** Netlify
-- **Publish directory:** `public/` (configured in `netlify.toml`)
-- **Root redirect:** `/ → /loader.html` (status 200)
-- The deepseek-r1-webgpu React app must be pre-built (`npm run build`) so that `dist/` is committed and deployed as static files.
+```bash
+# Open project in Godot editor (adjust path to your Godot binary)
+/Users/core/Downloads/Godot.app/Contents/MacOS/Godot --path godot --editor
 
-## Design & Styling Conventions
+# Headless validation (checks for parse errors)
+/Users/core/Downloads/Godot.app/Contents/MacOS/Godot --headless --path godot --quit
 
-- **Theme:** Matrix/cyberpunk terminal aesthetic throughout
-- **Primary colors:** Matrix green (`#00ff41`), cyan (`#00d4ff`), void black (`#030308`)
-- **Visual effects:** Glow text-shadows, scanline overlays, torch radial gradients, god rays, bloom
-- **CSS approach:** CSS custom properties for theming; Tailwind utilities in the React app; hand-written CSS with keyframe animations elsewhere
-- **Fonts:** Doto (variable, ROND axis), Noto Sans Runic (for Nordic rune glyphs)
-- **Responsive:** Media queries for mobile breakpoints (`<748px`, `<560px`)
+# Export PCK for iOS
+cd godot && ./export_to_ios.sh
+```
+
+The Godot binary path can be overridden via `GODOT_BIN` env var. The export script checks PATH, `/Applications`, and `~/Downloads`.
+
+## Architecture
+
+### Dual-Platform Layout
+
+```
+public/           # Web version — Netlify deploy root
+  rune_puzzle/    # Puzzle (Three.js, GSAP, ES modules)
+  core_truths_book/ # Book carousel + oracle terminal (ONNX worker)
+godot/            # Godot 4.6 project (Mobile renderer, portrait 1170x2532)
+  scenes/         # .tscn + .gd files (main, rune_puzzle, core_truths)
+  shaders/        # matrix_rain, godrays, glow (.gdshader)
+ios/              # SwiftUI + SwiftGodotKit integration (no .xcodeproj — see ios/README.md)
+  CoreSapian/     # 3 Swift files: App entry, ContentView, GodotSwiftMessenger
+```
+
+### Web: Netlify serves `public/`
+
+- Root redirect: `/ → /rune_puzzle/` (status 301 in `netlify.toml`)
+- **`/rune_puzzle/`** — Drag-and-drop puzzle. On win (4 correct glyphs), redirects to `/core_truths_book/` after 3s. Active logic is in `puzzle.js` (which dynamically imports `godrays.js`). `script.js` is dead code.
+- **`/core_truths_book/`** — Book carousel with 6 core truths. Includes oracle chat powered by ONNX Web Worker (`workers/worker-Jy3fF0zp.js`).
+
+### Godot: 3D reimplementation
+
+- **`scenes/main.tscn`** — Entry point. Instances RunePuzzle, has FadeCanvasLayer for transitions. `main.gd` listens for `puzzle_completed` signal, fades out, swaps to CoreTruths scene.
+- **`scenes/rune_puzzle/`** — 3D puzzle: 23 RigidBody3D glyphs, 4 socket Node3Ds with Area3D detection, raycast-based drag on Plane(UP, 0). Target word: `ᚲᛟᚱᛖ`. Matrix rain shader overlay via CanvasLayer.
+- **`scenes/core_truths/`** — 7 Label3D pages laid out along X-axis (8 units apart). Camera pans with cubic easing. Swipe detection + button navigation.
+- Scene transitions are signal-based: puzzle emits `puzzle_completed`, main.gd handles fade → scene swap → fade-in.
+
+### iOS: SwiftUI wrapper
+
+- **`GodotSwiftMessenger.swift`** — Singleton bridge registered with Godot engine. `SimpleSignal` for `puzzleCompleted`, `SignalWithArguments<String>` for `sceneTransition`.
+- **`ContentView.swift`** — Full-screen `GodotAppView` loading `main.pck`.
+- No `.xcodeproj` included — see `ios/README.md` for manual Xcode project setup (SwiftGodotKit package, `-lswiftGodot` linker flag, iOS 16.0+).
+
+## Design Conventions
+
+- **Colors:** Matrix green (`#00ff41` / `Color(0.0, 1.0, 0.255)`), cyan (`#00d4ff` / `Color(0.0, 0.831, 1.0)`), void black (`#030308`)
+- **Visual effects:** Glow/bloom, scanline overlays, god rays, matrix rain shader, torch radial gradients
+- **Fonts:** Doto (variable, ROND axis), Noto Sans Runic (Elder Futhark glyphs)
+- **Web CSS:** Custom properties for theming, keyframe animations, media queries at `<748px` and `<560px`
 
 ## Code Conventions
 
-- **No testing framework** is configured. There are no unit or integration tests.
-- **ES modules** everywhere — use `import`/`export`, not `require`.
-- **Web Workers** for heavy computation (AI inference runs off main thread).
-- **React components** use PascalCase filenames and functional components with hooks.
-- **CSS class names** follow BEM-like conventions in static pages (e.g., `constellation-socket`, `torch-overlay`).
-- **CDN imports** for Three.js and GSAP in static pages (via `<script>` tags and import maps).
-- **No TypeScript** — all source is plain JavaScript/JSX (type declarations exist only as dev dependencies for editor support).
-
-## Key Architecture Notes
-
-- This is a **purely static site** with zero server-side logic. All AI inference happens client-side via WebGPU and Web Workers.
-- The `public/` directory is the deploy root. Everything inside it is served directly.
-- The deepseek-r1-webgpu app is a separate Vite project nested inside `public/`. Its `dist/` folder contains the production build that gets deployed.
-- Three.js is loaded via CDN import maps in `loader.html`, not bundled.
-- GSAP is loaded via CDN `<script>` tags in `core_truths_book/`.
+- **Web:** ES modules (`import`/`export`), plain JavaScript (no TypeScript), CDN imports for Three.js (import maps) and GSAP (`<script>` tags)
+- **Godot:** GDScript, tabs for indentation, metadata via `set_meta()`/`get_meta()` on nodes, tweens for animation
+- **No backend.** Do not introduce server dependencies, databases, or API routes.
 
 ## Things to Watch Out For
 
-- **WebGPU requirement:** The deepseek AI chatbot requires WebGPU browser support. A fallback message is shown if unavailable.
-- **WebGL2 requirement:** The loader animation checks for WebGL2 and shows an error if missing.
-- **3D model URL:** The hourglass GLB model is loaded from a GitHub raw URL in the inline script within `loader.html`.
-- **Pre-built dist:** The `deepseek-r1-webgpu/dist/` directory is committed to git. After making changes to the React app source, run `npm run build` and commit the updated `dist/`.
-- **No backend:** There are no API routes, databases, or server processes. Do not introduce server dependencies.
-- **Konami code easter egg:** The sequence `Up Up Down Down Left Right Left Right B A` triggers a rainbow/shake animation in the core truths book.
-- **Dead code files:** `js/loader.js` and `rune_puzzle/script.js` are not loaded by any HTML page and appear to be legacy files. The active loader logic is inline in `loader.html`; the active puzzle logic is in `rune_puzzle/puzzle.js` (which dynamically imports `godrays.js`).
+- **Netlify redirect:** Must be status 301 (not 200). Status 200 is a rewrite that keeps the browser URL at `/`, breaking relative paths in `rune_puzzle/`.
+- **Godot Mobile renderer:** Limited dynamic light support (8-16 before framerate drops on iOS). Per-glyph lights were intentionally removed — rely on emissive materials + bloom.
+- **Godot .tscn `load_steps`:** Must equal total sub_resources + ext_resources + 1. Godot warns/errors on mismatch.
+- **Scene transitions:** Handled by `main.gd` via signals, not by calling `change_scene_to_file()` from child scenes (which would destroy the fade overlay).
+- **Konami code easter egg:** `Up Up Down Down Left Right Left Right B A` triggers rainbow/shake in core truths. Keyboard-only (intentionally unavailable on iOS touch).
+- **Dead code:** `public/rune_puzzle/script.js` is not loaded by any HTML page. The active puzzle logic is `puzzle.js`.
+- **`public/resources/`** contains 11 `.glb` 3D models not referenced by current code.

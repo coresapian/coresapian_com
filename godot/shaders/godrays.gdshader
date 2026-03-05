@@ -1,8 +1,35 @@
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
 
-// Screen-space god rays (radial blur from light source)
-// Apply to a MeshInstance3D with a full-screen quad
+// =============================================================================
+// Screen-Space God Rays (Radial Blur from Light Source)
+// =============================================================================
+// Creates volumetric light rays emanating from a screen-space position.
+// Apply to a MeshInstance3D with a full-screen quad (e.g., QuadMesh).
+//
+// How it works:
+//   Samples the screen texture along rays from each pixel toward the light
+//   position, accumulating brightness to create a volumetric glow effect.
+//
+// Parameters:
+//   light_position - Screen-space UV coordinates of the light source (0-1 range)
+//                    Default (0.5, 0.3) places it slightly above center
+//   exposure       - Overall intensity of the god rays effect (0-1)
+//   decay          - How quickly rays fade with distance from light (0.9-1.0)
+//                    Higher = rays reach further, Lower = rays fade faster
+//   density        - Density of the ray sampling (0-1)
+//                    Higher = more pronounced rays, Lower = subtler
+//   weight         - Weight given to each sample (0-1)
+//                    Higher = brighter accumulation, Lower = dimmer
+//   num_samples    - Number of samples per ray (affects quality vs performance)
+//                    30 = low quality, 60 = medium, 100+ = high quality
+//   ray_color      - Tint color for the rays (default: Matrix green)
+//
+// Performance Notes:
+//   - num_samples has the biggest impact on performance
+//   - Consider reducing samples on mobile devices
+//   - Can be combined with depth_texture for occlusion (optional)
+// =============================================================================
 
 uniform vec2 light_position = vec2(0.5, 0.3); // Screen-space light position
 uniform float exposure : hint_range(0.0, 1.0) = 0.3;

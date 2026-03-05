@@ -1,13 +1,24 @@
 shader_type canvas_item;
 
-// Matrix rain effect — falling green characters on a transparent background
-// Applied to a ColorRect or TextureRect covering the viewport
+// =============================================================================
+// Matrix Rain Effect — Falling green characters on a transparent background
+// =============================================================================
+// Usage: Apply to a ColorRect or TextureRect covering the viewport.
+// Best used with low opacity (0.05-0.15) as an overlay layer.
+//
+// Parameters:
+//   speed       - How fast columns fall (0.1 = slow, 5.0 = fast)
+//   density     - Number of columns across screen (1 = sparse, 50 = dense)
+//   brightness  - Overall intensity of the effect (0 = off, 1 = full)
+//   trail_length- How long the trail is behind each character (0.1 = short, 1 = long)
+//   rain_color  - Color of the rain (default: Matrix green #00ff41)
+// =============================================================================
 
 uniform float speed : hint_range(0.1, 5.0) = 1.0;
 uniform float density : hint_range(1.0, 50.0) = 20.0;
 uniform float brightness : hint_range(0.0, 1.0) = 0.8;
 uniform float trail_length : hint_range(0.1, 1.0) = 0.6;
-uniform vec4 rain_color : source_color = vec4(0.0, 1.0, 0.255, 1.0); // #00ff41
+uniform vec4 rain_color : source_color = vec4(0.0, 1.0, 0.255, 1.0); // #00ff41 Matrix green
 
 // Hash function for pseudo-random values
 float hash(vec2 p) {

@@ -8,31 +8,31 @@
 </head>
 <body>
   <!-- TORCH (same as before) -->
-  <div id="torch-overlay"></div>
+  <div id="torch-overlay" aria-hidden="true"></div>
 
   <!-- God-rays canvas -->
-  <div id="godrays-container"></div>
+  <div id="godrays-container" aria-hidden="true"></div>
 
   <!-- Matrix rain -->
-  <canvas id="matrix-canvas"></canvas>
+  <canvas id="matrix-canvas" aria-hidden="true"></canvas>
 
   <!-- Puzzle -->
-  <div id="orrery-container">
-    <div id="orrery-heart"></div>
-    <svg id="orrery-energy-lines-svg"></svg>
-  </div>
-  <div id="secret-message-display"></div>
+  <main id="orrery-container" role="application" aria-label="Rune puzzle - drag Elder Futhark glyphs to spell the ancient word">
+    <div id="orrery-heart" aria-hidden="true"></div>
+    <svg id="orrery-energy-lines-svg" aria-hidden="true"></svg>
+  </main>
+  <div id="secret-message-display" aria-live="polite" aria-atomic="true"></div>
 
   <!-- External libs -->
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" integrity="sha384-HOvlOYPIs/zjoIkWUGXkVmXsjr8GuZLV+Q+rcPwmJOVZVpvTSXQChiN4t9Euv9Vc" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/EasePack.min.js" integrity="sha384-wq+xSBVOweitHUSL82oVs8f7PPHg7/O3FLG9u+RiUjJg4k4MZomu42Vs2617FyJh" crossorigin="anonymous"></script>
 
   <!-- Three.js via import-map -->
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.138.0/build/three.module.js",
-        "three/addons/": "https://unpkg.com/three@0.138.0/examples/jsm/"
+        "three": "https://unpkg.com/three@0.183.1/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.183.1/examples/jsm/"
       }
     }
   </script>

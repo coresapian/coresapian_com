@@ -1,24 +1,42 @@
 extends Node3D
 
 ## Rune Puzzle — drag Elder Futhark glyphs into correct sockets to spell ᚲᛟᚱᛖ.
-## On completion, emits puzzle_completed signal after 3 seconds.
+## On completion, emits puzzle_completed signal after AWAKENING_DELAY seconds.
 
 signal puzzle_completed
 
+## =============================================================================
+## CONFIGURATION CONSTANTS
+## Modify these values to adjust puzzle behavior and appearance.
+## =============================================================================
+
+## The target word players must spell (CORE in Elder Futhark)
 const ANCIENT_WORD: String = "ᚲᛟᚱᛖ"
+
+## All available Elder Futhark glyphs for the puzzle
 const ALL_GLYPHS: Array[String] = [
 	"ᚨ","ᛒ","ᛞ","ᛇ","ᚠ","ᚷ","ᚺ","ᛁ","ᛃ","ᚲ",
 	"ᛚ","ᛗ","ᚾ","ᛈ","ᚱ","ᛊ","ᛏ","ᚢ","ᚹ","ᛉ","ᛋ","ᛦ","ᛪ"
 ]
 
-const SOCKET_RADIUS: float = 3.0
-const GLYPH_SCATTER_RADIUS: float = 4.5
-const GLYPH_SCATTER_JITTER: float = 0.9
-const SNAP_DISTANCE: float = 1.2
-const CAMERA_PITCH_DEGREES: float = 45.0
-const CAMERA_MIN_DISTANCE: float = 12.0
-const CAMERA_BREATH_Y: float = 0.15
+## --- Layout Configuration ---
+const SOCKET_RADIUS: float = 3.0          ## Distance of sockets from center
+const GLYPH_SCATTER_RADIUS: float = 4.5   ## Base radius for scattering decoy glyphs
+const GLYPH_SCATTER_JITTER: float = 0.9   ## Random offset for glyph positions
+const SNAP_DISTANCE: float = 1.2          ## Distance at which glyphs snap to sockets
+
+## --- Camera Configuration ---
+const CAMERA_PITCH_DEGREES: float = 45.0  ## Camera angle above the puzzle
+const CAMERA_MIN_DISTANCE: float = 12.0   ## Minimum distance from puzzle center
+const CAMERA_BREATH_Y: float = 0.15       ## Amplitude of camera breathing animation
+
+## --- Timing Configuration ---
+const AWAKENING_DELAY: float = 3.0        ## Seconds to wait before transitioning after completion
+
+## --- Computed Values ---
 const CAMERA_TARGET_RADIUS: float = GLYPH_SCATTER_RADIUS + GLYPH_SCATTER_JITTER + 1.8
+
+## Screen-space positions for guaranteed glyph placement (normalized 0-1)
 const REQUIRED_GLYPH_SCREEN_SLOTS: Array[Vector2] = [
 	Vector2(0.16, 0.86),
 	Vector2(0.38, 0.86),
@@ -30,6 +48,7 @@ var target_glyphs: Array[String] = []
 var sockets: Array[Node3D] = []
 var glyphs: Array[Node3D] = []
 var filled_count: int = 0
+var _puzzle_complete_fired: bool = false
 
 var _dragging_glyph: Node3D = null
 var _drag_plane := Plane(Vector3.UP, 0.0)
@@ -289,6 +308,10 @@ func _spawn_glyph(glyph_char: String, spawn_pos: Vector3, is_decoy: bool, is_req
 
 
 func _start_glyph_float(glyph: Node3D) -> void:
+	# Guard against freed glyphs
+	if not is_instance_valid(glyph):
+		return
+
 	var base_y: float = glyph.get_meta("base_y", glyph.position.y)
 	glyph.set_meta("base_y", base_y)
 	var offset := randf_range(0.2, 0.5)
@@ -298,6 +321,9 @@ func _start_glyph_float(glyph: Node3D) -> void:
 	tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(glyph, "position:y", base_y, 0.3)
 	tween.tween_callback(func():
+		# Guard against glyph being freed during the initial settle animation
+		if not is_instance_valid(glyph):
+			return
 		var loop := create_tween().set_loops()
 		loop.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 		loop.tween_property(glyph, "position:y", base_y + offset, duration)
@@ -512,6 +538,9 @@ func _draw_energy_line(socket_pos: Vector3) -> void:
 
 
 func _on_puzzle_complete() -> void:
+	if _puzzle_complete_fired:
+		return
+	_puzzle_complete_fired = true
 	print("[PUZZLE] All glyphs placed — awakening!")
 
 	# Activate heart glow
@@ -520,6 +549,6 @@ func _on_puzzle_complete() -> void:
 		var tween := create_tween()
 		tween.tween_property(heart_mat, "emission_energy_multiplier", 5.0, 1.5)
 
-	# Wait 3 seconds, then signal completion (Main handles fade-out and scene change)
-	await get_tree().create_timer(3.0).timeout
+	# Wait for awakening delay, then signal completion
+	await get_tree().create_timer(AWAKENING_DELAY).timeout
 	puzzle_completed.emit()

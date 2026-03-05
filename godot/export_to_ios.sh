@@ -27,12 +27,13 @@ PCK_OUTPUT="$IOS_DIR/main.pck"
 
 echo "Exporting Godot project to PCK..."
 "$GODOT_BIN" --headless --path "$SCRIPT_DIR" --export-pack "iOS" "$PCK_OUTPUT"
+EXPORT_STATUS=$?
 
-if [ $? -eq 0 ]; then
+if [ $EXPORT_STATUS -eq 0 ]; then
     echo "Success! PCK exported to: $PCK_OUTPUT"
     echo "Add main.pck to your Xcode target if not already added."
 else
-    echo "Export failed. Make sure Godot export templates are installed."
+    echo "Export failed (exit code: $EXPORT_STATUS). Make sure Godot export templates are installed."
     echo "Open Godot > Editor > Manage Export Templates > Download"
     exit 1
 fi

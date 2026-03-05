@@ -1,19 +1,51 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://n5cbp5fj40f2"]
 
-[ext_resource type="Script" path="res://scenes/main.gd" id="1"]
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+[ext_resource type="Script" uid="uid://cml45fdjsayx3" path="res://scenes/main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/rune_puzzle/rune_puzzle.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://btdopdn4ank2j" path="res://resources/ancient_temple.glb" id="3_sugp2"]
+=======
+[ext_resource type="Script" path="res://scenes/main.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/core_truths/core_truths.tscn" id="2"]
+>>>>>>> theirs
+=======
+[ext_resource type="Script" path="res://scenes/main.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/core_truths/core_truths.tscn" id="2"]
+>>>>>>> theirs
+=======
+[ext_resource type="Script" path="res://scenes/main.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/core_truths/core_truths.tscn" id="2"]
+>>>>>>> theirs
 
-[node name="Main" type="Node"]
+[node name="Main" type="Node" unique_id=1389818398]
 script = ExtResource("1")
 
-[node name="RunePuzzle" parent="." instance=ExtResource("2")]
+<<<<<<< ours
+<<<<<<< ours
+<<<<<<< ours
+[node name="RunePuzzle" parent="." unique_id=2089385556 instance=ExtResource("2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.8791282, 2.2105088, -11.163169)
+=======
+[node name="CoreTruths" parent="." instance=ExtResource("2")]
+>>>>>>> theirs
+=======
+[node name="CoreTruths" parent="." instance=ExtResource("2")]
+>>>>>>> theirs
+=======
+[node name="CoreTruths" parent="." instance=ExtResource("2")]
+>>>>>>> theirs
 
-[node name="FadeCanvasLayer" type="CanvasLayer" parent="."]
+[node name="FadeCanvasLayer" type="CanvasLayer" parent="." unique_id=1672915843]
 layer = 10
 
-[node name="FadeOverlay" type="ColorRect" parent="FadeCanvasLayer"]
+[node name="FadeOverlay" type="ColorRect" parent="FadeCanvasLayer" unique_id=839243535]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-color = Color(0, 0, 0, 1)
 mouse_filter = 2
+color = Color(0, 0, 0, 1)
+
+[node name="Sketchfab_Scene" parent="." unique_id=313693881 instance=ExtResource("3_sugp2")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9454689, 0.009255648, 4.3507013)

@@ -1,7 +1,29 @@
 shader_type canvas_item;
 
-// Neon glow post-processing effect
-// Apply to a ColorRect overlay to add extra bloom-like glow to bright elements
+// =============================================================================
+// Neon Glow Post-Processing Effect
+// =============================================================================
+// Adds bloom-like glow to bright elements in the scene.
+// Apply to a ColorRect overlay covering the viewport.
+//
+// How it works:
+//   1. Extracts bright parts of the scene above the threshold
+//   2. Applies a weighted box blur to create the glow
+//   3. Combines the glow with the original image
+//
+// Parameters:
+//   glow_intensity  - Strength of the glow effect (0 = off, 3 = very bright)
+//   glow_threshold  - Luminance threshold for glow extraction (0-1)
+//                     Pixels darker than this won't glow
+//   blur_iterations - Quality of the blur (1 = fast/rough, 8 = slow/smooth)
+//                     Higher = more samples, better quality
+//   blur_size       - Spread of the glow effect (0.5 = tight, 10 = wide)
+//
+// Performance Notes:
+//   - blur_iterations has quadratic performance impact (4 = 9 samples, 8 = 17 samples)
+//   - For mobile, use blur_iterations = 2-3
+//   - Consider disabling on lower-end devices
+// =============================================================================
 
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_linear_mipmap;
 uniform float glow_intensity : hint_range(0.0, 3.0) = 1.5;

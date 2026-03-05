@@ -1,8 +1,5 @@
 extends Node3D
 
-## Core Truths Book — scrollable 3D book carousel with 6 core truths about AI.
-## Includes Konami code easter egg.
-
 const TRUTHS: Array[Dictionary] = [
 	{
 		"title": "coRE truths",
@@ -34,261 +31,175 @@ const TRUTHS: Array[Dictionary] = [
 	},
 ]
 
-var current_page: int = 0
-var is_animating: bool = false
-var _swipe_cooldown: float = 0.0
+const ORBIT_RADIUS: float = 8.0
+const ORBIT_HEIGHT: float = 2.2
+const ORBIT_SPEED: float = 0.35
+const ORBITS_BEFORE_FADE: float = 3.0
+const FADE_DURATION: float = 2.5
 
-# Konami code tracking
-const KONAMI_SEQUENCE: Array[String] = [
-	"ui_up", "ui_up", "ui_down", "ui_down",
-	"ui_left", "ui_right", "ui_left", "ui_right",
-	"B", "A"
-]
-var konami_index: int = 0
-var konami_activated: bool = false
+@onready var player: CharacterBody3D = $Player
+@onready var tablet_ring: Node3D = $TabletRing
+@onready var altar: Node3D = $TempleInteraction/AltarMarker
+@onready var temple_light: OmniLight3D = $TempleInteraction/TempleLight
 
-@onready var camera: Camera3D = $Camera3D
-@onready var pages_parent: Node3D = $Pages
-@onready var left_arrow: Button = $UI/LeftArrow
-@onready var right_arrow: Button = $UI/RightArrow
-@onready var page_indicator: Label = $UI/PageIndicator
+var _pulse_time: float = 0.0
+var _orbit_accumulator: float = 0.0
+var _fade_timer: float = 0.0
+var _fading_out: bool = false
 
-var page_nodes: Array[Node3D] = []
-
-# Colors
-const COLOR_GREEN := Color(0.0, 1.0, 0.255)
-const COLOR_CYAN := Color(0.0, 0.831, 1.0)
-const COLOR_VOID := Color(0.012, 0.012, 0.031)
+var _tablets: Array[Dictionary] = []
 
 
 func _ready() -> void:
-	_create_pages()
-	_update_navigation()
-
-	left_arrow.pressed.connect(_on_prev_page)
-	right_arrow.pressed.connect(_on_next_page)
-
-
-func _create_pages() -> void:
-	for idx in TRUTHS.size():
-		var truth: Dictionary = TRUTHS[idx]
-		var page := Node3D.new()
-		page.name = "Page_%d" % idx
-		page.position = Vector3(idx * 8.0, 0, 0)
-		pages_parent.add_child(page)
-
-		# Title label
-		var title_label := Label3D.new()
-		title_label.text = truth["title"]
-		title_label.font_size = 96 if idx == 0 else 72
-		title_label.modulate = COLOR_GREEN if idx == 0 else COLOR_CYAN
-		title_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-		title_label.position = Vector3(0, 2.0, 0)
-		title_label.name = "Title"
-		page.add_child(title_label)
-
-		# Body label
-		var body_label := Label3D.new()
-		body_label.text = truth["body"]
-		body_label.font_size = 48
-		body_label.modulate = COLOR_GREEN
-		body_label.billboard = BaseMaterial3D.BILLBOARD_DISABLED
-		body_label.position = Vector3(0, 0, 0)
-		body_label.width = 6.0  # World units; camera at z=6, fov=50 -> visible width ~5.6 units
-		body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		body_label.name = "Body"
-		page.add_child(body_label)
-
-		# Point light for each page
-		var light := OmniLight3D.new()
-		light.light_color = COLOR_GREEN
-		light.light_energy = 0.8
-		light.omni_range = 5.0
-		light.position = Vector3(0, 3, 2)
-		page.add_child(light)
-
-		page_nodes.append(page)
-
-	# Start with text hidden, animate in
-	_animate_page_entrance(0)
-
-
-func _animate_page_entrance(page_idx: int) -> void:
-	if page_idx < 0 or page_idx >= page_nodes.size():
-		return
-
-	var page := page_nodes[page_idx]
-	var title: Label3D = page.get_node("Title")
-	var body: Label3D = page.get_node("Body")
-
-	# Fade in title
-	title.modulate.a = 0.0
-	var title_tween := create_tween()
-	title_tween.set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-	title_tween.tween_property(title, "modulate:a", 1.0, 0.8)
-
-	# Fade in body with delay
-	body.modulate.a = 0.0
-	var body_tween := create_tween()
-	body_tween.set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
-	body_tween.tween_interval(0.4)
-	body_tween.tween_property(body, "modulate:a", 1.0, 1.0)
-
-
-func _on_next_page() -> void:
-	if is_animating or current_page >= TRUTHS.size() - 1:
-		return
-	current_page += 1
-	_animate_to_page(current_page)
-
-
-func _on_prev_page() -> void:
-	if is_animating or current_page <= 0:
-		return
-	current_page -= 1
-	_animate_to_page(current_page)
-
-
-func _animate_to_page(page_idx: int) -> void:
-	is_animating = true
-	var target_x: float = page_idx * 8.0
-	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(camera, "position:x", target_x, 0.8)
-	tween.tween_callback(func():
-		is_animating = false
-		_animate_page_entrance(page_idx)
-		_update_navigation()
-	)
-
-
-func _update_navigation() -> void:
-	left_arrow.visible = current_page > 0
-	right_arrow.visible = current_page < TRUTHS.size() - 1
-	page_indicator.text = "%d / %d" % [current_page + 1, TRUTHS.size()]
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	_create_truth_tablets()
 
 
 func _process(delta: float) -> void:
-	if _swipe_cooldown > 0.0:
-		_swipe_cooldown -= delta
+	_pulse_time += delta
+	altar.position.y = 1.4 + sin(_pulse_time * 2.0) * 0.08
+	temple_light.light_energy = 1.6 + sin(_pulse_time * 3.0) * 0.3
 
+	if not player:
+		return
 
-func _unhandled_input(event: InputEvent) -> void:
-	# Swipe detection with cooldown to prevent multiple triggers per gesture
-	if event is InputEventScreenDrag:
-		if _swipe_cooldown <= 0.0 and not is_animating:
-			if event.velocity.x < -500:
-				_swipe_cooldown = 0.3
-				_on_next_page()
-			elif event.velocity.x > 500:
-				_swipe_cooldown = 0.3
-				_on_prev_page()
+	# Keep the orbit centered around the player.
+	tablet_ring.global_position = player.global_position + Vector3(0, ORBIT_HEIGHT, 0)
 
-	# Touch fallback for Konami code:
-	# tap top/bottom/left/right screen regions for directions,
-	# and bottom-left / bottom-right corners for B / A.
-	if event is InputEventScreenTouch and event.pressed:
-		var touch_token := _touch_token_for_konami(event.position)
-		if touch_token != "":
-			_check_konami_token(touch_token)
+	# Orbit all tablets together.
+	var step := ORBIT_SPEED * delta
+	tablet_ring.rotate_y(step)
 
-	# Keyboard Konami code detection for desktop testing
-	if event is InputEventKey and event.pressed and not event.echo:
-		_check_konami_key(event)
-
-
-func _touch_token_for_konami(screen_pos: Vector2) -> String:
-	var viewport_size := get_viewport().get_visible_rect().size
-	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		return ""
-
-	var nx := screen_pos.x / viewport_size.x
-	var ny := screen_pos.y / viewport_size.y
-
-	# B and A touch zones take precedence over directional zones.
-	if ny > 0.78 and nx < 0.35:
-		return "B"
-	if ny > 0.78 and nx > 0.65:
-		return "A"
-
-	if ny < 0.30:
-		return "ui_up"
-	if ny > 0.70:
-		return "ui_down"
-	if nx < 0.30:
-		return "ui_left"
-	if nx > 0.70:
-		return "ui_right"
-
-	return ""
-
-
-func _check_konami_key(event: InputEventKey) -> void:
-	var token := ""
-	if event.keycode == KEY_B:
-		token = "B"
-	elif event.keycode == KEY_A:
-		token = "A"
-	elif event.is_action_pressed("ui_up"):
-		token = "ui_up"
-	elif event.is_action_pressed("ui_down"):
-		token = "ui_down"
-	elif event.is_action_pressed("ui_left"):
-		token = "ui_left"
-	elif event.is_action_pressed("ui_right"):
-		token = "ui_right"
-
-	if token != "":
-		_check_konami_token(token)
-
-
-func _check_konami_token(token: String) -> void:
-	var expected: String = KONAMI_SEQUENCE[konami_index]
-	var matched := false
-
-	if expected == "B" and token == "B":
-		matched = true
-	elif expected == "A" and token == "A":
-		matched = true
-	elif expected != "B" and expected != "A" and token == expected:
-		matched = true
-
-	if matched:
-		konami_index += 1
-		if konami_index >= KONAMI_SEQUENCE.size():
-			konami_index = 0
-			if not konami_activated:
-				_activate_konami()
+	if not _fading_out:
+		_orbit_accumulator += abs(step)
+		if _orbit_accumulator >= TAU * ORBITS_BEFORE_FADE:
+			_fading_out = true
 	else:
-		konami_index = 0
+		_fade_timer += delta
+		var fade_alpha := clamp(1.0 - (_fade_timer / FADE_DURATION), 0.0, 1.0)
+		_apply_tablet_alpha(fade_alpha)
+
+	# Tablet bobbing and glow pulse.
+	for tablet_data in _tablets:
+		var pivot: Node3D = tablet_data["pivot"]
+		var mesh: MeshInstance3D = tablet_data["mesh"]
+		var label: Label3D = tablet_data["label"]
+		var aura: MeshInstance3D = tablet_data["aura"]
+		var light: OmniLight3D = tablet_data["light"]
+		var phase: float = tablet_data["phase"]
+
+		pivot.position.y = sin(_pulse_time * 1.7 + phase) * 0.22
+		light.light_energy = 2.0 + sin(_pulse_time * 4.0 + phase) * 0.35
+		mesh.rotation.y += delta * 0.08
+		aura.scale = Vector3.ONE * (1.0 + sin(_pulse_time * 3.5 + phase) * 0.04)
+		label.modulate = Color(1.0, 0.55, 0.2, label.modulate.a)
 
 
-func _activate_konami() -> void:
-	konami_activated = true
-	print("[KONAMI] Easter egg activated!")
+func _create_truth_tablets() -> void:
+	for child in tablet_ring.get_children():
+		child.queue_free()
+	_tablets.clear()
 
-	# Rainbow cycle all page titles
-	for page in page_nodes:
-		var title: Label3D = page.get_node("Title")
-		var rainbow_tween := create_tween().set_loops()
-		rainbow_tween.set_trans(Tween.TRANS_LINEAR)
-		rainbow_tween.tween_property(title, "modulate", Color.RED, 0.5)
-		rainbow_tween.tween_property(title, "modulate", Color.ORANGE, 0.5)
-		rainbow_tween.tween_property(title, "modulate", Color.YELLOW, 0.5)
-		rainbow_tween.tween_property(title, "modulate", Color.GREEN, 0.5)
-		rainbow_tween.tween_property(title, "modulate", Color.CYAN, 0.5)
-		rainbow_tween.tween_property(title, "modulate", Color.BLUE, 0.5)
-		rainbow_tween.tween_property(title, "modulate", Color.MAGENTA, 0.5)
+	var truth_count := TRUTHS.size()
+	for idx in range(truth_count):
+		var angle := (TAU / float(truth_count)) * idx
+		var phase := angle
 
-	# Camera shake with per-step random offsets generated at runtime.
-	var cam_base_x := camera.position.x
-	var shake_tween := create_tween()
-	for i in 40:
-		shake_tween.tween_callback(func():
-			camera.position.x = cam_base_x + randf_range(-0.1, 0.1)
-		)
-		shake_tween.tween_interval(0.03)
-	shake_tween.tween_callback(func():
-		camera.position.x = cam_base_x
-	)
+		var pivot := Node3D.new()
+		pivot.name = "TabletPivot_%d" % idx
+		tablet_ring.add_child(pivot)
+
+		var root := Node3D.new()
+		root.name = "Tablet_%d" % idx
+		root.position = Vector3(cos(angle) * ORBIT_RADIUS, 0, sin(angle) * ORBIT_RADIUS)
+		root.look_at(Vector3.ZERO, Vector3.UP)
+		pivot.add_child(root)
+
+		var mesh := MeshInstance3D.new()
+		mesh.name = "Stone"
+		var tablet_mesh := BoxMesh.new()
+		tablet_mesh.size = Vector3(2.6, 1.7, 0.3)
+		mesh.mesh = tablet_mesh
+		mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		root.add_child(mesh)
+
+		var stone_mat := StandardMaterial3D.new()
+		stone_mat.albedo_color = Color(0.22, 0.19, 0.16, 1.0)
+		stone_mat.metallic = 0.05
+		stone_mat.roughness = 0.85
+		mesh.material_override = stone_mat
+
+		var aura := MeshInstance3D.new()
+		aura.name = "Aura"
+		var aura_mesh := SphereMesh.new()
+		aura_mesh.radius = 1.45
+		aura_mesh.height = 2.9
+		aura.mesh = aura_mesh
+		aura.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var aura_mat := StandardMaterial3D.new()
+		aura_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		aura_mat.albedo_color = Color(1.0, 0.34, 0.06, 0.18)
+		aura_mat.emission_enabled = true
+		aura_mat.emission = Color(1.0, 0.28, 0.05, 1.0)
+		aura_mat.emission_energy_multiplier = 1.1
+		aura_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+		aura.material_override = aura_mat
+		root.add_child(aura)
+
+		var glow := OmniLight3D.new()
+		glow.name = "Glow"
+		glow.light_color = Color(1.0, 0.42, 0.08)
+		glow.light_energy = 2.0
+		glow.omni_range = 4.5
+		glow.shadow_enabled = false
+		root.add_child(glow)
+
+		var truth := TRUTHS[idx]
+		var title := Label3D.new()
+		title.name = "Title"
+		title.text = truth["title"]
+		title.font_size = 48
+		title.position = Vector3(0, 0.45, 0.2)
+		title.modulate = Color(1.0, 0.6, 0.2, 1.0)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.width = 2.2
+		title.no_depth_test = false
+		root.add_child(title)
+
+		var body := Label3D.new()
+		body.name = "Body"
+		body.text = truth["body"]
+		body.font_size = 24
+		body.position = Vector3(0, -0.3, 0.2)
+		body.modulate = Color(1.0, 0.48, 0.14, 1.0)
+		body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		body.width = 2.2
+		body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.no_depth_test = false
+		root.add_child(body)
+
+		_tablets.append({
+			"pivot": pivot,
+			"root": root,
+			"mesh": mesh,
+			"aura": aura,
+			"label": title,
+			"body": body,
+			"light": glow,
+			"phase": phase,
+		})
+
+
+func _apply_tablet_alpha(alpha: float) -> void:
+	for tablet_data in _tablets:
+		var mesh: MeshInstance3D = tablet_data["mesh"]
+		var title: Label3D = tablet_data["label"]
+		var body: Label3D = tablet_data["body"]
+		var aura: MeshInstance3D = tablet_data["aura"]
+		var light: OmniLight3D = tablet_data["light"]
+
+		mesh.transparency = 1.0 - alpha
+		aura.transparency = 1.0 - alpha
+		title.modulate.a = alpha
+		body.modulate.a = alpha
+		light.light_energy = (2.0 + sin(_pulse_time * 4.0 + tablet_data["phase"]) * 0.35) * alpha

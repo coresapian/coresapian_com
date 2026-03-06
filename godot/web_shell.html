@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>$GODOT_PROJECT_NAME</title>
+    <link rel="icon" type="image/png" href="index.icon.png">
+    <link rel="apple-touch-icon" href="index.apple-touch-icon.png">
+    <link rel="stylesheet" href="./game-shell.css">
+    $GODOT_HEAD_INCLUDE
+  </head>
+  <body>
+    <main class="shell">
+      <header class="shell__header">
+        <div>
+          <p class="eyebrow">CoreSapian Web</p>
+          <h1>Temple Experience</h1>
+        </div>
+        <button id="fullscreen-launch" class="shell__button" type="button">Enter Fullscreen</button>
+      </header>
+
+      <section class="shell__stage">
+        <div class="game-frame">
+          <canvas id="canvas">
+            Your browser does not support the canvas tag.
+          </canvas>
+
+          <noscript>
+            Your browser does not support JavaScript.
+          </noscript>
+
+          <div id="status">
+            <img id="status-splash" class="$GODOT_SPLASH_CLASSES" src="$GODOT_SPLASH" alt="">
+            <progress id="status-progress"></progress>
+            <div id="status-notice"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="rotate-gate" class="rotate-gate" hidden>
+      <div class="rotate-gate__card">
+        <p class="eyebrow">Landscape Required</p>
+        <h2>Rotate your device</h2>
+        <p>This version is designed for widescreen play. Turn your phone sideways, then tap below.</p>
+        <button id="rotate-launch" class="shell__button" type="button">Rotate And Enter</button>
+      </div>
+    </div>
+
+    <script src="$GODOT_URL"></script>
+    <script>
+      window.__GODOT_CONFIG = $GODOT_CONFIG;
+    </script>
+    <script type="module" src="./game-shell.js"></script>
+  </body>
+</html>

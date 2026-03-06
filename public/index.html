@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>CoreSapian</title>
+    <link rel="icon" type="image/png" href="/game/index.icon.png">
+    <link rel="apple-touch-icon" href="/game/index.apple-touch-icon.png">
+    <link rel="stylesheet" href="/game/game-shell.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="shell__header">
+        <div>
+          <p class="eyebrow">CoreSapian Web</p>
+          <h1>Temple Experience</h1>
+        </div>
+        <button id="fullscreen-launch" class="shell__button" type="button">Enter Fullscreen</button>
+      </header>
+
+      <section class="shell__stage">
+        <div class="game-frame">
+          <canvas id="canvas">
+            Your browser does not support the canvas tag.
+          </canvas>
+
+          <noscript>
+            Your browser does not support JavaScript.
+          </noscript>
+
+          <div id="status">
+            <img
+              id="status-splash"
+              class="show-image--true fullsize--true use-filter--true"
+              src="/game/index.png"
+              alt=""
+            >
+            <progress id="status-progress"></progress>
+            <div id="status-notice"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="rotate-gate" class="rotate-gate" hidden>
+      <div class="rotate-gate__card">
+        <p class="eyebrow">Landscape Required</p>
+        <h2>Rotate your device</h2>
+        <p>This version is designed for widescreen play. Turn your phone sideways, then tap below.</p>
+        <button id="rotate-launch" class="shell__button" type="button">Rotate And Enter</button>
+      </div>
+    </div>
+
+    <script src="/game/index.js"></script>
+    <script>
+      window.__GODOT_CONFIG = {
+        "args": [],
+        "canvasResizePolicy": 2,
+        "emscriptenPoolSize": 8,
+        "ensureCrossOriginIsolationHeaders": true,
+        "executable": "/game/index",
+        "experimentalVK": false,
+        "fileSizes": {
+          "/game/index.pck": 512286388,
+          "/game/index.wasm": 37686550
+        },
+        "focusCanvas": true,
+        "gdextensionLibs": [],
+        "godotPoolSize": 4,
+        "mainPack": "/game/index.pck"
+      };
+    </script>
+    <script type="module" src="/game/game-shell.js"></script>
+  </body>
+</html>

@@ -1,2 +1,5 @@
 huggingface-transformers.txt
 
+
+# Local Netlify folder
+.netlify

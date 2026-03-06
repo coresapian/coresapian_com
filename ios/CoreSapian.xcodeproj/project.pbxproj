@@ -1,0 +1,398 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		05D12F6966A0B3E51846282F /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1842E794578E9A8208999CBB /* ContentView.swift */; };
+		3D193FC956703AE9D2721F85 /* CoreSapianApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C511CE2C6F19681EC1655AB /* CoreSapianApp.swift */; };
+		7532D2C33831E32DCE43CEF0 /* SwiftGodot in Frameworks */ = {isa = PBXBuildFile; productRef = 9B164C9F29C103B262DDAA23 /* SwiftGodot */; };
+		856B33758D1A807C5CBC239E /* SwiftGodotKit in Frameworks */ = {isa = PBXBuildFile; productRef = B7553C1F776068D5942CF3B4 /* SwiftGodotKit */; };
+		AE7FC27B690AD661FBB06B39 /* GodotSwiftMessenger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65573AEF69D5CC4889A85B65 /* GodotSwiftMessenger.swift */; };
+		CBEBACF248B3209F6C3B229B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3BC329EB8A0316CEFEA5760A /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1217D34AA00483493E2EAD15 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		1842E794578E9A8208999CBB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		2C511CE2C6F19681EC1655AB /* CoreSapianApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreSapianApp.swift; sourceTree = "<group>"; };
+		3BC329EB8A0316CEFEA5760A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		65573AEF69D5CC4889A85B65 /* GodotSwiftMessenger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GodotSwiftMessenger.swift; sourceTree = "<group>"; };
+		A1D28F5C14631B48413E71A5 /* CoreSapian.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CoreSapian.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2299FC1BF10FBD47C288CAE5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				856B33758D1A807C5CBC239E /* SwiftGodotKit in Frameworks */,
+				7532D2C33831E32DCE43CEF0 /* SwiftGodot in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		445718926C656347EB4EBF4D /* CoreSapian */ = {
+			isa = PBXGroup;
+			children = (
+				3BC329EB8A0316CEFEA5760A /* Assets.xcassets */,
+				1842E794578E9A8208999CBB /* ContentView.swift */,
+				2C511CE2C6F19681EC1655AB /* CoreSapianApp.swift */,
+				65573AEF69D5CC4889A85B65 /* GodotSwiftMessenger.swift */,
+				1217D34AA00483493E2EAD15 /* Info.plist */,
+			);
+			path = CoreSapian;
+			sourceTree = "<group>";
+		};
+		725AE59BAA92469DAFE7B05A = {
+			isa = PBXGroup;
+			children = (
+				445718926C656347EB4EBF4D /* CoreSapian */,
+				A61326B947B9CAE34D3F80E0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A61326B947B9CAE34D3F80E0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1D28F5C14631B48413E71A5 /* CoreSapian.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E58C26910B6FF857B27352D8 /* CoreSapian */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 360AF9F8A12921133B387ECD /* Build configuration list for PBXNativeTarget "CoreSapian" */;
+			buildPhases = (
+				C258DF90E6D9E03EBA1517D0 /* Export Godot Pack */,
+				64F85FA81D3F5FB849F4FDE6 /* Sources */,
+				480EBA73AAAA127D4EDD6B34 /* Resources */,
+				2299FC1BF10FBD47C288CAE5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CoreSapian;
+			packageProductDependencies = (
+				B7553C1F776068D5942CF3B4 /* SwiftGodotKit */,
+				9B164C9F29C103B262DDAA23 /* SwiftGodot */,
+			);
+			productName = CoreSapian;
+			productReference = A1D28F5C14631B48413E71A5 /* CoreSapian.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		80CC27FBE25176098FED2368 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 6C71149C8D7B477A8F636245 /* Build configuration list for PBXProject "CoreSapian" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 725AE59BAA92469DAFE7B05A;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				89CE9DE4BD0DCC7967442238 /* XCRemoteSwiftPackageReference "SwiftGodot" */,
+				548669B29A1A901155E5AA5E /* XCRemoteSwiftPackageReference "SwiftGodotKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A61326B947B9CAE34D3F80E0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E58C26910B6FF857B27352D8 /* CoreSapian */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		480EBA73AAAA127D4EDD6B34 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CBEBACF248B3209F6C3B229B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C258DF90E6D9E03EBA1517D0 /* Export Godot Pack */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../godot/project.godot",
+			);
+			name = "Export Godot Pack";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/main.pck",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -euo pipefail\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:/Users/core/.codex/tmp/arg0/codex-arg0tngGBM:/Users/core/.bun/bin:/Users/core/.local/bin:/Users/core/.nvm/versions/node/v22.21.1/bin:/Users/core/.local/bin:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/opt/pmk/env/global/bin://Applications/Topaz Photo AI.app/Contents/Resources/bin:/Library/Apple/usr/bin:/Users/core/.lmstudio/bin:/Users/core/.local/bin:/Applications/Codex.app/Contents/Resources\"\n\"${SRCROOT}/../godot/export_to_ios.sh\"\nPACK_PATH=\"${SRCROOT}/main.pck\"\nif [ ! -f \"${PACK_PATH}\" ]; then\n  echo \"error: main.pck was not generated at ${PACK_PATH}\"\n  exit 1\nfi\nDEST_DIR=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}\"\nmkdir -p \"${DEST_DIR}\"\ncp -f \"${PACK_PATH}\" \"${DEST_DIR}/main.pck\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		64F85FA81D3F5FB849F4FDE6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				05D12F6966A0B3E51846282F /* ContentView.swift in Sources */,
+				3D193FC956703AE9D2721F85 /* CoreSapianApp.swift in Sources */,
+				AE7FC27B690AD661FBB06B39 /* GodotSwiftMessenger.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		024F2B1F6A6D883543619175 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = CoreSapian/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coresapian.app;
+				PRODUCT_NAME = CoreSapian;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2E18CAF19E81589D7B7BD980 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		76A1D66C70CD508299EE279E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D9CA0AB6949F44812C8B9F5D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				INFOPLIST_FILE = CoreSapian/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.coresapian.app;
+				PRODUCT_NAME = CoreSapian;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		360AF9F8A12921133B387ECD /* Build configuration list for PBXNativeTarget "CoreSapian" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				024F2B1F6A6D883543619175 /* Debug */,
+				D9CA0AB6949F44812C8B9F5D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6C71149C8D7B477A8F636245 /* Build configuration list for PBXProject "CoreSapian" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2E18CAF19E81589D7B7BD980 /* Debug */,
+				76A1D66C70CD508299EE279E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		548669B29A1A901155E5AA5E /* XCRemoteSwiftPackageReference "SwiftGodotKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftGodotKit";
+			requirement = {
+				kind = revision;
+				revision = b456f73fcd988ada9515f2687e4637744189251e;
+			};
+		};
+		89CE9DE4BD0DCC7967442238 /* XCRemoteSwiftPackageReference "SwiftGodot" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/migueldeicaza/SwiftGodot";
+			requirement = {
+				kind = revision;
+				revision = 48112dd50fffe01f0af78e445a16991ecdc6bc94;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9B164C9F29C103B262DDAA23 /* SwiftGodot */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 89CE9DE4BD0DCC7967442238 /* XCRemoteSwiftPackageReference "SwiftGodot" */;
+			productName = SwiftGodot;
+		};
+		B7553C1F776068D5942CF3B4 /* SwiftGodotKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 548669B29A1A901155E5AA5E /* XCRemoteSwiftPackageReference "SwiftGodotKit" */;
+			productName = SwiftGodotKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 80CC27FBE25176098FED2368 /* Project object */;
+}

@@ -1,0 +1,190 @@
+[gd_scene format=3 uid="uid://c6wh1igc3iswb"]
+
+[ext_resource type="Script" uid="uid://dn71onwnib5tf" path="res://scenes/core_truths/core_truths.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://btdopdn4ank2j" path="res://resources/ancient_temple.glb" id="2"]
+[ext_resource type="Script" uid="uid://bqovv1awxmgft" path="res://scenes/core_truths/player_controller.gd" id="3"]
+
+[sub_resource type="Environment" id="1"]
+background_mode = 1
+background_color = Color(0.02, 0.025, 0.03, 1)
+ambient_light_source = 3
+ambient_light_color = Color(0.5, 0.55, 0.6, 1)
+ambient_light_energy = 0.8
+
+[sub_resource type="BoxShape3D" id="3"]
+size = Vector3(180, 1, 180)
+
+[sub_resource type="CapsuleShape3D" id="2"]
+radius = 0.35
+height = 1.2
+
+[sub_resource type="SphereShape3D" id="4"]
+radius = 0.6
+
+[sub_resource type="StandardMaterial3D" id="5"]
+albedo_color = Color(0.08, 0.95, 0.9, 1)
+emission_enabled = true
+emission = Color(0.08, 0.95, 0.9, 1)
+emission_energy_multiplier = 1.4
+
+[sub_resource type="SphereMesh" id="6"]
+material = SubResource("5")
+radius = 0.25
+height = 0.5
+
+[node name="CoreTruths" type="Node3D" unique_id=161350450]
+script = ExtResource("1")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1978765716]
+environment = SubResource("1")
+
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=588629885]
+transform = Transform3D(0.866025, -0.321394, 0.383022, 0, 0.766044, 0.642788, -0.5, -0.55667, 0.663414, 0, 18, 0)
+light_energy = 2.0
+shadow_enabled = true
+
+[node name="Temple" parent="." unique_id=357213418 instance=ExtResource("2")]
+transform = Transform3D(0.6, 0, 0, 0, 0.6, 0, 0, 0, 0.6, 0, 0, 0)
+
+[node name="GroundCollider" type="StaticBody3D" parent="." unique_id=792459812]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.11740711, 0)
+
+[node name="GroundColliderShape" type="CollisionShape3D" parent="GroundCollider" unique_id=468589958]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.6156386, 0)
+shape = SubResource("3")
+
+[node name="TabletRing" type="Node3D" parent="." unique_id=393467587]
+
+[node name="Player" type="CharacterBody3D" parent="." unique_id=2113267672]
+transform = Transform3D(0.9996439, 0, -0.026682917, 0, 1, 0, 0.026682917, 0, 0.9996439, 0, 0.6080936, 6.969077)
+script = ExtResource("3")
+
+[node name="PlayerCollisionShape" type="CollisionShape3D" parent="Player" unique_id=1264759400]
+shape = SubResource("2")
+
+[node name="Head" type="Node3D" parent="Player" unique_id=1582686191]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.65, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Player/Head" unique_id=784271147]
+current = true
+near = 0.03
+
+[node name="InteractRay" type="RayCast3D" parent="Player/Head" unique_id=1338069058]
+target_position = Vector3(0, 0, -3)
+
+[node name="HUD" type="CanvasLayer" parent="Player" unique_id=1007096781]
+
+[node name="Crosshair" type="Label" parent="Player/HUD" unique_id=770381025]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -10.0
+offset_top = -14.0
+offset_right = 10.0
+offset_bottom = 14.0
+theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+theme_override_font_sizes/font_size = 28
+text = "+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="InteractLabel" type="Label" parent="Player/HUD" unique_id=1688212969]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -220.0
+offset_top = -132.0
+offset_right = 220.0
+offset_bottom = -84.0
+theme_override_colors/font_color = Color(0.9, 1, 0.98, 1)
+theme_override_font_sizes/font_size = 24
+text = "Press E to interact"
+horizontal_alignment = 1
+
+[node name="TouchControls" type="Control" parent="Player/HUD" unique_id=1155048229]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 0.0
+offset_top = 0.0
+offset_right = 0.0
+offset_bottom = 0.0
+mouse_filter = 2
+
+[node name="MovePad" type="ColorRect" parent="Player/HUD/TouchControls" unique_id=352981281]
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = -272.0
+offset_right = 272.0
+offset_bottom = -32.0
+mouse_filter = 2
+color = Color(0.02, 0.08, 0.12, 0.22)
+
+[node name="MoveKnob" type="ColorRect" parent="Player/HUD/TouchControls/MovePad" unique_id=1043460846]
+offset_left = 72.0
+offset_top = 72.0
+offset_right = 168.0
+offset_bottom = 168.0
+mouse_filter = 2
+color = Color(0.08, 0.95, 0.9, 0.65)
+
+[node name="LookPad" type="ColorRect" parent="Player/HUD/TouchControls" unique_id=986708766]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -420.0
+offset_top = -424.0
+offset_right = -24.0
+offset_bottom = -32.0
+mouse_filter = 2
+color = Color(0.02, 0.08, 0.12, 0.12)
+
+[node name="JumpButton" type="Button" parent="Player/HUD/TouchControls" unique_id=441004795]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -232.0
+offset_top = -144.0
+offset_right = -24.0
+offset_bottom = -64.0
+theme_override_colors/font_color = Color(0.9, 1, 0.98, 1)
+theme_override_font_sizes/font_size = 24
+text = "Jump"
+
+[node name="InteractButton" type="Button" parent="Player/HUD/TouchControls" unique_id=1498727918]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -232.0
+offset_top = -240.0
+offset_right = -24.0
+offset_bottom = -160.0
+theme_override_colors/font_color = Color(0.9, 1, 0.98, 1)
+theme_override_font_sizes/font_size = 24
+text = "Interact"
+
+[node name="TempleInteraction" type="StaticBody3D" parent="." unique_id=393138370]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, -2)
+metadata/interact_text = "Press E to inspect the altar"
+metadata/on_interact_message = "The temple hums with ancient energy."
+
+[node name="TempleInteractionShape" type="CollisionShape3D" parent="TempleInteraction" unique_id=166481110]
+shape = SubResource("4")
+
+[node name="AltarMarker" type="MeshInstance3D" parent="TempleInteraction" unique_id=24817943]
+mesh = SubResource("6")
+
+[node name="TempleLight" type="OmniLight3D" parent="TempleInteraction" unique_id=1331241785]
+light_color = Color(0.1, 0.95, 0.9, 1)
+light_energy = 1.6
+shadow_enabled = true
+omni_range = 6.0

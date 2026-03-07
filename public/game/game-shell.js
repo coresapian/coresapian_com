@@ -1,7 +1,11 @@
 const canvas = document.getElementById("canvas");
 const ambientAudio = document.getElementById("ambient-audio");
 const statusOverlay = document.getElementById("status");
+const statusTitle = document.getElementById("status-title");
+const statusDetail = document.getElementById("status-detail");
 const statusProgress = document.getElementById("status-progress");
+const statusMeterFill = document.getElementById("status-meter-fill");
+const statusProgressLabel = document.getElementById("status-progress-label");
 const statusNotice = document.getElementById("status-notice");
 const toolbar = document.getElementById("immersive-toolbar");
 const rotateGate = document.getElementById("rotate-gate");
@@ -11,6 +15,13 @@ const rotateLaunch = document.getElementById("rotate-launch");
 const GODOT_CONFIG = window.__GODOT_CONFIG;
 const THREADS_ENABLED = false;
 const TOOLBAR_HIDE_DELAY_MS = 2600;
+const LOADING_STEPS = [
+  { max: 5, detail: "Preparing the entry sequence." },
+  { max: 25, detail: "Streaming world architecture." },
+  { max: 50, detail: "Binding sigils and shaders." },
+  { max: 75, detail: "Aligning motion and collision." },
+  { max: 100, detail: "Opening the temple gates." },
+];
 
 let initializing = true;
 let statusMode = "";
@@ -21,6 +32,53 @@ const trackedAudioContexts = new Set();
 
 function focusCanvas() {
   canvas?.focus();
+}
+
+function setStatusCopy(title, detail) {
+  if (statusTitle) {
+    statusTitle.textContent = title;
+  }
+
+  if (statusDetail) {
+    statusDetail.textContent = detail;
+  }
+}
+
+function setProgressPercent(percent) {
+  const clampedPercent = Math.max(0, Math.min(100, percent));
+
+  statusOverlay?.style.setProperty("--status-progress", `${clampedPercent}%`);
+
+  if (statusProgressLabel) {
+    statusProgressLabel.textContent = clampedPercent === 0
+      ? "SYNC"
+      : `${clampedPercent}%`;
+  }
+
+  if (statusMeterFill) {
+    statusMeterFill.style.width = `${clampedPercent}%`;
+  }
+}
+
+function getLoadingDetail(percent) {
+  return LOADING_STEPS.find((step) => percent <= step.max)?.detail
+    ?? LOADING_STEPS[LOADING_STEPS.length - 1].detail;
+}
+
+function updateLoadingProgress(current, total) {
+  if (current > 0 && total > 0) {
+    statusProgress.value = current;
+    statusProgress.max = total;
+    const percent = Math.round((current / total) * 100);
+    setProgressPercent(percent);
+    setStatusCopy("Opening the Temple", getLoadingDetail(percent));
+    return;
+  }
+
+  statusProgress.removeAttribute("value");
+  statusProgress.removeAttribute("max");
+  setProgressPercent(0);
+  setStatusCopy("Opening the Temple", "Preparing the entry sequence.");
 }
 
 function installAudioContextTracker(name) {
@@ -285,6 +343,7 @@ function setStatusMode(mode) {
     return;
   }
 
+  statusOverlay.dataset.mode = mode;
   statusOverlay.hidden = false;
   statusProgress.hidden = mode !== "progress";
   statusNotice.hidden = mode !== "notice";
@@ -302,6 +361,8 @@ function setStatusNotice(text) {
 
 function displayFailureNotice(error) {
   console.error(error);
+  setStatusCopy("Launch Interrupted", "The temple could not finish loading.");
+  setProgressPercent(0);
   if (error instanceof Error) {
     setStatusNotice(error.message);
   } else if (typeof error === "string") {
@@ -328,17 +389,13 @@ async function startGame() {
 
   const engine = new Engine(GODOT_CONFIG);
   setStatusMode("progress");
+  setStatusCopy("Opening the Temple", "Preparing the entry sequence.");
+  setProgressPercent(0);
 
   try {
     await engine.startGame({
       onProgress(current, total) {
-        if (current > 0 && total > 0) {
-          statusProgress.value = current;
-          statusProgress.max = total;
-        } else {
-          statusProgress.removeAttribute("value");
-          statusProgress.removeAttribute("max");
-        }
+        updateLoadingProgress(current, total);
       },
     });
     setStatusMode("hidden");

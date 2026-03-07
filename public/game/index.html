@@ -29,10 +29,30 @@
             Your browser does not support JavaScript.
           </noscript>
 
-          <div id="status">
-            <img id="status-splash" class="show-image--true fullsize--true use-filter--true" src="index.png" alt="">
-            <progress id="status-progress"></progress>
-            <div id="status-notice"></div>
+          <div id="status" data-mode="progress" role="status" aria-live="polite">
+            <div class="status-shell">
+              <div class="status-shell__sigil" aria-hidden="true">
+                <span class="status-shell__sigil-core">CORE</span>
+                <span class="status-shell__rune status-shell__rune--north">ᚲ</span>
+                <span class="status-shell__rune status-shell__rune--east">ᛟ</span>
+                <span class="status-shell__rune status-shell__rune--south">ᚱ</span>
+                <span class="status-shell__rune status-shell__rune--west">ᛖ</span>
+              </div>
+
+              <div class="status-shell__copy">
+                <p class="eyebrow">CoreSapian Temple</p>
+                <h2 id="status-title">Opening the Temple</h2>
+                <p id="status-detail" class="status-shell__detail">Preparing the entry sequence.</p>
+              </div>
+
+              <div class="status-shell__meter" aria-hidden="true">
+                <div id="status-meter-fill" class="status-shell__meter-fill"></div>
+              </div>
+
+              <progress id="status-progress" value="0" max="100">0%</progress>
+              <p id="status-progress-label" class="status-shell__progress-label">SYNC</p>
+              <div id="status-notice"></div>
+            </div>
           </div>
 
           <div id="immersive-toolbar" class="shell__toolbar" aria-label="Scene controls">

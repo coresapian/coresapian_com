@@ -1,11 +1,11 @@
+import { createLoadingCoreScene } from "./loading-core.js";
+
 const canvas = document.getElementById("canvas");
 const ambientAudio = document.getElementById("ambient-audio");
 const statusOverlay = document.getElementById("status");
-const statusTitle = document.getElementById("status-title");
-const statusDetail = document.getElementById("status-detail");
+const statusModel = document.getElementById("status-model");
 const statusProgress = document.getElementById("status-progress");
 const statusMeterFill = document.getElementById("status-meter-fill");
-const statusProgressLabel = document.getElementById("status-progress-label");
 const statusNotice = document.getElementById("status-notice");
 const toolbar = document.getElementById("immersive-toolbar");
 const rotateGate = document.getElementById("rotate-gate");
@@ -15,18 +15,12 @@ const rotateLaunch = document.getElementById("rotate-launch");
 const GODOT_CONFIG = window.__GODOT_CONFIG;
 const THREADS_ENABLED = false;
 const TOOLBAR_HIDE_DELAY_MS = 2600;
-const LOADING_STEPS = [
-  { max: 5, detail: "Preparing the entry sequence." },
-  { max: 25, detail: "Streaming world architecture." },
-  { max: 50, detail: "Binding sigils and shaders." },
-  { max: 75, detail: "Aligning motion and collision." },
-  { max: 100, detail: "Opening the temple gates." },
-];
 
 let initializing = true;
 let statusMode = "";
 let toolbarHideTimer = 0;
 let audioEnabled = true;
+let loadingCoreScene = null;
 
 const trackedAudioContexts = new Set();
 
@@ -34,13 +28,9 @@ function focusCanvas() {
   canvas?.focus();
 }
 
-function setStatusCopy(title, detail) {
-  if (statusTitle) {
-    statusTitle.textContent = title;
-  }
-
-  if (statusDetail) {
-    statusDetail.textContent = detail;
+function addEventListenerSafe(target, type, handler, options) {
+  if (target && typeof target.addEventListener === "function") {
+    target.addEventListener(type, handler, options);
   }
 }
 
@@ -49,20 +39,9 @@ function setProgressPercent(percent) {
 
   statusOverlay?.style.setProperty("--status-progress", `${clampedPercent}%`);
 
-  if (statusProgressLabel) {
-    statusProgressLabel.textContent = clampedPercent === 0
-      ? "SYNC"
-      : `${clampedPercent}%`;
-  }
-
   if (statusMeterFill) {
     statusMeterFill.style.width = `${clampedPercent}%`;
   }
-}
-
-function getLoadingDetail(percent) {
-  return LOADING_STEPS.find((step) => percent <= step.max)?.detail
-    ?? LOADING_STEPS[LOADING_STEPS.length - 1].detail;
 }
 
 function updateLoadingProgress(current, total) {
@@ -71,14 +50,12 @@ function updateLoadingProgress(current, total) {
     statusProgress.max = total;
     const percent = Math.round((current / total) * 100);
     setProgressPercent(percent);
-    setStatusCopy("Opening the Temple", getLoadingDetail(percent));
     return;
   }
 
   statusProgress.removeAttribute("value");
   statusProgress.removeAttribute("max");
   setProgressPercent(0);
-  setStatusCopy("Opening the Temple", "Preparing the entry sequence.");
 }
 
 function installAudioContextTracker(name) {
@@ -105,7 +82,7 @@ function installAudioContextTracker(name) {
 
 function registerAudioContext(context) {
   trackedAudioContexts.add(context);
-  context.addEventListener?.("statechange", updateSoundToggle);
+  addEventListenerSafe(context, "statechange", updateSoundToggle);
 
   if (!audioEnabled) {
     void suspendAudioContext(context);
@@ -338,6 +315,8 @@ function setStatusMode(mode) {
   }
 
   if (mode === "hidden") {
+    loadingCoreScene?.destroy();
+    loadingCoreScene = null;
     statusOverlay.hidden = true;
     initializing = false;
     return;
@@ -352,6 +331,10 @@ function setStatusMode(mode) {
 }
 
 function setStatusNotice(text) {
+  if (!statusNotice) {
+    return;
+  }
+
   statusNotice.replaceChildren();
 
   for (const line of String(text).split("\n")) {
@@ -361,7 +344,6 @@ function setStatusNotice(text) {
 
 function displayFailureNotice(error) {
   console.error(error);
-  setStatusCopy("Launch Interrupted", "The temple could not finish loading.");
   setProgressPercent(0);
   if (error instanceof Error) {
     setStatusNotice(error.message);
@@ -389,7 +371,6 @@ async function startGame() {
 
   const engine = new Engine(GODOT_CONFIG);
   setStatusMode("progress");
-  setStatusCopy("Opening the Temple", "Preparing the entry sequence.");
   setProgressPercent(0);
 
   try {
@@ -422,26 +403,35 @@ if (window.webkitAudioContext && window.webkitAudioContext !== window.AudioConte
   installAudioContextTracker("webkitAudioContext");
 }
 
-ambientAudio?.addEventListener("play", updateSoundToggle);
-ambientAudio?.addEventListener("pause", updateSoundToggle);
-ambientAudio?.addEventListener("ended", updateSoundToggle);
+if (statusModel) {
+  loadingCoreScene = createLoadingCoreScene({
+    container: statusModel,
+    assetUrl: "/game/abstract_core.glb",
+  });
 
-fullscreenToggle?.addEventListener("click", toggleFullscreen);
-soundToggle?.addEventListener("click", handleSoundToggle);
-rotateLaunch?.addEventListener("click", async () => {
+  void loadingCoreScene.start();
+}
+
+addEventListenerSafe(ambientAudio, "play", updateSoundToggle);
+addEventListenerSafe(ambientAudio, "pause", updateSoundToggle);
+addEventListenerSafe(ambientAudio, "ended", updateSoundToggle);
+
+addEventListenerSafe(fullscreenToggle, "click", toggleFullscreen);
+addEventListenerSafe(soundToggle, "click", handleSoundToggle);
+addEventListenerSafe(rotateLaunch, "click", async () => {
   await requestFullscreenLandscape();
   void attemptUserAudioActivation();
 });
 
-canvas?.addEventListener("pointerdown", handlePrimaryInteraction);
-canvas?.addEventListener("click", handlePrimaryInteraction);
-statusOverlay?.addEventListener("pointerdown", handlePrimaryInteraction);
-statusOverlay?.addEventListener("click", handlePrimaryInteraction);
+addEventListenerSafe(canvas, "pointerdown", handlePrimaryInteraction);
+addEventListenerSafe(canvas, "click", handlePrimaryInteraction);
+addEventListenerSafe(statusOverlay, "pointerdown", handlePrimaryInteraction);
+addEventListenerSafe(statusOverlay, "click", handlePrimaryInteraction);
 
-toolbar?.addEventListener("mouseenter", showToolbar);
-toolbar?.addEventListener("mouseleave", scheduleToolbarHide);
-toolbar?.addEventListener("focusin", showToolbar);
-toolbar?.addEventListener("focusout", scheduleToolbarHide);
+addEventListenerSafe(toolbar, "mouseenter", showToolbar);
+addEventListenerSafe(toolbar, "mouseleave", scheduleToolbarHide);
+addEventListenerSafe(toolbar, "focusin", showToolbar);
+addEventListenerSafe(toolbar, "focusout", scheduleToolbarHide);
 
 window.addEventListener("resize", updateOrientationGate);
 window.addEventListener("orientationchange", updateOrientationGate);

@@ -1,9 +1,3 @@
-@font-face {
-  font-family: "Doto";
-  src: url("/fonts/Doto/Doto-VariableFont_ROND.ttf") format("truetype");
-  font-display: swap;
-}
-
 :root {
   color-scheme: dark;
   --bg: #05080c;
@@ -11,7 +5,6 @@
   --panel-strong: rgba(8, 16, 22, 0.92);
   --line: rgba(89, 242, 211, 0.24);
   --accent: #63f7d1;
-  --accent-hot: #6fd8ff;
   --accent-soft: rgba(99, 247, 209, 0.16);
   --text: #eefcf8;
   --muted: #93b6bc;
@@ -126,111 +119,55 @@ p {
   display: grid;
   justify-items: center;
   gap: 1rem;
-  width: min(30rem, 100%);
+  width: min(24rem, 100%);
 }
 
-.status-shell__sigil {
+.status-shell__model {
   position: relative;
-  width: 8.5rem;
-  height: 8.5rem;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
+  width: min(20rem, calc(100vw - 6rem));
+  aspect-ratio: 1;
+  border-radius: 1.65rem;
   background:
-    radial-gradient(circle, rgba(111, 216, 255, 0.18), transparent 46%),
-    radial-gradient(circle, rgba(99, 247, 209, 0.18), rgba(4, 10, 14, 0.18) 62%, transparent 70%);
+    radial-gradient(circle, rgba(111, 216, 255, 0.12), transparent 42%),
+    radial-gradient(circle at center, rgba(99, 247, 209, 0.12), rgba(4, 10, 14, 0.2) 65%, transparent 76%);
+  overflow: hidden;
   box-shadow:
-    inset 0 0 2rem rgba(99, 247, 209, 0.12),
+    inset 0 0 2rem rgba(99, 247, 209, 0.1),
     0 0 3rem rgba(0, 0, 0, 0.3);
 }
 
-.status-shell__sigil::before,
-.status-shell__sigil::after {
+.status-shell__model::before,
+.status-shell__model::after {
   content: "";
   position: absolute;
-  inset: 0.5rem;
-  border-radius: 50%;
-  border: 1px solid rgba(99, 247, 209, 0.28);
+  inset: 0.8rem;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(99, 247, 209, 0.18);
+  pointer-events: none;
 }
 
-.status-shell__sigil::before {
-  border-style: solid;
-  box-shadow: inset 0 0 1rem rgba(99, 247, 209, 0.18);
-  animation: sigil-spin 8s linear infinite;
+.status-shell__model::after {
+  inset: 1.35rem;
+  border-color: rgba(111, 216, 255, 0.16);
 }
 
-.status-shell__sigil::after {
-  inset: 1.3rem;
-  border-style: dashed;
-  border-color: rgba(111, 216, 255, 0.36);
-  animation: sigil-spin-reverse 5.2s linear infinite;
+.status-shell__model canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
-.status-shell__sigil-core {
-  position: relative;
-  z-index: 1;
-  font-family: "Doto", "SFMono-Regular", monospace;
-  font-size: 1.35rem;
-  letter-spacing: 0.34em;
-  transform: translateX(0.18em);
-  color: var(--accent);
-  text-shadow:
-    0 0 0.75rem rgba(99, 247, 209, 0.4),
-    0 0 1.5rem rgba(111, 216, 255, 0.2);
-}
-
-.status-shell__rune {
+.status-shell__fallback-glow {
   position: absolute;
-  z-index: 1;
-  font-size: 1rem;
-  color: rgba(238, 252, 248, 0.82);
-  text-shadow: 0 0 1rem rgba(99, 247, 209, 0.28);
-  animation: rune-pulse 1.8s ease-in-out infinite;
-}
-
-.status-shell__rune--north {
-  top: 0.45rem;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.status-shell__rune--east {
-  right: 0.8rem;
-  top: 50%;
-  transform: translateY(-50%);
-  animation-delay: 0.25s;
-}
-
-.status-shell__rune--south {
-  bottom: 0.45rem;
-  left: 50%;
-  transform: translateX(-50%);
-  animation-delay: 0.5s;
-}
-
-.status-shell__rune--west {
-  left: 0.8rem;
-  top: 50%;
-  transform: translateY(-50%);
-  animation-delay: 0.75s;
-}
-
-.status-shell__copy {
-  display: grid;
-  gap: 0.35rem;
-}
-
-#status-title {
-  margin: 0;
-  font-size: clamp(1.9rem, 4vw, 2.8rem);
-  line-height: 0.96;
-  letter-spacing: 0.03em;
-}
-
-.status-shell__detail {
-  max-width: 24rem;
-  color: var(--muted);
-  line-height: 1.55;
+  inset: 12%;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(99, 247, 209, 0.48) 0%, rgba(111, 216, 255, 0.22) 18%, rgba(7, 16, 22, 0) 62%);
+  filter: blur(24px);
+  opacity: 0.72;
+  transform: scale(0.92);
+  animation: loader-glow 2.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .status-shell__meter {
@@ -248,7 +185,7 @@ p {
   height: 100%;
   border-radius: inherit;
   background:
-    linear-gradient(90deg, var(--accent) 0%, var(--accent-hot) 55%, #f6fff9 100%);
+    linear-gradient(90deg, var(--accent) 0%, #6fd8ff 55%, #f6fff9 100%);
   box-shadow:
     0 0 1.4rem rgba(111, 216, 255, 0.26),
     inset 0 0 0.65rem rgba(255, 255, 255, 0.35);
@@ -267,14 +204,6 @@ p {
   border: 0;
 }
 
-.status-shell__progress-label {
-  margin: 0;
-  font-family: "Doto", "SFMono-Regular", monospace;
-  font-size: 0.9rem;
-  letter-spacing: 0.28em;
-  color: rgba(238, 252, 248, 0.76);
-}
-
 #status-notice {
   max-width: 26rem;
   color: #ffd4c1;
@@ -287,18 +216,13 @@ p {
 }
 
 #status[data-mode="notice"] .status-shell__meter,
-#status[data-mode="notice"] .status-shell__progress-label {
+#status[data-mode="notice"] .status-shell__fallback-glow {
   display: none;
 }
 
-#status[data-mode="notice"] .status-shell__sigil::before,
-#status[data-mode="notice"] .status-shell__sigil::after {
-  border-color: rgba(255, 155, 108, 0.34);
-}
-
-#status[data-mode="notice"] .status-shell__sigil-core {
-  color: #ffc0a2;
-  text-shadow: 0 0 1rem rgba(255, 155, 108, 0.25);
+#status[data-mode="notice"] .status-shell__model::before,
+#status[data-mode="notice"] .status-shell__model::after {
+  border-color: rgba(255, 155, 108, 0.2);
 }
 
 .shell__toolbar {
@@ -384,37 +308,16 @@ code {
   line-height: 1.5;
 }
 
-@keyframes sigil-spin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes sigil-spin-reverse {
-  from {
-    transform: rotate(360deg);
-  }
-
-  to {
-    transform: rotate(0deg);
-  }
-}
-
-@keyframes rune-pulse {
+@keyframes loader-glow {
   0%,
   100% {
-    opacity: 0.45;
-    transform-origin: center;
-    filter: drop-shadow(0 0 0 rgba(111, 216, 255, 0));
+    opacity: 0.55;
+    transform: scale(0.9);
   }
 
   50% {
-    opacity: 1;
-    filter: drop-shadow(0 0 0.55rem rgba(111, 216, 255, 0.28));
+    opacity: 0.92;
+    transform: scale(1.02);
   }
 }
 
@@ -434,13 +337,8 @@ code {
     padding: 1.15rem;
   }
 
-  .status-shell__sigil {
-    width: 7.1rem;
-    height: 7.1rem;
-  }
-
-  #status-title {
-    font-size: clamp(1.65rem, 8vw, 2.2rem);
+  .status-shell__model {
+    width: min(18rem, calc(100vw - 4rem));
   }
 
   .shell__toolbar {

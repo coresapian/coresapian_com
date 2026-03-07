@@ -8,21 +8,19 @@
     <link rel="apple-touch-icon" href="index.apple-touch-icon.png">
     <link rel="stylesheet" href="./game-shell.css">
     <link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
-<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-
   </head>
   <body>
     <main class="shell">
-      <header class="shell__header">
-        <div>
-          <p class="eyebrow">CoreSapian Web</p>
-          <h1>Temple Experience</h1>
-        </div>
-        <button id="fullscreen-launch" class="shell__button" type="button">Enter Fullscreen</button>
-      </header>
-
       <section class="shell__stage">
         <div class="game-frame">
+          <audio
+            id="ambient-audio"
+            preload="metadata"
+            loop
+            playsinline
+            src="/orchastra-cinematic-001.mp3"
+          ></audio>
+
           <canvas id="canvas">
             Your browser does not support the canvas tag.
           </canvas>
@@ -35,6 +33,13 @@
             <img id="status-splash" class="show-image--true fullsize--true use-filter--true" src="index.png" alt="">
             <progress id="status-progress"></progress>
             <div id="status-notice"></div>
+          </div>
+
+          <div id="immersive-toolbar" class="shell__toolbar" aria-label="Scene controls">
+            <div class="shell__toolbar-pill">
+              <button id="sound-toggle" class="shell__button" type="button" aria-pressed="true">Sound</button>
+              <button id="fullscreen-toggle" class="shell__button" type="button">Fullscreen</button>
+            </div>
           </div>
         </div>
       </section>
